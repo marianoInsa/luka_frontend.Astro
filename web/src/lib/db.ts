@@ -1,5 +1,7 @@
 import postgres from 'postgres';
 
+import { envValue } from './env';
+
 export type Sql = ReturnType<typeof postgres>;
 
 let client: Sql | null = null;
@@ -8,15 +10,14 @@ let client: Sql | null = null;
  * Lazily creates the postgres.js client. The module is importable (and the
  * build stays green) without DATABASE_URL; the error only happens on first use.
  *
- * The URL is read from import.meta.env first (Astro/Vite loads web/.env there,
- * which covers `npm run dev`) and falls back to process.env, which the
- * standalone Node build and hosts like Render populate at runtime.
+ * `envValue` lee `process.env` (lo que cargan el server standalone, Render y
+ * `npm run dev` con `--env-file-if-exists=.env`) y cae a `import.meta.env`.
  * https://docs.astro.build/en/guides/environment-variables/
  */
 export function getDb(): Sql {
   if (client) return client;
 
-  const url = import.meta.env.DATABASE_URL ?? process.env.DATABASE_URL;
+  const url = envValue('DATABASE_URL');
   if (!url) {
     throw new Error(
       'DATABASE_URL is not set. Configure it as a server-only environment variable (never PUBLIC_).',
