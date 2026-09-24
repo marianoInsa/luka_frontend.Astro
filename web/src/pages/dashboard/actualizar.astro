@@ -1,0 +1,32 @@
+---
+import Stats from '../../components/Stats.astro';
+import {
+  getConsumoPresupuesto,
+  getPatrimonioNeto,
+  getSummaryStats,
+  getUserByAuthId,
+} from '../../lib/dashboard';
+import { defaultDateRange } from '../../lib/dates';
+import { getDb } from '../../lib/db';
+
+export const prerender = false;
+
+// Paridad con app/main.py:dashboard_actualizar: parcial de KPIs + HX-Trigger
+// para que el frontend redibuje gráficos y transacciones.
+const sql = getDb();
+const user = await getUserByAuthId(sql, Astro.locals.authUserId);
+if (!user) return Astro.redirect('/login', 303);
+
+const { from, to } = defaultDateRange(
+  Astro.url.searchParams.get('date_from'),
+  Astro.url.searchParams.get('date_to'),
+);
+
+const stats = await getSummaryStats(sql, user.id, from, to);
+const patrimonio = await getPatrimonioNeto(sql, user.id, from, to);
+const consumo = await getConsumoPresupuesto(sql, user.id, from, to);
+
+Astro.response.headers.set('HX-Trigger', 'actualizarGraficos');
+---
+
+<Stats stats={stats} patrimonio={patrimonio} consumo={consumo} />

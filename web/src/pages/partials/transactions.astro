@@ -1,0 +1,21 @@
+---
+import Transactions from '../../components/Transactions.astro';
+import { getRecentTransactions, getUserByAuthId } from '../../lib/dashboard';
+import { defaultDateRange } from '../../lib/dates';
+import { getDb } from '../../lib/db';
+
+export const prerender = false;
+
+// Paridad con app/main.py:partial_transactions: 15 movimientos del rango.
+const sql = getDb();
+const user = await getUserByAuthId(sql, Astro.locals.authUserId);
+if (!user) return Astro.redirect('/login', 303);
+
+const { from, to } = defaultDateRange(
+  Astro.url.searchParams.get('date_from'),
+  Astro.url.searchParams.get('date_to'),
+);
+const transactions = await getRecentTransactions(sql, user.id, 15, from, to);
+---
+
+<Transactions transactions={transactions} />

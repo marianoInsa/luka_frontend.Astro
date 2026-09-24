@@ -1,0 +1,14 @@
+---
+import Charts from '../../components/Charts.astro';
+import { getUserByAuthId } from '../../lib/dashboard';
+import { getDb } from '../../lib/db';
+
+export const prerender = false;
+
+// Paridad con app/main.py:partial_charts: requiere sesión, no consulta datos.
+const sql = getDb();
+const user = await getUserByAuthId(sql, Astro.locals.authUserId);
+if (!user) return Astro.redirect('/login', 303);
+---
+
+<Charts />

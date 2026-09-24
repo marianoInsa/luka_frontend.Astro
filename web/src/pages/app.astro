@@ -1,0 +1,463 @@
+---
+import '../../../static/css/style.css';
+import Charts from '../components/Charts.astro';
+import Icon from '../components/Icon.astro';
+import Stats from '../components/Stats.astro';
+import Transactions from '../components/Transactions.astro';
+import {
+  getBudgetsWithUsage,
+  getConsumoPresupuesto,
+  getPatrimonioNeto,
+  getRecentTransactions,
+  getSummaryStats,
+  getUserByAuthId,
+} from '../lib/dashboard';
+import { defaultDateRange } from '../lib/dates';
+import { getDb } from '../lib/db';
+import { isFlowAdmin } from '../lib/flow-admin';
+import { formatPlainInt } from '../lib/format';
+
+export const prerender = false;
+
+const sql = getDb();
+const user = await getUserByAuthId(sql, Astro.locals.authUserId);
+if (!user) return Astro.redirect('/login', 303);
+
+const { from, to } = defaultDateRange(
+  Astro.url.searchParams.get('date_from'),
+  Astro.url.searchParams.get('date_to'),
+);
+
+const stats = await getSummaryStats(sql, user.id, from, to);
+const transactions = await getRecentTransactions(sql, user.id, 15, from, to);
+const budgets = await getBudgetsWithUsage(sql, user.id, from, to);
+const patrimonio = await getPatrimonioNeto(sql, user.id, from, to);
+const consumo = await getConsumoPresupuesto(sql, user.id, from, to);
+
+const flowAdmin = isFlowAdmin(Astro.locals.authUserId);
+const whatsappLabel = user.whatsapp_id ? `+${user.whatsapp_id.slice(-4)}` : '+···';
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="LUKA — Tu asistente financiero personal. Visualizá tus gastos, presupuestos y metas desde cualquier lugar."
+    />
+    <title>LUKA · Dashboard</title>
+    <link rel="icon" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://unpkg.com/htmx.org@2.0.3" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js" defer></script>
+  </head>
+  <body>
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-logo">
+          <Icon name="logo_sidebar" />
+        </div>
+        <span class="brand-name">LUKA</span>
+      </div>
+
+      <nav class="sidebar-nav">
+        <a href="/app" class="nav-item active" id="nav-dashboard">
+          <Icon name="icon_nav_dashboard" />
+          <span>Dashboard</span>
+        </a>
+        {
+          flowAdmin && (
+            <a href="/admin/flujos" class="nav-item" id="nav-flows">
+              <Icon name="icon_tag_list" />
+              <span>Flujos</span>
+            </a>
+          )
+        }
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="user-badge">
+          <div class="user-avatar">
+            <Icon name="icon_user_avatar" />
+          </div>
+          <div class="user-info">
+            <span class="user-name">{whatsappLabel}</span>
+            <span class="user-label">WhatsApp</span>
+          </div>
+        </div>
+        <a href="/logout" class="logout-btn" id="btn-logout" title="Cerrar sesión">
+          <Icon name="icon_logout_sidebar" />
+        </a>
+      </div>
+    </aside>
+
+    <!-- Mobile header -->
+    <header class="mobile-header">
+      <button class="hamburger" id="hamburger" aria-label="Abrir menú">
+        <span></span><span></span><span></span>
+      </button>
+      <span class="mobile-brand">LUKA</span>
+      <a href="/logout" class="mobile-logout">
+        <Icon name="icon_logout_mobile" />
+      </a>
+    </header>
+
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+    <!-- Main content -->
+    <main class="main-content">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Dashboard</h1>
+          <p class="page-subtitle">Revisión completa de tu economía</p>
+        </div>
+        <!-- Date filters: HTMX updates stats, charts, and transactions -->
+        <form
+          class="filter-form"
+          hx-get="/dashboard/actualizar"
+          hx-target="#stats-section"
+          hx-swap="innerHTML"
+          hx-trigger="change"
+          id="filter-form"
+        >
+          <div class="filter-group">
+            <label for="date_from">Desde</label>
+            <input type="date" id="date_from" name="date_from" value={from ?? ''} />
+          </div>
+          <div class="filter-group">
+            <label for="date_to">Hasta</label>
+            <input type="date" id="date_to" name="date_to" value={to ?? ''} />
+          </div>
+        </form>
+      </div>
+
+      <!-- ── Stats Cards ── -->
+      <section id="stats-section">
+        <Stats stats={stats} patrimonio={patrimonio} consumo={consumo} />
+      </section>
+
+      <!-- ── Charts — grilla 2×2 superior + barra full-width ── -->
+      <section class="charts-grid-2x2" id="charts-section">
+        <Charts />
+      </section>
+
+      <!-- ── Metas Compartidas — placeholder ── -->
+      <section class="section-card section-card--placeholder" id="metas-section">
+        <h2 class="section-title">
+          <Icon name="icon_coming_soon" />
+          Metas compartidas
+          <span class="chip chip--soon">Próximamente</span>
+        </h2>
+        <div class="placeholder-body">
+          <Icon name="icon_placeholder" />
+          <p class="placeholder-title">Progreso de metas compartidas</p>
+          <p class="placeholder-desc">
+            Visualizá el avance de tus metas grupales y presupuestos compartidos.<br />
+            Esta funcionalidad estará disponible en una próxima versión.
+          </p>
+        </div>
+      </section>
+
+      <!-- ── Budget Bars ── -->
+      {
+        budgets.length > 0 && (
+          <section class="section-card" id="budgets-section">
+            <h2 class="section-title">
+              <Icon name="icon_history_nav" />
+              Presupuestos por categoría
+            </h2>
+            <div class="budgets-list">
+              {budgets.map((budget) => (
+                <div class="budget-item">
+                  <div class="budget-header">
+                    <div class="budget-name">
+                      <span class="cat-dot" style={`background:${budget.color}`} />
+                      {budget.category}
+                    </div>
+                    <div class="budget-amounts">
+                      <span class:list={['budget-spent', budget.over && 'over-budget']}>
+                        ${formatPlainInt(budget.spent)}
+                      </span>
+                      <span class="budget-limit"> / ${formatPlainInt(budget.limit)}</span>
+                    </div>
+                  </div>
+                  <div class="budget-bar-bg">
+                    <div
+                      class:list={['budget-bar-fill', budget.over && 'bar-over']}
+                      style={`width: ${budget.pct}%; background: ${budget.color};`}
+                      role="progressbar"
+                      aria-valuenow={budget.pct}
+                      aria-valuemin="0"
+                      aria-valuemax="100"
+                    >
+                    </div>
+                  </div>
+                  <div class="budget-meta">
+                    <span>{budget.pct}% utilizado</span>
+                    {budget.over ? (
+                      <span class="over-label">⚠ Excedido ${formatPlainInt(budget.spent - budget.limit)}</span>
+                    ) : (
+                      <span>Disponible: ${formatPlainInt(budget.remaining)}</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )
+      }
+
+      <!-- ── Recent Transactions ── -->
+      <section class="section-card" id="transactions-section">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+          <h2 class="section-title" style="margin-bottom: 0;">
+            <Icon name="icon_portfolio" />
+            Últimas transacciones
+          </h2>
+          <button type="button" class="btn-export" onclick="exportCSV()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+            </svg>
+            Exportar
+          </button>
+        </div>
+        <div id="transactions-list">
+          <Transactions transactions={transactions} />
+        </div>
+      </section>
+    </main>
+
+    <script is:inline>
+      // Mobile sidebar toggle
+      const hamburger = document.getElementById('hamburger');
+      const sidebar = document.getElementById('sidebar');
+      const overlay = document.getElementById('sidebar-overlay');
+      function toggleSidebar() {
+        sidebar.classList.toggle('open');
+        overlay.classList.toggle('visible');
+      }
+      hamburger?.addEventListener('click', toggleSidebar);
+      overlay?.addEventListener('click', toggleSidebar);
+    </script>
+    <script is:inline>
+      // Chart instances
+      let pieChart, flowChart, portfolioChart;
+
+      // ── Helpers ──────────────────────────────────────────────────────────────────
+      const CHART_DEFAULTS = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            labels: { color: '#94a3b8', font: { family: 'Inter', size: 12 }, padding: 14 }
+          },
+        },
+        scales: {
+          x: { ticks: { color: '#64748b', font: { family: 'Inter', size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+          y: { ticks: { color: '#64748b', font: { family: 'Inter', size: 11 }, callback: v => `$${Number(v).toLocaleString('es-AR')}` }, grid: { color: 'rgba(255,255,255,0.04)' } }
+        }
+      };
+
+      function moneyLabel(v) {
+        return ` $${Number(v).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
+      }
+
+      // ── Manejo de estados vacíos para gráficos ───────────────────────────────────
+      function handleEmptyChart(containerId, hasData) {
+        const container = document.getElementById(containerId);
+        if (!container) return false;
+
+        // Quitar mensaje anterior si existe
+        const existingMsg = container.querySelector('.chart-empty-msg');
+        if (existingMsg) existingMsg.remove();
+
+        const canvas = container.querySelector('canvas');
+        if (!hasData) {
+          if (canvas) canvas.style.display = 'none';
+          const msg = document.createElement('div');
+          msg.className = 'empty-state chart-empty-msg';
+          msg.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:100%;padding:0;';
+          msg.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48" style="opacity:0.5; margin-bottom:4px;">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"/>
+            </svg>
+            <p style="color:var(--text-secondary); font-weight:600; font-size:0.95rem; margin-bottom:4px;">Sin datos</p>
+            <p class="empty-hint">No hay movimientos para graficar en este rango.</p>
+          `;
+          container.style.position = 'relative';
+          container.appendChild(msg);
+          return true; // is empty
+        } else {
+          if (canvas) canvas.style.display = 'block';
+          return false; // has data
+        }
+      }
+
+      // ── Gráfico 1: Anillo — Gastos por Categoría ─────────────────────────────────
+      function buildPieChart(data) {
+        const ctx = document.getElementById('chart-pie');
+        if (!ctx) return;
+        if (pieChart) pieChart.destroy();
+        pieChart = new Chart(ctx, {
+          type: 'doughnut',
+          data: {
+            labels: data.map(d => d.category),
+            datasets: [{
+              data: data.map(d => d.total),
+              backgroundColor: data.map(d => d.color),
+              borderWidth: 0,
+              hoverOffset: 12,
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '72%',
+            plugins: {
+              legend: { position: 'bottom', labels: { color: '#94a3b8', font: { family: 'Inter', size: 12 }, padding: 16 } },
+              tooltip: { callbacks: { label: ctx => moneyLabel(ctx.parsed) } }
+            }
+          }
+        });
+      }
+
+      // ── Gráfico 2: Barras Apiladas — Cartera Multidivisa ─────────────────────────
+      function buildPortfolioChart(data) {
+        const ctx = document.getElementById('chart-portfolio');
+        if (!ctx) return;
+        if (portfolioChart) portfolioChart.destroy();
+        portfolioChart = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: data.map(d => d.month),
+            datasets: [
+              {
+                label: 'ARS',
+                data: data.map(d => d.ARS),
+                backgroundColor: 'rgba(99,102,241,0.75)',
+                borderRadius: 4,
+                borderSkipped: false,
+              },
+              {
+                label: 'USD (en ARS)',
+                data: data.map(d => d.USD),
+                backgroundColor: 'rgba(16,185,129,0.75)',
+                borderRadius: 4,
+                borderSkipped: false,
+              }
+            ]
+          },
+          options: {
+            ...CHART_DEFAULTS,
+            plugins: {
+              ...CHART_DEFAULTS.plugins,
+              legend: { ...CHART_DEFAULTS.plugins.legend, position: 'top' },
+              tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${moneyLabel(ctx.parsed.y)}` } }
+            },
+            scales: { ...CHART_DEFAULTS.scales }
+          }
+        });
+      }
+
+      // ── Gráfico 3: Barras Agrupadas — Ingresos vs Egresos mensual ───────────────
+      function buildFlowChart(data) {
+        const ctx = document.getElementById('chart-flow');
+        if (!ctx) return;
+        if (flowChart) flowChart.destroy();
+        flowChart = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: data.map(d => d.month),
+            datasets: [
+              {
+                label: 'Ingresos',
+                data: data.map(d => d.ingresos),
+                backgroundColor: 'rgba(20,184,166,0.80)',
+                borderRadius: 5,
+                borderSkipped: false,
+              },
+              {
+                label: 'Egresos',
+                data: data.map(d => d.egresos),
+                backgroundColor: 'rgba(236,72,153,0.75)',
+                borderRadius: 5,
+                borderSkipped: false,
+              }
+            ]
+          },
+          options: {
+            ...CHART_DEFAULTS,
+            plugins: {
+              ...CHART_DEFAULTS.plugins,
+              legend: { ...CHART_DEFAULTS.plugins.legend, position: 'top' },
+              tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${moneyLabel(ctx.parsed.y)}` } }
+            }
+          }
+        });
+      }
+
+      // ── Build all charts ─────────────────────────────────────────────────────────
+      async function fetchAndBuildCharts(from = '', to = '') {
+        try {
+          const [resCat, resPort, resFlow] = await Promise.all([
+            fetch(`/api/graficos/distribucion?date_from=${from}&date_to=${to}`),
+            fetch(`/api/graficos/cartera?date_from=${from}&date_to=${to}`),
+            fetch(`/api/graficos/flujo?date_from=${from}&date_to=${to}`),
+          ]);
+
+          if (resCat.ok && resPort.ok && resFlow.ok) {
+            const catData = await resCat.json();
+            const portData = await resPort.json();
+            const flowData = await resFlow.json();
+
+            const isCatEmpty = catData.length === 0 || catData.every(d => d.total === 0);
+            const isPortEmpty = portData.length === 0 || portData.every(d => d.ARS === 0 && d.USD === 0);
+            const isFlowEmpty = flowData.length === 0 || flowData.every(d => d.ingresos === 0 && d.egresos === 0);
+
+            if (!handleEmptyChart('card-pie', !isCatEmpty)) buildPieChart(catData);
+            if (!handleEmptyChart('card-portfolio', !isPortEmpty)) buildPortfolioChart(portData);
+            if (!handleEmptyChart('card-flow', !isFlowEmpty)) buildFlowChart(flowData);
+          } else {
+            console.error("Error fetching chart data");
+          }
+        } catch (err) {
+          console.error("Failed to load charts:", err);
+        }
+      }
+
+      // Initial render
+      document.addEventListener('DOMContentLoaded', () => {
+        const from = document.getElementById('date_from')?.value || '';
+        const to   = document.getElementById('date_to')?.value   || '';
+        fetchAndBuildCharts(from, to);
+      });
+
+      // Listen for the custom HTMX event triggered by the backend
+      document.body.addEventListener('actualizarGraficos', async function() {
+        const from = document.getElementById('date_from')?.value || '';
+        const to   = document.getElementById('date_to')?.value   || '';
+
+        // Fetch JSON data and build charts on the existing canvases
+        await fetchAndBuildCharts(from, to);
+
+        // Also refresh transactions
+        const txRes = await fetch(`/partials/transactions?date_from=${from}&date_to=${to}`);
+        document.getElementById('transactions-list').innerHTML = await txRes.text();
+      });
+
+      function exportCSV() {
+        const from = document.getElementById('date_from')?.value || '';
+        const to   = document.getElementById('date_to')?.value   || '';
+        window.location.href = `/exportar/csv?date_from=${from}&date_to=${to}`;
+      }
+    </script>
+  </body>
+</html>

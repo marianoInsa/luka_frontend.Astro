@@ -1,0 +1,56 @@
+---
+import type { RecentTransaction } from '../lib/dashboard';
+import { formatDecimals } from '../lib/format';
+import Icon from './Icon.astro';
+
+interface Props {
+  transactions: RecentTransaction[];
+}
+
+const { transactions } = Astro.props;
+---
+
+{
+  transactions.length > 0 ? (
+    <div class="tx-list">
+      {transactions.map((tx) => (
+        <div class="tx-row" id={`tx-${tx.id}`}>
+          <div class="tx-cat-icon" style={`background: ${tx.color}22; color: ${tx.color};`}>
+            {tx.tipo === 'ingreso' ? (
+              <Icon name="icon_arrow_up_right" />
+            ) : (
+              <Icon name="icon_tag_list" />
+            )}
+          </div>
+          <div class="tx-info">
+            <p class="tx-description">{tx.description}</p>
+            <p class="tx-meta">
+              <span
+                class="tx-category"
+                style={`color: ${tx.tipo === 'ingreso' ? '#64748b' : tx.color};`}
+              >
+                {tx.tipo === 'ingreso' && tx.category === 'Otro' ? 'Ingreso' : tx.category}
+              </span>
+              · {tx.date} a las {tx.time}
+            </p>
+          </div>
+          <div class="tx-amount" style={tx.tipo === 'ingreso' ? 'color: #10b981;' : undefined}>
+            {tx.tipo === 'ingreso' ? '+' : '-'}
+            {tx.moneda === 'USD' ? 'U$D' : '$'}
+            {formatDecimals(tx.amount)}
+          </div>
+        </div>
+      ))}
+    </div>
+  ) : (
+    <div class="empty-state" id="empty-transactions">
+      <div style="opacity:0.5; margin-bottom:4px; display:flex; justify-content:center;">
+        <Icon name="icon_empty_inbox" />
+      </div>
+      <p style="color:var(--text-secondary); font-weight:600; font-size:0.95rem; margin-bottom:4px;">
+        Sin transacciones
+      </p>
+      <p class="empty-hint">Enviá gastos a LUKA por WhatsApp para verlos acá.</p>
+    </div>
+  )
+}

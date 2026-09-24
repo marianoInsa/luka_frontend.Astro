@@ -1,0 +1,118 @@
+---
+import '../../../static/css/style.css';
+import Icon from '../components/Icon.astro';
+import { isValidDateParam } from '../lib/dates';
+import { getDb } from '../lib/db';
+import { consumeDashboardLoginToken } from '../lib/login';
+import { setSessionCookie } from '../lib/session';
+
+export const prerender = false;
+
+Astro.response.headers.set('Cache-Control', 'private, no-store');
+
+// Paridad con app/main.py:login_page: con ?token=… se consume el magic link y
+// se redirige a /app preservando date_from/date_to válidos; sin token (o con
+// token inválido) se muestra la página de instrucciones (con error si había token).
+const token = Astro.url.searchParams.get('token');
+let error = false;
+
+if (token) {
+  let authUserId: string | null = null;
+  try {
+    authUserId = await consumeDashboardLoginToken(getDb(), token);
+  } catch {
+    authUserId = null;
+  }
+
+  if (authUserId) {
+    const dateFrom = Astro.url.searchParams.get('date_from');
+    const dateTo = Astro.url.searchParams.get('date_to');
+    const validFrom = isValidDateParam(dateFrom) ? dateFrom : null;
+    const validTo = isValidDateParam(dateTo) ? dateTo : null;
+    // Python descarta AMBOS filtros si cualquiera es inválido.
+    const hasInvalidDate =
+      (dateFrom !== null && validFrom === null) || (dateTo !== null && validTo === null);
+
+    const params = new URLSearchParams();
+    if (!hasInvalidDate) {
+      if (validFrom !== null) params.set('date_from', validFrom);
+      if (validTo !== null) params.set('date_to', validTo);
+    }
+    const query = params.toString();
+
+    await setSessionCookie(Astro.cookies, authUserId);
+    return Astro.redirect(query ? `/app?${query}` : '/app', 303);
+  }
+
+  error = true;
+}
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="LUKA — Iniciá sesión con tu enlace de WhatsApp para acceder a tu dashboard financiero."
+    />
+    <title>LUKA · Iniciar Sesión</title>
+    <link rel="icon" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="login-body">
+    <div class="login-bg">
+      <div class="login-orb orb-1"></div>
+      <div class="login-orb orb-2"></div>
+      <div class="login-orb orb-3"></div>
+    </div>
+
+    <div class="login-container">
+      <div class="login-card">
+        <div class="login-logo">
+          <Icon name="logo_login" />
+        </div>
+        <h1 class="login-title">LUKA</h1>
+        <p class="login-subtitle">Tu asistente financiero personal</p>
+
+        {
+          error && (
+            <div class="login-alert" role="alert">
+              <Icon name="icon_alert" />
+              Enlace inválido o expirado. Solicitá uno nuevo en WhatsApp.
+            </div>
+          )
+        }
+
+        <div class="login-steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <p>Abrí <strong>WhatsApp</strong> y enviá el mensaje <code>/link</code> a LUKA</p>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <p>Hacé click en el enlace seguro que te envía el bot</p>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <p>¡Listo! Accedés automáticamente a tu dashboard</p>
+          </div>
+        </div>
+
+        <div class="login-divider"><span>o</span></div>
+
+        <a href="/dev-login" class="btn-dev-login" id="btn-dev-login">
+          <Icon name="icon_dev_mode" />
+          Entrar en modo desarrollo
+        </a>
+        <p class="login-dev-note">Solo disponible en local / staging</p>
+      </div>
+    </div>
+  </body>
+</html>

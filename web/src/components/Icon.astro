@@ -1,0 +1,60 @@
+---
+import iconActivity from '../../../app/templates/components/icons/icon_activity.svg?raw';
+import iconAlert from '../../../app/templates/components/icons/icon_alert.svg?raw';
+import iconArrowUpRight from '../../../app/templates/components/icons/icon_arrow_up_right.svg?raw';
+import iconBarChart from '../../../app/templates/components/icons/icon_bar_chart.svg?raw';
+import iconComingSoon from '../../../app/templates/components/icons/icon_coming_soon.svg?raw';
+import iconDevMode from '../../../app/templates/components/icons/icon_dev_mode.svg?raw';
+import iconDollar from '../../../app/templates/components/icons/icon_dollar.svg?raw';
+import iconEmptyInbox from '../../../app/templates/components/icons/icon_empty_inbox.svg?raw';
+import iconHistoryNav from '../../../app/templates/components/icons/icon_history_nav.svg?raw';
+import iconHistoryStats from '../../../app/templates/components/icons/icon_history_stats.svg?raw';
+import iconLogoutMobile from '../../../app/templates/components/icons/icon_logout_mobile.svg?raw';
+import iconLogoutSidebar from '../../../app/templates/components/icons/icon_logout_sidebar.svg?raw';
+import iconNavDashboard from '../../../app/templates/components/icons/icon_nav_dashboard.svg?raw';
+import iconPieChart from '../../../app/templates/components/icons/icon_pie_chart.svg?raw';
+import iconPlaceholder from '../../../app/templates/components/icons/icon_placeholder.svg?raw';
+import iconPortfolio from '../../../app/templates/components/icons/icon_portfolio.svg?raw';
+import iconStreak from '../../../app/templates/components/icons/icon_streak.svg?raw';
+import iconTagList from '../../../app/templates/components/icons/icon_tag_list.svg?raw';
+import iconTagStats from '../../../app/templates/components/icons/icon_tag_stats.svg?raw';
+import iconTrendUp from '../../../app/templates/components/icons/icon_trend_up.svg?raw';
+import iconUserAvatar from '../../../app/templates/components/icons/icon_user_avatar.svg?raw';
+import logoLogin from '../../../app/templates/components/icons/logo_login.svg?raw';
+import logoSidebar from '../../../app/templates/components/icons/logo_sidebar.svg?raw';
+
+// Reutiliza los mismos SVG que los `{% include %}` de Jinja (fuente única).
+const ICONS = {
+  icon_activity: iconActivity,
+  icon_alert: iconAlert,
+  icon_arrow_up_right: iconArrowUpRight,
+  icon_bar_chart: iconBarChart,
+  icon_coming_soon: iconComingSoon,
+  icon_dev_mode: iconDevMode,
+  icon_dollar: iconDollar,
+  icon_empty_inbox: iconEmptyInbox,
+  icon_history_nav: iconHistoryNav,
+  icon_history_stats: iconHistoryStats,
+  icon_logout_mobile: iconLogoutMobile,
+  icon_logout_sidebar: iconLogoutSidebar,
+  icon_nav_dashboard: iconNavDashboard,
+  icon_pie_chart: iconPieChart,
+  icon_placeholder: iconPlaceholder,
+  icon_portfolio: iconPortfolio,
+  icon_streak: iconStreak,
+  icon_tag_list: iconTagList,
+  icon_tag_stats: iconTagStats,
+  icon_trend_up: iconTrendUp,
+  icon_user_avatar: iconUserAvatar,
+  logo_login: logoLogin,
+  logo_sidebar: logoSidebar,
+} as const;
+
+interface Props {
+  name: keyof typeof ICONS;
+}
+
+const { name } = Astro.props;
+---
+
+<Fragment set:html={ICONS[name]} />

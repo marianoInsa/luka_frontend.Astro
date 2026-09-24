@@ -1,0 +1,119 @@
+---
+import type { ConsumoPresupuesto, PatrimonioNeto, SummaryStats } from '../lib/dashboard';
+import { formatDecimals, formatInt } from '../lib/format';
+import Icon from './Icon.astro';
+
+interface Props {
+  stats: SummaryStats;
+  patrimonio: PatrimonioNeto;
+  consumo: ConsumoPresupuesto;
+}
+
+const { stats, patrimonio, consumo } = Astro.props;
+
+const hasData = stats.transaction_count > 0;
+const patrimonioColor = !hasData ? '#94a3b8' : patrimonio.is_positive ? '#10b981' : '#f87171';
+const consumoColor = !hasData
+  ? '#94a3b8'
+  : consumo.over
+    ? '#f87171'
+    : consumo.pct > 80
+      ? '#f59e0b'
+      : '#6366f1';
+const consumoOver = consumo.over === true;
+---
+
+<div class="stats-grid">
+
+  <!-- KPI 1: Patrimonio Neto -->
+  <div class="stat-card stat-card--highlight" id="stat-patrimonio">
+    <div class="stat-icon" style={`--icon-color: ${patrimonioColor};`}>
+      <Icon name="icon_trend_up" />
+    </div>
+    <div class="stat-body">
+      <p class="stat-label">Patrimonio Neto</p>
+      <p
+        class:list={[
+          'stat-value',
+          !hasData && 'stat-value--muted',
+          hasData && !patrimonio.is_positive && 'stat-value--negative',
+        ]}
+      >
+        {hasData ? `${patrimonio.is_positive ? '+' : ''}$${formatInt(patrimonio.total_ars)}` : 'Sin datos'}
+      </p>
+    </div>
+  </div>
+
+  <!-- KPI 2: Cotización USD -->
+  <div class="stat-card" id="stat-cotizacion">
+    <div class="stat-icon" style="--icon-color: #10b981;">
+      <Icon name="icon_dollar" />
+    </div>
+    <div class="stat-body">
+      <p class="stat-label">Cotización USD</p>
+      <p class="stat-value">${formatDecimals(patrimonio.usd_rate, 2)}</p>
+    </div>
+  </div>
+
+  <!-- KPI 3: Consumo de Presupuesto -->
+  <div class="stat-card" id="stat-consumo">
+    <div class="stat-icon" style={`--icon-color: ${consumoColor};`}>
+      <Icon name="icon_history_stats" />
+    </div>
+    <div class="stat-body stat-body--full">
+      <div class="stat-row">
+        <p class="stat-label">Presupuesto</p>
+        <p class:list={['stat-value', !hasData && 'stat-value--muted']}>
+          {hasData ? `${consumo.pct}%` : 'Sin datos'}
+        </p>
+      </div>
+      <div class="kpi-bar-bg">
+        <div
+          class:list={['kpi-bar-fill', consumoOver && 'kpi-bar--over', !consumoOver && consumo.pct > 80 && 'kpi-bar--warn']}
+          style={`width: ${hasData ? consumo.pct : 0}%`}
+        >
+        </div>
+      </div>
+      <p class="stat-hint">
+        {
+          hasData ? (
+            <>
+              ${formatInt(consumo.spent)} / ${formatInt(consumo.limit)}
+              {consumo.limit === 0 && <span class="stat-badge stat-badge--soon">Próximamente</span>}
+              {consumoOver && <span class="stat-badge stat-badge--danger">Excedido</span>}
+            </>
+          ) : (
+            '—'
+          )
+        }
+      </p>
+    </div>
+  </div>
+
+  <!-- KPI 4: Días de Racha -->
+  <div class="stat-card stat-card--placeholder" id="stat-racha">
+    <div class="stat-icon" style="--icon-color: #f59e0b;">
+      <Icon name="icon_streak" />
+    </div>
+    <div class="stat-body">
+      <p class="stat-label">Días de racha</p>
+      <p class="stat-value stat-value--muted">—</p>
+      <p class="stat-hint"><span class="stat-badge stat-badge--soon">Próximamente</span></p>
+    </div>
+  </div>
+
+  <!-- KPI 6: Categoría Top -->
+  <div class="stat-card" id="stat-category">
+    <div class="stat-icon" style={`--icon-color: ${hasData ? '#8b5cf6' : '#94a3b8'};`}>
+      <Icon name="icon_tag_stats" />
+    </div>
+    <div class="stat-body">
+      <p class="stat-label">Categoría top</p>
+      <p class:list={['stat-value', !hasData && 'stat-value--muted']}>
+        {hasData && stats.top_category !== '—' ? stats.top_category : 'Sin datos'}
+      </p>
+      <p class="stat-hint"><span class="stat-badge stat-badge--soon">Próximamente</span></p>
+    </div>
+  </div>
+
+</div>
