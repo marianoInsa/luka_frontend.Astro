@@ -1,7 +1,7 @@
 # web/ — Frontend Astro (migración)
 
 Reemplazo en Astro del frontend actual de FastAPI + Jinja2 + HTMX. Este directorio
-corresponde a la fase **F0** (scaffold) del plan de migración:
+corresponde a las fases **F0** (scaffold) y **F1** (landing) del plan de migración:
 `docs/migracion-astro/00-plan-limpieza-preparacion.md` §7.
 
 Durante la migración, FastAPI (`app/`) sigue siendo el servicio de producción;
@@ -39,10 +39,15 @@ Ver `web/.env.example`: `APP_ENV`, `APP_BASE_URL`, `AUTH_COOKIE_SECURE`,
 
 ## Estructura
 
-- `src/pages/`: rutas de Astro.
+- `src/pages/`: `index.astro` es la landing pública (prerenderizada y sin JS; el SEO
+  —title, description, canonical y Open Graph— vive ahí). `robots.txt.ts` y
+  `sitemap.xml.ts` son endpoints también prerenderizados.
 - `src/styles/`: `global.css` importa los tokens canónicos desde
   `docs/marca/tokens/tokens.css` (fuente única de verdad de la marca).
 - `publicDir`: apunta a `../public/` (los assets de marca viven una sola vez en el repo).
+
+`site` (canonical/OG/sitemap) sale de `APP_BASE_URL` y cae a `http://localhost:4321`
+si no está definida.
 
 ## Deuda conocida
 

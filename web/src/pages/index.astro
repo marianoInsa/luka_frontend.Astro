@@ -1,5 +1,14 @@
 ---
 import '../styles/global.css';
+
+export const prerender = true;
+
+const title = 'LUKA — Hacete cargo de tu plata sin planillas ni culpa';
+const description =
+  'Luka es tu asistente financiero por WhatsApp: anotá tus gastos como hablás y consultá balances, límites y gráficos sin planillas ni culpa.';
+const canonical = new URL(Astro.url.pathname, Astro.site);
+const ogImage = new URL('/favicon-512.png', Astro.site);
+const year = new Date().getFullYear();
 ---
 
 <!doctype html>
@@ -7,8 +16,17 @@ import '../styles/global.css';
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>LUKA</title>
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogImage} />
+    <meta name="twitter:card" content="summary_large_image" />
     <link rel="icon" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -17,26 +35,147 @@ import '../styles/global.css';
     />
   </head>
   <body>
-    <header>
-      <img src="/logo-luka.svg" alt="LUKA" width="120" />
-    </header>
+    <main>
+      <section class="hero" aria-labelledby="claim">
+        <img class="logo" src="/logo-luka.svg" alt="LUKA" width="72" height="64" />
+        <h1 id="claim">Hacete cargo de tu plata sin planillas ni culpa</h1>
+        <p class="subclaim">
+          Escribile tus gastos como hablás y Luka los ordena: categorías, límites y balances
+          cuando los pedís.
+        </p>
+        <a class="cta" href="/app">Accedé a tu dashboard</a>
+      </section>
 
-    <section>
-      <h1>LUKA — tema oscuro (por defecto)</h1>
-      <div class="card">
-        <h2>Card oscura</h2>
-        <p>Superficie, borde y radio definidos por tokens.</p>
-        <p class="tabular">$ 1.234.567,89</p>
-      </div>
-    </section>
+      <section class="how" aria-labelledby="how-title">
+        <h2 id="how-title">Cómo funciona</h2>
+        <ul class="props">
+          <li class="prop">
+            <h3>Escribí tu gasto</h3>
+            <p>Un mensaje como «Gasté 5000 en nafta». Sin formularios.</p>
+          </li>
+          <li class="prop">
+            <h3>Luka lo ordena</h3>
+            <p>Lo clasifica por categoría y te confirma el registro al instante.</p>
+          </li>
+          <li class="prop">
+            <h3>Consultá cuando quieras</h3>
+            <p>Balances, límites y gráficos por WhatsApp, o desde el dashboard.</p>
+          </li>
+        </ul>
+      </section>
+    </main>
 
-    <section data-theme="light">
-      <h2>Tema claro</h2>
-      <div class="card">
-        <h3>Card clara</h3>
-        <p>Los overrides de [data-theme="light"] cascadean en este subárbol.</p>
-        <p class="tabular">$ 1.234.567,89</p>
-      </div>
-    </section>
+    <footer>
+      <p>LUKA © {year}</p>
+    </footer>
+
+    <style>
+      main {
+        max-width: 960px;
+        margin: 0 auto;
+        padding: var(--space-16) var(--space-6) 0;
+      }
+
+      .hero {
+        max-width: 720px;
+        margin: 0 auto var(--space-16);
+        padding: var(--space-16) var(--space-6);
+        text-align: center;
+        background: var(--gradient-brand-soft);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-xl);
+      }
+
+      .logo {
+        width: 72px;
+        height: auto;
+      }
+
+      h1 {
+        font: var(--text-display-lg);
+        color: var(--text-primary);
+        margin: var(--space-6) 0 0;
+      }
+
+      .subclaim {
+        font: var(--text-body-lg);
+        color: var(--text-secondary);
+        margin: var(--space-4) auto 0;
+        max-width: 52ch;
+      }
+
+      .cta {
+        display: inline-block;
+        margin-top: var(--space-8);
+        padding: var(--space-3) var(--space-8);
+        background: var(--action);
+        color: var(--on-action);
+        border-radius: var(--radius-full);
+        font: var(--text-heading-md);
+        text-decoration: none;
+        transition: background var(--duration-fast) var(--ease-out);
+      }
+
+      .cta:hover {
+        background: var(--action-hover);
+      }
+
+      .cta:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+
+      .how h2 {
+        font: var(--text-display-md);
+        margin: 0 0 var(--space-8);
+      }
+
+      .props {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: var(--space-4);
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+
+      @media (min-width: 720px) {
+        .props {
+          grid-template-columns: repeat(3, 1fr);
+        }
+      }
+
+      .prop {
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: var(--space-6);
+        box-shadow: var(--shadow-card);
+      }
+
+      .prop h3 {
+        font: var(--text-heading-md);
+        margin: 0 0 var(--space-2);
+      }
+
+      .prop p {
+        font: var(--text-body-md);
+        color: var(--text-secondary);
+        margin: 0;
+      }
+
+      footer {
+        margin-top: var(--space-16);
+        padding: var(--space-8) var(--space-6);
+        border-top: 1px solid var(--border);
+        text-align: center;
+      }
+
+      footer p {
+        font: var(--text-caption);
+        color: var(--text-muted);
+        margin: 0;
+      }
+    </style>
   </body>
 </html>
