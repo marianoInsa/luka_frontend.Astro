@@ -4,7 +4,7 @@
 |---|---|
 | **Fecha** | 2026-09-24 |
 | **Rama** | `migration` |
-| **Fase en curso** | F3 cerrado (código + validación local) y commiteado. Próxima fase: **F4 (admin)**; el deploy y el cutover de F1-F3 quedaron diferidos hasta terminarlo (decisión 2026-09-24). |
+| **Fase en curso** | F4 cerrado (código + validación local con backend mock). Próxima etapa: **deploy de `web/` y cutover de F1-F4** (decisión 2026-09-24: un solo deploy y una sola ventana de rollback). |
 | **Plan** | `00-plan-limpieza-preparacion.md` (v2.0) |
 | **Contrato de paridad** | `01-inventario-paridad.md` (v1.1) |
 
@@ -15,17 +15,19 @@ hecho, qué falta, cómo levantar el entorno y qué no hay que romper.
 
 ## 1. Resumen para retomar en 30 segundos
 
-- **F0, F1, F2 y F3 tienen el código completo.** F1, F2 y F3 además están validados de punta a
-  punta en local contra la base real de Supabase.
+- **F0, F1, F2, F3 y F4 tienen el código completo.** F1, F2 y F3 están validados de punta a
+  punta en local contra la base real de Supabase; F4 se validó en local con un backend mock que
+  replica el contrato de la API de flujos.
 - `web/` (Astro SSR) ya sirve: landing `/` (prerender, 0 KB JS), `robots.txt`, `sitemap.xml`,
   `/registro`, `/auth/google`, `/auth/callback`, `/registro/continuar`, `/registro/finalizar`,
   `/login`, `/logout`, `/dev-login`, `/app`, `/dashboard/actualizar`, `/partials/{charts,transactions}`,
-  `/api/graficos/*` y `/exportar/csv`.
+  `/api/graficos/*`, `/exportar/csv`, `/admin/flujos*` (listado + editor) y
+  `/admin/flujos/api/*` (6 proxies).
 - **FastAPI sigue sirviendo todo lo demás** (`/app`, `/login`, `/logout`, `/dev-login`,
   `/api/graficos/*`, `/exportar/csv`, `/partials/*`, `/admin/flujos*`) y actúa de **facade** hacia
   Astro según `ASTRO_MIGRATED_PATHS`.
-- **Próximo trabajo:** **F4 (panel de flujos)** — ver §9. Con F4 listo se despliega `web/` y se hace
-  el cutover de F1-F3 por etapas (el parallel run de F3 ya se hizo en local, §5.3).
+- **Próximo trabajo:** desplegar `web/` y hacer el cutover de F1-F4 por etapas (los paths de F4
+  son `/admin/`; ver §9). El parallel run de F3 ya se hizo en local (§5.3) y el E2E de F4 en §9.
 
 ## 2. Estado por fase
 
@@ -35,7 +37,7 @@ hecho, qué falta, cómo levantar el entorno y qué no hay que romper.
 | **F1** landing + facade | ✅ Código · ⏳ deploy | Landing prerender con SEO; facade `app/proxy.py` (`ASTRO_ORIGIN`, `ASTRO_MIGRATED_PATHS`, no-op por defecto, reescritura de `Origin`, streaming, 502); `/` → `/app`; cookie `luka_session` con `Secure` en producción. Validado con Playwright el 2026-09-24 | Deploy de `web/`; cargar `ASTRO_ORIGIN` + `ASTRO_MIGRATED_PATHS` en Render; dominio canónico |
 | **F2** onboarding | ✅ Código · ⏳ cutover | Data layer `postgres.js` (`web/src/lib/onboarding.ts`); páginas/endpoints de registro con `@supabase/ssr` (PKCE) y cookies firmadas propias; 123 tests web + integración real del happy path; E2E de navegador hasta el redirect de Google | Deploy de `web/`; Redirect URLs de Supabase en prod; cutover (`/registro,/auth` ya en `.env.example`) |
 | **F3** sesión + dashboard | ✅ Código · ⏳ cutover | `session.ts` byte-compatible (vectores Python↔Astro), `/login`/`/logout`/`/dev-login`, `/app` con Chart.js + HTMX y los 3 parciales, 3 APIs de gráficos, CSV keyset; 188 tests web (169 herméticos + 19 de integración) y parallel run local sin diferencias de negocio | Deploy de `web/`; cutover (`/app,/login,/logout,/dev-login,/api/graficos/,/exportar/,/dashboard/,/partials/`); ventana de rollback |
-| **F4** admin | Pendiente | — | Panel `/admin/flujos*` + proxy con `FLOW_ADMIN_API_KEY` |
+| **F4** admin | ✅ Código · ⏳ cutover | Páginas `/admin/flujos*` con sidebar compartido; cliente `web/src/lib/flow-admin.ts`, 6 proxies JSON en `web/src/pages/admin/flujos/api/*` y editor portado a TS (`web/src/scripts/admin-flows.ts`); 215 tests hermeticos + 21 de integración (gated) y E2E Playwright local con backend mock (§9) | Deploy de `web/`; cutover (`/admin/`); ventana de rollback |
 | **F5** contract | Pendiente | — | Retiro de FastAPI, facade y código transitorio |
 
 ## 3. Cómo levantar el entorno local
@@ -205,8 +207,8 @@ FastAPI en `:8001`:
 
 ## 6. Operativo pendiente (deploys)
 
-**Secuencia decidida (2026-09-24):** terminar F4 y recién después desplegar `web/` y cortar
-F1-F3 (un solo deploy y una sola ventana de rollback). Al retomar el deploy, hacerlo por etapas
+**Secuencia decidida (2026-09-24):** desplegar `web/` y cortar F1-F4 en etapas (un solo deploy y
+una sola ventana de rollback), ahora que F4 cerró. Al retomar el deploy, hacerlo por etapas
 según el plan (`00` §3.4).
 
 - **`web/` en Render:** Web Service Node (decisión cerrada). Build `npm ci && npm run build`; start
@@ -214,9 +216,9 @@ según el plan (`00` §3.4).
   `PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SECRET_KEY`, `APP_ENV=production`, `APP_BASE_URL=<dominio>`,
   `AUTH_COOKIE_SECURE=true`.
 - **Servicio FastAPI en Render:** cargar `ASTRO_ORIGIN` (URL del servicio Astro) y
-  `ASTRO_MIGRATED_PATHS`. Al cortar F3, sumar los paths de §5.8 al valor de F1/F2.
-  `ENABLE_MOCK_AUTH`/`MOCK_AUTH_USER_ID` no deben ir a producción (`APP_ENV=production` ya fuerza
-  el 404 de `/dev-login`).
+  `ASTRO_MIGRATED_PATHS`. Al cortar, sumar a las etapas de F1/F2 los paths de F3 (checklist §5)
+  y `/admin/` de F4 (§9). `ENABLE_MOCK_AUTH`/`MOCK_AUTH_USER_ID` no deben ir a producción
+  (`APP_ENV=production` ya fuerza el 404 de `/dev-login`).
 - **Supabase → Auth → URL Configuration:** agregar `<APP_BASE_URL>/auth/callback` de producción.
 - **Dominio canónico** (`APP_BASE_URL` de producción): pendiente de decisión.
 
@@ -228,8 +230,15 @@ según el plan (`00` §3.4).
   registro (se borra al finalizar).
 - **HTMX y los 3 parciales se mantienen** (paridad 1:1).
 - El **middleware** de Astro exige sesión en `/app`, `/dashboard`, `/partials`, `/api/graficos`,
-  `/exportar` (303 a `/login`); `/login`, `/logout`, `/dev-login`, la landing y el registro son
-  públicos.
+  `/exportar` y `/admin` (303 a `/login`); `/login`, `/logout`, `/dev-login`, la landing y el
+  registro son públicos.
+- El editor del panel admin vive en `web/src/scripts/admin-flows.ts` (port TS de
+  `static/js/admin_flows.js`); el JS original queda en `static/` para FastAPI hasta F5, no se
+  toca.
+- `AdminLayout` importa `static/css/style.css` + `static/css/admin_flows.css` (cross-root, misma
+  deuda que el dashboard); mantener ese orden.
+- El gate del panel usa la misma allowlist que Python (`FLOW_ADMIN_AUTH_USER_IDS`, CSV
+  case-insensitive) y la clave `FLOW_ADMIN_API_KEY` nunca debe llegar al navegador.
 - El formato de `luka_session` está clavado por vectores: si se toca `session.ts`, regenerar con
   `tests/generate_session_vectors.py` y correr Vitest + `tests/test_session_vectors.py`.
 - `web/vitest.setup.ts` copia **solo `DATABASE_URL`** del `.env` raíz (para los tests gated);
@@ -241,25 +250,43 @@ según el plan (`00` §3.4).
 ## 8. Estado de git (al 2026-09-24)
 
 - Rama `migration` (renombrada desde `feature/f0-scaffold-astro-web`; existe `origin/migration`).
-- F3 quedó en commits locales ordenados sobre `migration` (sesión, capa de datos, entorno de dev,
-  rutas/vistas, docs). **Falta `git push`** (no fue pedido).
+- F3 y F4 quedaron en commits ordenados sobre `migration`. **Falta `git push`** (no fue pedido).
 - Verificar con: `git log --oneline origin/migration..HEAD` y `git status --short`.
 
-## 9. Próxima sesión: F4 (panel de flujos)
+## 9. F4 (panel de flujos): cerrado
 
-Alcance detallado en `00` §7-F4; punteros concretos:
+Cerrado el 2026-09-24 y validado en local con un backend mock que replica el contrato de la API
+de flujos (Playwright). El cutover (`/admin/` en `ASTRO_MIGRATED_PATHS`) queda para la etapa de
+deploy, junto con F1-F3.
 
-1. Páginas `/admin/flujos` (listado), `/admin/flujos/nuevo` y `/admin/flujos/[flow_id]` (editor) —
-   plantillas de referencia `app/templates/admin_flows.html` y `admin_flow_editor.html`. El nav de
-   `/app` ya muestra "Flujos" cuando `isFlowAdmin` (`web/src/lib/flow-admin.ts`).
-2. Proxies JSON: validar, crear (201), guardar/descartar borrador, publicar y retirar — contrato y
-   forma de errores de `app/services/conversation_flow_admin.py`
-   (`FlowAdminAPIError` → `{message, errors}`). `FLOW_ADMIN_API_KEY` solo en runtime server.
-3. Portar `static/js/admin_flows.js` (comportamiento del editor) y `static/css/admin_flows.css`.
-4. Portar `tests/test_conversation_flow_admin.py` (7): gate 403, listado/editor, proxies, no
-   filtración del secreto, errores de validación.
-5. Criterios de salida: mismo contrato JSON, secreto solo server-side, 403 a no autorizados.
-   No cortar `/admin/` en `ASTRO_MIGRATED_PATHS` hasta la etapa de deploy.
+1. Páginas `/admin/flujos` (listado), `/admin/flujos/nuevo` y `/admin/flujos/[flow_id]` (editor),
+   con el gate de allowlist de FastAPI (sesión → `isFlowAdmin` → 403
+   `{"detail":"Acceso administrativo requerido"}` sin llamar al backend) y la misma página de
+   error (la lista con alerta y el status del backend, o 503) — también en las rutas de editor.
+2. Cliente `web/src/lib/flow-admin.ts` (fetch nativo con timeout de 10 s, `FlowAdminApiError`
+   `{message, errors}`, mismos mensajes y rutas que `conversation_flow_admin.py`) y 6 proxies en
+   `web/src/pages/admin/flujos/api/*` (`validar`, `api` con 201, `{id}/borrador` PUT+DELETE,
+   `{id}/publicar`, `{id}/retirar`). `FLOW_ADMIN_API_KEY` solo en runtime server.
+3. Editor portado a TS (`web/src/scripts/admin-flows.ts`, importado por `AdminFlowEditor.astro`)
+   con helpers puros testeados; sidebar compartido `src/components/Sidebar.astro` (con `app.astro`
+   refactorizado), `src/layouts/AdminLayout.astro` y `Admin{FlowsList,FlowEditor}.astro`.
+4. Tests: `flow-admin.test.ts` (cliente, errores, cargadores, payloads), `flow-admin-routes.test.ts`
+   (gate 403, forwarding, 201, errores de validación, no filtración), `admin-flows.test.ts`
+   (helpers del editor) y `flow-admin.integration.test.ts` gated **read-only**
+   (`RUN_FLOW_BACKEND=1`). Suite web: **215 herméticos + 21 de integración (gated)**; Python sigue
+   en 175 passed y `ruff` limpio (no se tocó código Python).
+5. E2E Playwright (mock del backend `luka`, 2026-09-24): redirect sin sesión desde `/admin/flujos`,
+   listado con borrador/publicada, alta con slug autogenerado, validación, guardado, publicación,
+   descarte de borrador, retirada, página 503 con backend caído y `/admin/flujos/nuevo` cayendo a
+   la lista con alerta; 0 errores de consola en la página sana y el secreto ausente del HTML y de
+   `dist/`.
+6. Diferencias documentadas respecto de Python (además de §5.5):
+   - Un body que no es JSON objeto responde 400 `{"detail":"JSON inválido."}` (FastAPI daría 422
+     de validación); el editor siempre manda JSON válido.
+   - `flowAdminErrorPayload` usa `exc.message` (equivalente a `str(exc)` de Python), no
+     `String(exc)`.
+   - El port TS tolera `options`/`sections` ausentes en nodos malformados y `definition` ausente
+     en la respuesta de validación (guards defensivos; no cambian el flujo normal).
 
-No depende del deploy: F4 se construye y valida en local contra el backend `luka` (según
-`LUKA_BACKEND_URL` / `FLOW_ADMIN_API_KEY` del `.env`, o con dobles en los tests).
+Al retomar el deploy: sumar `/admin/` a `ASTRO_MIGRATED_PATHS`; el resto (gate, nav
+`startswith('/admin/flujos')`, proxies) ya funciona igual que en FastAPI.
