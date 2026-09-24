@@ -185,8 +185,24 @@ def test_login_with_valid_token_sets_session_and_redirects_to_dashboard(client, 
     response = client.get("/login", params={"token": "web-token"}, follow_redirects=False)
 
     assert response.status_code == 303
-    assert response.headers["location"] == "/"
+    assert response.headers["location"] == "/app"
     assert "luka_session" in response.cookies
+
+
+def test_login_session_cookie_is_secure_in_production(client, db, monkeypatch):
+    """F1: luka_session must carry Secure in production (without changing its
+    name/httponly/max_age/samesite)."""
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("SECRET_KEY", "p" * 40)
+    user = create_linked_user(db)
+    create_login_link(db, user.id, "prod-token")
+
+    response = client.get(
+        "/login", params={"token": "prod-token"}, follow_redirects=False
+    )
+
+    assert response.status_code == 303
+    assert "Secure" in response.headers["set-cookie"]
 
 
 def test_login_with_expired_token_shows_error_without_session(client, db):
@@ -232,7 +248,7 @@ def test_login_with_valid_dates_redirects_with_query_params(client, db):
     )
 
     assert response.status_code == 303
-    assert response.headers["location"] == "/?date_from=2026-08-01&date_to=2026-08-31"
+    assert response.headers["location"] == "/app?date_from=2026-08-01&date_to=2026-08-31"
     assert "luka_session" in response.cookies
 
 
@@ -247,7 +263,7 @@ def test_login_with_only_date_from_propagates_only_date_from(client, db):
     )
 
     assert response.status_code == 303
-    assert response.headers["location"] == "/?date_from=2026-08-01"
+    assert response.headers["location"] == "/app?date_from=2026-08-01"
     assert "luka_session" in response.cookies
 
 
@@ -262,7 +278,7 @@ def test_login_with_only_date_to_propagates_only_date_to(client, db):
     )
 
     assert response.status_code == 303
-    assert response.headers["location"] == "/?date_to=2026-08-31"
+    assert response.headers["location"] == "/app?date_to=2026-08-31"
     assert "luka_session" in response.cookies
 
 
@@ -277,7 +293,7 @@ def test_login_without_dates_redirects_to_root(client, db):
     )
 
     assert response.status_code == 303
-    assert response.headers["location"] == "/"
+    assert response.headers["location"] == "/app"
     assert "luka_session" in response.cookies
 
 
@@ -305,7 +321,7 @@ def test_login_with_invalid_date_ignores_filters_and_redirects_to_root(
     response = client.get("/login", params=params, follow_redirects=False)
 
     assert response.status_code == 303
-    assert response.headers["location"] == "/"
+    assert response.headers["location"] == "/app"
     assert "luka_session" in response.cookies
     db.refresh(link)
     assert link.estado == "consumido"
@@ -334,7 +350,7 @@ def test_login_ignores_and_does_not_propagate_extra_parameters(client, db):
     )
 
     assert response.status_code == 303
-    assert response.headers["location"] == "/?date_from=2026-08-01&date_to=2026-08-31"
+    assert response.headers["location"] == "/app?date_from=2026-08-01&date_to=2026-08-31"
     assert "next" not in response.headers["location"]
     assert "attacker" not in response.headers["location"]
     assert "tipo" not in response.headers["location"]
@@ -418,7 +434,7 @@ def test_dashboard_only_shows_the_authenticated_users_own_data(client, db):
 
     client.cookies.clear()
     client.cookies.set("luka_session", session_cookie_a)
-    dashboard_a = client.get("/")
+    dashboard_a = client.get("/app")
 
     assert dashboard_a.status_code == 200
     assert "Gasto de A" in dashboard_a.text

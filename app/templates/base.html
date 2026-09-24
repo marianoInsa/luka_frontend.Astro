@@ -25,7 +25,7 @@
     </div>
 
     <nav class="sidebar-nav">
-      <a href="/" class="nav-item {% if request.url.path == '/' %}active{% endif %}" id="nav-dashboard">
+      <a href="/app" class="nav-item {% if request.url.path == '/app' %}active{% endif %}" id="nav-dashboard">
         {% include 'components/icons/icon_nav_dashboard.svg' %}
         <span>Dashboard</span>
       </a>

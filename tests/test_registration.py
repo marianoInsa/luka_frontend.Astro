@@ -318,7 +318,7 @@ def test_database_error_is_controlled_and_hides_technical_details():
 
 def test_login_and_dashboard_keep_their_previous_behavior(client):
     login_response = client.get("/login")
-    dashboard_response = client.get("/", follow_redirects=False)
+    dashboard_response = client.get("/app", follow_redirects=False)
 
     assert login_response.status_code == 200
     assert "LUKA" in login_response.text

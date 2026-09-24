@@ -41,6 +41,7 @@ from app.dashboard import (
     get_summary_stats,
 )
 from app.models.database import get_db, MovimientoFinanciero, Categoria
+from app.proxy import ProxyMiddleware, parse_migrated_paths
 from app.services.onboarding import (
     RegistrationValidation,
     validate_registration_context,
@@ -90,6 +91,14 @@ app = FastAPI(title="LUKA Dashboard", docs_url=None, redoc_url=None, lifespan=li
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 templates = Jinja2Templates(directory="app/templates")
+
+# F1 facade: route the paths already migrated to Astro. With both env vars
+# unset this is a no-op (rollback: clear ASTRO_MIGRATED_PATHS).
+app.add_middleware(
+    ProxyMiddleware,
+    origin=os.getenv("ASTRO_ORIGIN", "").strip(),
+    paths=parse_migrated_paths(os.getenv("ASTRO_MIGRATED_PATHS")),
+)
 
 
 def _secure_cookie_fallback() -> bool:
@@ -688,7 +697,7 @@ async def login_page(
                 if date_to is not None:
                     params["date_to"] = date_to
 
-            target_url = f"/?{urlencode(params)}" if params else "/"
+            target_url = f"/app?{urlencode(params)}" if params else "/app"
             response = RedirectResponse(url=target_url, status_code=303)
             response.set_cookie(
                 SESSION_COOKIE,
@@ -696,6 +705,7 @@ async def login_page(
                 httponly=True,
                 max_age=60 * 60 * 24 * 7,
                 samesite="lax",
+                secure=_secure_cookie_fallback(),
             )
             return _auth_response(response)
     return _auth_response(
@@ -710,13 +720,14 @@ async def dev_login(request: Request):
     """Shortcut for local development — bypass WhatsApp entirely."""
     if not mock_auth_enabled():
         return _auth_error(request, "Ruta no disponible.", status_code=404)
-    response = RedirectResponse(url="/", status_code=303)
+    response = RedirectResponse(url="/app", status_code=303)
     response.set_cookie(
         SESSION_COOKIE,
         create_session_token(MOCK_AUTH_USER_ID),
         httponly=True,
         max_age=60 * 60 * 24 * 7,
         samesite="lax",
+        secure=_secure_cookie_fallback(),
     )
     return _auth_response(response)
 
@@ -946,7 +957,17 @@ def _get_default_dates(date_from: Optional[str], date_to: Optional[str]):
     return d_from, d_to, date_from, date_to
 
 
-@app.get("/", response_class=HTMLResponse)
+@app.get("/")
+async def dashboard_root_redirect(request: Request):
+    # No-facade fallback. In production the facade intercepts "/" first (Astro
+    # landing); this redirect is also the rollback path. 307 preserves the query.
+    query = request.url.query
+    return RedirectResponse(
+        url=f"/app?{query}" if query else "/app", status_code=307
+    )
+
+
+@app.get("/app", response_class=HTMLResponse)
 async def dashboard(
     request: Request,
     date_from: Optional[str] = None,
