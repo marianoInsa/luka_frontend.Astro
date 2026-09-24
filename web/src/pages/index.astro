@@ -1,0 +1,42 @@
+---
+import '../styles/global.css';
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>LUKA</title>
+    <link rel="icon" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@300..800&family=JetBrains+Mono:wght@400;600&display=swap"
+    />
+  </head>
+  <body>
+    <header>
+      <img src="/logo-luka.svg" alt="LUKA" width="120" />
+    </header>
+
+    <section>
+      <h1>LUKA — tema oscuro (por defecto)</h1>
+      <div class="card">
+        <h2>Card oscura</h2>
+        <p>Superficie, borde y radio definidos por tokens.</p>
+        <p class="tabular">$ 1.234.567,89</p>
+      </div>
+    </section>
+
+    <section data-theme="light">
+      <h2>Tema claro</h2>
+      <div class="card">
+        <h3>Card clara</h3>
+        <p>Los overrides de [data-theme="light"] cascadean en este subárbol.</p>
+        <p class="tabular">$ 1.234.567,89</p>
+      </div>
+    </section>
+  </body>
+</html>
