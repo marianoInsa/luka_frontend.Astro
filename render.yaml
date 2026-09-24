@@ -30,3 +30,7 @@ services:
         sync: false
       - key: FLOW_ADMIN_AUTH_USER_IDS
         sync: false
+      - key: ASTRO_ORIGIN
+        sync: false
+      - key: ASTRO_MIGRATED_PATHS
+        sync: false
