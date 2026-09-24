@@ -238,13 +238,15 @@ Nota de seguridad: la reimplementación es código sensible (firma). Requiere co
 3. Fix `secure` de `luka_session` en producción.
 4. `httpx==0.27.2` a `requirements.txt`.
 5. Landing Astro en `/`: prerender, 0 KB de JS de framework, SEO (title/description/canonical/OG), `sitemap.xml`/`robots.txt`, assets de marca, copy según `docs/marca/02-identidad-verbal.md`. Deploy estático (Render Static Site: guía oficial de Astro para Render cubre Static Site; no tiene spin-down).
-6. Activar `ASTRO_MIGRATED_PATHS=/` → cutover.
+6. Activar `ASTRO_MIGRATED_PATHS` con la landing completa → cutover. Valor verificado en la validación manual del 2026-09-24:
+   `/,/_astro,/robots.txt,/sitemap.xml,/favicon.svg,/favicon-32.png,/favicon-512.png,/apple-touch-icon.png,/logo-luka.svg,/logo-luka-claro.svg,/logo-luka-oscuro.svg,/logo-luka-mono.svg`.
+   **Solo `/` no alcanza**: el HTML pasa por el facade pero sus assets (`/_astro/*.css`, logos, favicons, robots/sitemap) darían 404. En local, probar la topología con el build de Astro (`node dist/server/entry.mjs`), no con el dev server (sus URLs de Vite no se proxyean).
 7. **Cerrar gate de hosting** (§9).
 
 **Criterios de salida**
 - Landing en producción sin JS de framework (verificable en el HTML del build).
 - `/app` funciona igual que antes; magic link del bot aterriza en `/app`; sesiones existentes siguen válidas.
-- Facade probado: con lista vacía no-op; con `/` rutea; quitar `/` revierte en caliente.
+- Facade probado: con lista vacía no-op; con la lista completa la landing y sus assets responden 200 y el resto del sitio sigue local; quitar paths revierte en caliente.
 - Suite Python verde (incluidos los tests nuevos del facade); CI de `web/` verde.
 
 **Rollback:** quitar `/` de `ASTRO_MIGRATED_PATHS` (env change). El código Python del dashboard nunca se tocó.
