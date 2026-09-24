@@ -1,8 +1,8 @@
 # web/ — Frontend Astro (migración)
 
 Reemplazo en Astro del frontend actual de FastAPI + Jinja2 + HTMX. Este directorio
-corresponde a las fases **F0** (scaffold) y **F1** (landing) del plan de migración:
-`docs/migracion-astro/00-plan-limpieza-preparacion.md` §7.
+corresponde a las fases **F0** (scaffold), **F1** (landing) y **F2** (onboarding) del plan
+de migración: `docs/migracion-astro/00-plan-limpieza-preparacion.md` §7.
 
 Durante la migración, FastAPI (`app/`) sigue siendo el servicio de producción;
 `web/` se construye y despliega por separado.
@@ -44,9 +44,11 @@ Ver `web/.env.example`: `APP_ENV`, `APP_BASE_URL`, `AUTH_COOKIE_SECURE`, `SECRET
 - `src/pages/`: `index.astro` es la landing pública (prerenderizada y sin JS; el SEO
   —title, description, canonical y Open Graph— vive ahí). `robots.txt.ts` y
   `sitemap.xml.ts` son endpoints también prerenderizados.
-- `src/pages/registro.astro` y `src/pages/auth/google.ts` son el inicio del onboarding
-  (F2b1): validan el token de la invitación, emiten la cookie firmada `luka_onboarding`
-  y arrancan el OAuth PKCE de Supabase. El callback y la finalización llegan en F2b2.
+- `src/pages/registro.astro` y `src/pages/auth/google.ts` inician el onboarding (F2):
+  validan el token de la invitación, emiten la cookie firmada `luka_onboarding` y arrancan
+  el OAuth PKCE de Supabase. `src/pages/auth/callback.ts` intercambia el código y fija la
+  identidad pendiente; `src/pages/registro/continuar.astro` y `src/pages/registro/finalizar.ts`
+  completan el registro contra la DB (transacción en `src/lib/onboarding.ts`).
 - `src/styles/`: `global.css` importa los tokens canónicos desde
   `docs/marca/tokens/tokens.css` (fuente única de verdad de la marca).
 - `publicDir`: apunta a `../public/` (los assets de marca viven una sola vez en el repo).
@@ -54,11 +56,22 @@ Ver `web/.env.example`: `APP_ENV`, `APP_BASE_URL`, `AUTH_COOKIE_SECURE`, `SECRET
 `site` (canonical/OG/sitemap) sale de `APP_BASE_URL` y cae a `http://localhost:4321`
 si no está definida.
 
+## Tests
+
+`npm test` corre la suite hermética (Vitest, sin red ni DB). El test de integración del
+onboarding (`src/lib/onboarding.integration.test.ts`) está desactivado por defecto y
+escribe y limpia filas de prueba en la DB real — incluida una fila temporal en
+`auth.users` por la FK de `usuario.auth_user_id`:
+
+```bash
+RUN_DB_INTEGRATION=1 npx vitest run src/lib/onboarding.integration.test.ts
+```
+
 ## Deuda conocida
 
 - Los tokens se importan por ruta relativa fuera de `web/`: funciona en este repo,
   pero el build falla si `web/` se construye de forma aislada (standalone).
 - Los estilos se inlinean por defecto (comportamiento `inlineStylesheets: 'auto'` de Astro).
 - Las fuentes cargan desde Google Fonts en runtime.
-- La decisión de hosting queda pendiente hasta el final de F1
-  (ver §9 del plan).
+- Hosting decidido: Render Web Service Node (adaptador standalone ya configurado);
+  queda pendiente el deploy y el cutover de paths de F2.
