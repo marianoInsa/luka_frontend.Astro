@@ -20,7 +20,7 @@ La migración se hace **por partes, con el servicio vivo**, siguiendo el patrón
 
 **Línea base verificada (2026-09-23):** `ruff check .` OK; `pytest` **141 passed** en el venv local. Esa es la referencia de paridad.
 
-**Estado de avance (2026-09-24):** F0, F1 y F2 tienen el código completo; F1 y F2 están validados de punta a punta contra la base real de Supabase. El estado detallado por fase, cómo levantar el entorno local y el checklist de los próximos pasos viven en `02-estado-y-siguientes-pasos.md`.
+**Estado de avance (2026-09-24):** F0, F1, F2 y F3 tienen el código completo; F1, F2 y F3 están validados de punta a punta contra la base real de Supabase (F3 con parallel run local contra FastAPI) y commiteados en `migration`. Próxima fase: **F4 (admin)**; el deploy y el cutover quedaron diferidos hasta terminar F4. El estado detallado por fase, cómo levantar el entorno local y el checklist de los próximos pasos viven en `02-estado-y-siguientes-pasos.md`.
 
 ---
 
