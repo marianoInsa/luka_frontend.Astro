@@ -1,0 +1,169 @@
+---
+import '../../styles/global.css';
+import '../../styles/registro.css';
+
+import {
+  AUTH_FLOW_MESSAGES,
+  clearOnboardingCookies,
+  isOnboardingPayload,
+  parsePendingIdentity,
+  pendingBindingMatches,
+} from '../../lib/auth-flow';
+import { getDb } from '../../lib/db';
+import { validateRegistrationContext, type RegistrationValidation } from '../../lib/onboarding';
+import { REGISTRO_NOINDEX } from '../../lib/registro';
+import {
+  ONBOARDING_CONTEXT_MAX_AGE,
+  ONBOARDING_COOKIE,
+  ONBOARDING_SALT,
+  PENDING_AUTH_COOKIE,
+  PENDING_AUTH_MAX_AGE,
+  PENDING_AUTH_SALT,
+  getAuthSecret,
+  readSignedCookie,
+  resolveCookieSecure,
+} from '../../lib/signed-cookies';
+
+export const prerender = false;
+
+Astro.response.headers.set('Cache-Control', 'private, no-store');
+
+type ContinuarView =
+  | { kind: 'error'; status: number; message: string }
+  | { kind: 'ready'; email: string };
+
+const secure = resolveCookieSecure();
+
+async function resolveView(): Promise<ContinuarView> {
+  let secret: string;
+  try {
+    secret = getAuthSecret();
+  } catch {
+    return { kind: 'error', status: 503, message: AUTH_FLOW_MESSAGES.unavailable };
+  }
+
+  const rawOnboarding = Astro.cookies.get(ONBOARDING_COOKIE)?.value ?? null;
+  const context = await readSignedCookie<unknown>(Astro.cookies, ONBOARDING_COOKIE, {
+    secret,
+    salt: ONBOARDING_SALT,
+    maxAgeSeconds: ONBOARDING_CONTEXT_MAX_AGE,
+  });
+  const onboarding = isOnboardingPayload(context) ? context : null;
+  const pending = parsePendingIdentity(
+    await readSignedCookie<unknown>(Astro.cookies, PENDING_AUTH_COOKIE, {
+      secret,
+      salt: PENDING_AUTH_SALT,
+      maxAgeSeconds: PENDING_AUTH_MAX_AGE,
+    }),
+  );
+  const identity =
+    onboarding && rawOnboarding && pending && (await pendingBindingMatches(pending, rawOnboarding))
+      ? pending
+      : null;
+  if (!onboarding || !identity) {
+    return { kind: 'error', status: 400, message: AUTH_FLOW_MESSAGES.continuarSessionExpired };
+  }
+
+  let registration: RegistrationValidation;
+  try {
+    registration = await validateRegistrationContext(
+      getDb(),
+      onboarding.invitationId,
+      onboarding.agreementVersionId,
+    );
+  } catch {
+    registration = { status: 'error' };
+  }
+  if (registration.status === 'expired') {
+    clearOnboardingCookies(Astro.cookies, Astro.request, secure);
+    return { kind: 'error', status: 400, message: AUTH_FLOW_MESSAGES.oauthExpired };
+  }
+  if (registration.status !== 'valid') {
+    clearOnboardingCookies(Astro.cookies, Astro.request, secure);
+    return { kind: 'error', status: 400, message: AUTH_FLOW_MESSAGES.continuarInvalid };
+  }
+
+  return { kind: 'ready', email: identity.email };
+}
+
+const view = await resolveView();
+if (view.kind === 'error') Astro.response.status = view.status;
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content={REGISTRO_NOINDEX} />
+    <meta name="description" content="Finalizar registro seguro de cuenta LUKA." />
+    <title>LUKA · Finalizar registro</title>
+    <link rel="icon" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@300..800&family=JetBrains+Mono:wght@400;600&display=swap"
+    />
+  </head>
+  <body class="registration-body">
+    <main class="registration-container">
+      <section class="registration-card" aria-labelledby="registration-title">
+        <header class="registration-brand">
+          <img class="registration-logo" src="/logo-luka.svg" alt="" width="44" height="39" />
+          <span class="registration-brand-name">LUKA</span>
+        </header>
+
+        {
+          view.kind === 'error' ? (
+            <div class="registration-state" role="alert">
+              <div class="registration-state-icon" aria-hidden="true">!</div>
+              <h1 id="registration-title">No pudimos continuar</h1>
+              <p>{view.message}</p>
+              <button
+                class="google-button registration-back"
+                type="button"
+                onclick="history.back()"
+              >
+                Volver e intentar nuevamente
+              </button>
+            </div>
+          ) : (
+            <div class="registration-state registration-success" role="status">
+              <div class="registration-state-icon registration-state-icon--success" aria-hidden="true">
+                ✓
+              </div>
+              <h1 id="registration-title">Tu cuenta de Google fue verificada correctamente.</h1>
+              <p class="verified-email">{view.email}</p>
+              <p>
+                Al finalizar, vincularemos esta cuenta con el WhatsApp desde el que recibiste la
+                invitación.
+              </p>
+              <form id="finalize-registration-form" method="post" action="/registro/finalizar">
+                <button
+                  class="google-button registration-back"
+                  id="finalize-registration-button"
+                  type="submit"
+                >
+                  Finalizar registro
+                </button>
+              </form>
+            </div>
+          )
+        }
+      </section>
+    </main>
+
+    <script>
+      const finalizeForm = document.getElementById('finalize-registration-form');
+      const finalizeButton = document.getElementById('finalize-registration-button') as HTMLButtonElement | null;
+      if (finalizeForm && finalizeButton) {
+        finalizeForm.addEventListener('submit', () => {
+          finalizeButton.disabled = true;
+          finalizeButton.setAttribute('aria-disabled', 'true');
+          finalizeButton.textContent = 'Finalizando…';
+        });
+      }
+    </script>
+  </body>
+</html>

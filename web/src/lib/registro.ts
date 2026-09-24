@@ -148,3 +148,32 @@ ${registroCss}</style>
   </body>
 </html>`;
 }
+
+export function renderRegistrationCompletedPage(): string {
+  return `<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="${REGISTRO_NOINDEX}" />
+    <title>LUKA · Registro completado</title>
+    <style>${tokensCss}
+${registroCss}</style>
+  </head>
+  <body class="registration-body">
+    <main class="registration-container">
+      <section class="registration-card" aria-labelledby="registration-title">
+        <header class="registration-brand">
+          <img class="registration-logo" src="/logo-luka.svg" alt="" width="44" height="39" />
+          <span class="registration-brand-name">LUKA</span>
+        </header>
+        <div class="registration-state registration-success" role="status">
+          <div class="registration-state-icon registration-state-icon--success" aria-hidden="true">✓</div>
+          <h1 id="registration-title">Tu registro se completó correctamente.</h1>
+          <p>Ya podés volver a WhatsApp y comenzar a usar Luka.</p>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>`;
+}

@@ -5,6 +5,7 @@ import { envValue } from './env';
 export const ONBOARDING_COOKIE = 'luka_onboarding';
 export const PENDING_AUTH_COOKIE = 'luka_pending_google';
 export const ONBOARDING_CONTEXT_MAX_AGE = 30 * 60;
+export const PENDING_AUTH_MAX_AGE = 15 * 60;
 
 export const ONBOARDING_SALT = 'luka-onboarding-context-v1';
 export const PENDING_AUTH_SALT = 'luka-pending-google-auth-v1';

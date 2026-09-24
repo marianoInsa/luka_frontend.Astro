@@ -2,6 +2,7 @@ import { createServerClient, parseCookieHeader } from '@supabase/ssr';
 import type { AstroCookies } from 'astro';
 
 import { envValue } from './env';
+import { resolveCookieSecure } from './signed-cookies';
 
 export class SupabaseConfigurationError extends Error {}
 
@@ -36,6 +37,14 @@ export function createSupabaseServerClient({
 }: SupabaseServerClientContext) {
   const { url, publishableKey } = getSupabaseServerConfig();
   return createServerClient(url, publishableKey, {
+    // @supabase/ssr defaults to httpOnly:false without secure; the Python flow
+    // stored these session cookies as httpOnly/lax/secure (set_private_cookie).
+    cookieOptions: {
+      path: '/',
+      sameSite: 'lax',
+      httpOnly: true,
+      secure: resolveCookieSecure(),
+    },
     cookies: {
       getAll: () => parseCookieHeader(request.headers.get('Cookie') ?? ''),
       setAll: (cookiesToSet, headers) => {

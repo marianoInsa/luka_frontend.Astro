@@ -171,6 +171,16 @@
   margin: 0;
 }
 
+.registration-state-icon--success {
+  color: var(--success);
+}
+
+.verified-email {
+  font: var(--text-heading-md);
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
 .registration-back {
   width: auto;
   margin-top: var(--space-4);
