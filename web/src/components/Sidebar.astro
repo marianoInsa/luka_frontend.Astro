@@ -1,0 +1,83 @@
+---
+import Icon from './Icon.astro';
+
+// Chrome compartido del área privada (dashboard + panel admin): sidebar,
+// header mobile y overlay. Es el equivalente del bloque de base.html.
+interface Props {
+  whatsappLabel: string;
+  isFlowAdmin: boolean;
+  active: 'dashboard' | 'flows';
+}
+
+const { whatsappLabel, isFlowAdmin, active } = Astro.props;
+---
+
+<!-- Sidebar Navigation -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-brand">
+    <div class="brand-logo">
+      <Icon name="logo_sidebar" />
+    </div>
+    <span class="brand-name">LUKA</span>
+  </div>
+
+  <nav class="sidebar-nav">
+    <a href="/app" class:list={['nav-item', active === 'dashboard' && 'active']} id="nav-dashboard">
+      <Icon name="icon_nav_dashboard" />
+      <span>Dashboard</span>
+    </a>
+    {
+      isFlowAdmin && (
+        <a
+          href="/admin/flujos"
+          class:list={['nav-item', active === 'flows' && 'active']}
+          id="nav-flows"
+        >
+          <Icon name="icon_tag_list" />
+          <span>Flujos</span>
+        </a>
+      )
+    }
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="user-badge">
+      <div class="user-avatar">
+        <Icon name="icon_user_avatar" />
+      </div>
+      <div class="user-info">
+        <span class="user-name">{whatsappLabel}</span>
+        <span class="user-label">WhatsApp</span>
+      </div>
+    </div>
+    <a href="/logout" class="logout-btn" id="btn-logout" title="Cerrar sesión">
+      <Icon name="icon_logout_sidebar" />
+    </a>
+  </div>
+</aside>
+
+<!-- Mobile header -->
+<header class="mobile-header">
+  <button class="hamburger" id="hamburger" aria-label="Abrir menú">
+    <span></span><span></span><span></span>
+  </button>
+  <span class="mobile-brand">LUKA</span>
+  <a href="/logout" class="mobile-logout">
+    <Icon name="icon_logout_mobile" />
+  </a>
+</header>
+
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+<script is:inline>
+  // Mobile sidebar toggle
+  const hamburger = document.getElementById('hamburger');
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebar-overlay');
+  function toggleSidebar() {
+    sidebar.classList.toggle('open');
+    overlay.classList.toggle('visible');
+  }
+  hamburger?.addEventListener('click', toggleSidebar);
+  overlay?.addEventListener('click', toggleSidebar);
+</script>
