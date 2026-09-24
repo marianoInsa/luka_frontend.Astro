@@ -24,13 +24,13 @@ export interface SignedCookieOptions {
   now?: Date;
 }
 
-function base64urlEncode(bytes: Uint8Array): string {
+export function base64urlEncode(bytes: Uint8Array): string {
   let binary = '';
   for (const byte of bytes) binary += String.fromCharCode(byte);
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-function base64urlDecode(value: string): Uint8Array<ArrayBuffer> {
+export function base64urlDecode(value: string): Uint8Array<ArrayBuffer> {
   const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
   const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4);
   const binary = atob(padded);

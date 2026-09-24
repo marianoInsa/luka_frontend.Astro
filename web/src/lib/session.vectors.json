@@ -1,0 +1,49 @@
+{
+  "secret": "session-vector-secret-0123456789abcdef",
+  "maxAgeSeconds": 604800,
+  "cases": [
+    {
+      "name": "valid",
+      "token": "ImY0N2FjMTBiLTU4Y2MtNDM3Mi1hNTY3LTBlMDJiMmMzZDQ3OSI.aqH5QA.C-tUOIFNwgESWUhJL4ziifVqdaQ",
+      "now": 1789000000,
+      "expect": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+      "authUserId": "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+    },
+    {
+      "name": "expired",
+      "token": "ImY0N2FjMTBiLTU4Y2MtNDM3Mi1hNTY3LTBlMDJiMmMzZDQ3OSI.apdtQA.9xDYXAq7pVzE6oEskvJxQobrXCw",
+      "now": 1789000000,
+      "expect": null
+    },
+    {
+      "name": "future",
+      "token": "ImY0N2FjMTBiLTU4Y2MtNDM3Mi1hNTY3LTBlMDJiMmMzZDQ3OSI.aqIHUA.PYXrXAptZCyj5upOhAKIf1SMiVE",
+      "now": 1789000000,
+      "expect": null
+    },
+    {
+      "name": "corrupt_signature",
+      "token": "ImY0N2FjMTBiLTU4Y2MtNDM3Mi1hNTY3LTBlMDJiMmMzZDQ3OSI.aqH5QA.C-tUOIFNwgESWAhJL4ziifVqdaQ",
+      "now": 1789000000,
+      "expect": null
+    },
+    {
+      "name": "other_salt",
+      "token": "ImY0N2FjMTBiLTU4Y2MtNDM3Mi1hNTY3LTBlMDJiMmMzZDQ3OSI.aqH5QA.K5bO5Y4le1f9T_Er9P7jrbb9cp4",
+      "now": 1789000000,
+      "expect": null
+    },
+    {
+      "name": "non_string_payload",
+      "token": "eyJzdWIiOiJ4In0.aqH5QA.VNXSMX98zUTD0Q9arOJ0IgPZQEM",
+      "now": 1789000000,
+      "expect": null
+    },
+    {
+      "name": "malformed_payload",
+      "token": "bm90IGpzb24.aqH5QA.dFjUlY_VOZxxpuCCvGZ8zXk6FLg",
+      "now": 1789000000,
+      "expect": null
+    }
+  ]
+}
