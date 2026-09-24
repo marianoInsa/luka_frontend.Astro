@@ -1,0 +1,24 @@
+---
+import AdminFlowsList from '../../components/AdminFlowsList.astro';
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { getUserByAuthId } from '../../lib/dashboard';
+import { getDb } from '../../lib/db';
+import { flowAdminGate, loadFlowAdminList } from '../../lib/flow-admin';
+
+export const prerender = false;
+
+// Espejo de conversation_flow_admin (app/main.py:782): gate de allowlist,
+// listado del backend y página de lista con alerta si el backend falla.
+const denied = flowAdminGate(Astro.locals.authUserId);
+if (denied) return denied;
+
+const user = await getUserByAuthId(getDb(), Astro.locals.authUserId);
+const whatsappLabel = user?.whatsapp_id ? `+${user.whatsapp_id.slice(-4)}` : '+···';
+
+const result = await loadFlowAdminList();
+if (!result.ok) Astro.response.status = result.status;
+---
+
+<AdminLayout whatsappLabel={whatsappLabel}>
+  <AdminFlowsList flows={result.ok ? result.flows : []} error={result.ok ? null : result.message} />
+</AdminLayout>

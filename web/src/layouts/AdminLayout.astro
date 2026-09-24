@@ -1,0 +1,39 @@
+---
+import '../../../static/css/style.css';
+import '../../../static/css/admin_flows.css';
+import Sidebar from '../components/Sidebar.astro';
+
+// Shell de las páginas del panel admin (equivale a base.html + bloque head de
+// admin_flows.css). Orden de CSS: style.css primero, admin_flows.css después.
+interface Props {
+  whatsappLabel: string;
+  title?: string;
+}
+
+const { whatsappLabel, title = 'Flujos conversacionales · LUKA' } = Astro.props;
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="LUKA — Panel de administración de flujos conversacionales." />
+    <title>{title}</title>
+    <link rel="icon" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <Sidebar whatsappLabel={whatsappLabel} isFlowAdmin={true} active="flows" />
+
+    <!-- Main content -->
+    <main class="main-content">
+      <slot />
+    </main>
+  </body>
+</html>

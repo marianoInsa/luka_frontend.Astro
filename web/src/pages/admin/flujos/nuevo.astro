@@ -1,0 +1,34 @@
+---
+import AdminFlowEditor from '../../../components/AdminFlowEditor.astro';
+import AdminFlowsList from '../../../components/AdminFlowsList.astro';
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import { getUserByAuthId } from '../../../lib/dashboard';
+import { getDb } from '../../../lib/db';
+import { flowAdminGate, loadFlowAdminEditor } from '../../../lib/flow-admin';
+
+export const prerender = false;
+
+// Espejo de new_conversation_flow (app/main.py:809): contrato del backend y
+// editor vacío; en error se renderiza la lista con la alerta.
+const denied = flowAdminGate(Astro.locals.authUserId);
+if (denied) return denied;
+
+const user = await getUserByAuthId(getDb(), Astro.locals.authUserId);
+const whatsappLabel = user?.whatsapp_id ? `+${user.whatsapp_id.slice(-4)}` : '+···';
+
+const result = await loadFlowAdminEditor(null);
+if (!result.ok) Astro.response.status = result.status;
+---
+
+<AdminLayout
+  whatsappLabel={whatsappLabel}
+  title={result.ok ? 'Nuevo flujo · LUKA' : 'Flujos conversacionales · LUKA'}
+>
+  {
+    result.ok ? (
+      <AdminFlowEditor flow={result.flow} contract={result.contract} />
+    ) : (
+      <AdminFlowsList flows={[]} error={result.message} />
+    )
+  }
+</AdminLayout>
