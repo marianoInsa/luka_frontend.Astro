@@ -1,0 +1,152 @@
+---
+import '../styles/global.css';
+import '../styles/registro.css';
+
+import { getDb } from '../lib/db';
+import { validateRegistrationToken, type RegistrationValidation } from '../lib/onboarding';
+import { REGISTRO_NOINDEX, registroView, type RegistroValidation } from '../lib/registro';
+import {
+  ONBOARDING_CONTEXT_MAX_AGE,
+  ONBOARDING_COOKIE,
+  ONBOARDING_SALT,
+  PENDING_AUTH_COOKIE,
+  clearCookie,
+  getAuthSecret,
+  resolveCookieSecure,
+  setSignedCookie,
+  ttlSeconds,
+} from '../lib/signed-cookies';
+
+export const prerender = false;
+
+Astro.response.headers.set('Cache-Control', 'private, no-store');
+
+const token = Astro.url.searchParams.get('token');
+const secure = resolveCookieSecure();
+
+async function loadRegistration(): Promise<RegistrationValidation> {
+  if (!token) return { status: 'invalid' };
+  try {
+    return await validateRegistrationToken(getDb(), token);
+  } catch {
+    return { status: 'error' };
+  }
+}
+
+let registration: RegistroValidation = await loadRegistration();
+let view = registroView(registration);
+
+if (registration.status === 'valid') {
+  try {
+    const maxAgeSeconds = ttlSeconds(registration.expiresAt, ONBOARDING_CONTEXT_MAX_AGE);
+    await setSignedCookie(
+      Astro.cookies,
+      ONBOARDING_COOKIE,
+      {
+        invitationId: registration.invitationId,
+        agreementVersionId: registration.agreementVersionId,
+        invitationExpiresAt: registration.expiresAt.toISOString(),
+      },
+      { secret: getAuthSecret(), salt: ONBOARDING_SALT, maxAgeSeconds, secure },
+    );
+    clearCookie(Astro.cookies, PENDING_AUTH_COOKIE, secure);
+  } catch {
+    registration = { status: 'configuration_error' };
+    view = registroView(registration);
+    clearCookie(Astro.cookies, ONBOARDING_COOKIE, secure);
+    clearCookie(Astro.cookies, PENDING_AUTH_COOKIE, secure);
+  }
+} else {
+  clearCookie(Astro.cookies, ONBOARDING_COOKIE, secure);
+  clearCookie(Astro.cookies, PENDING_AUTH_COOKIE, secure);
+}
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content={REGISTRO_NOINDEX} />
+    <meta name="description" content="Registro seguro de cuenta LUKA." />
+    <title>LUKA · Registro</title>
+    <link rel="icon" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@300..800&family=JetBrains+Mono:wght@400;600&display=swap"
+    />
+  </head>
+  <body class="registration-body">
+    <div class="registration-bg" aria-hidden="true"></div>
+
+    <main class="registration-container">
+      <section class="registration-card" aria-labelledby="registration-title">
+        <header class="registration-brand">
+          <img class="registration-logo" src="/logo-luka.svg" alt="" width="44" height="39" />
+          <span class="registration-brand-name">LUKA</span>
+        </header>
+
+        {
+          view.kind === 'form' ? (
+            <>
+              <div class="registration-heading">
+                <p class="registration-eyebrow">{view.eyebrow}</p>
+                <h1 id="registration-title">{view.heading}</h1>
+                <p>{view.intro}</p>
+              </div>
+
+              <div class="terms-meta">
+                <span>Términos y privacidad</span>
+                <strong>Versión {view.version}</strong>
+                {view.effectiveFrom && <span>Vigente desde {view.effectiveFrom}</span>}
+              </div>
+
+              <div
+                class="terms-panel"
+                tabindex="0"
+                aria-label="Términos y política de privacidad"
+              >
+                {view.content}
+              </div>
+
+              <form method="post" action="/auth/google">
+                <label class="terms-acceptance" for="terms-accepted">
+                  <input
+                    id="terms-accepted"
+                    name="terms_accepted"
+                    value="accepted"
+                    type="checkbox"
+                    required
+                  />
+                  <span>{view.checkboxLabel}</span>
+                </label>
+
+                <button class="google-button" id="google-button" type="submit" disabled>
+                  {view.buttonLabel}
+                </button>
+              </form>
+            </>
+          ) : (
+            <div class="registration-state" role="alert">
+              <div class="registration-state-icon" aria-hidden="true">!</div>
+              <h1 id="registration-title">{view.heading}</h1>
+              <p>{view.message}</p>
+            </div>
+          )
+        }
+      </section>
+    </main>
+
+    <script>
+      const termsAccepted = document.getElementById('terms-accepted') as HTMLInputElement | null;
+      const googleButton = document.getElementById('google-button') as HTMLButtonElement | null;
+      if (termsAccepted && googleButton) {
+        termsAccepted.addEventListener('change', () => {
+          googleButton.disabled = !termsAccepted.checked;
+        });
+      }
+    </script>
+  </body>
+</html>

@@ -29,12 +29,14 @@ node ./dist/server/entry.mjs   # respeta HOST y PORT del entorno
 
 ## Variables de entorno
 
-Ver `web/.env.example`: `APP_ENV`, `APP_BASE_URL`, `AUTH_COOKIE_SECURE`,
-`SUPABASE_URL` y `PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
+Ver `web/.env.example`: `APP_ENV`, `APP_BASE_URL`, `AUTH_COOKIE_SECURE`, `SECRET_KEY`,
+`DATABASE_URL`, `SUPABASE_URL` y `PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
 
 - Las variables `PUBLIC_*` se exponen al navegador por diseño (la publishable key es pública).
-- Los secretos server-only (`SECRET_KEY`, `DATABASE_URL`, `FLOW_ADMIN_API_KEY`) no son
-  parte de esta fase y nunca deben usar el prefijo `PUBLIC_`.
+- Los secretos server-only (`SECRET_KEY`, `DATABASE_URL`, `FLOW_ADMIN_API_KEY`) nunca deben
+  usar el prefijo `PUBLIC_`.
+- `SECRET_KEY` firma la cookie de onboarding (`luka_onboarding`); en producción debe tener
+  32+ caracteres y no ser el placeholder de desarrollo.
 - No se commitea `.env` (ya ignorado en `web/.gitignore`).
 
 ## Estructura
@@ -42,6 +44,9 @@ Ver `web/.env.example`: `APP_ENV`, `APP_BASE_URL`, `AUTH_COOKIE_SECURE`,
 - `src/pages/`: `index.astro` es la landing pública (prerenderizada y sin JS; el SEO
   —title, description, canonical y Open Graph— vive ahí). `robots.txt.ts` y
   `sitemap.xml.ts` son endpoints también prerenderizados.
+- `src/pages/registro.astro` y `src/pages/auth/google.ts` son el inicio del onboarding
+  (F2b1): validan el token de la invitación, emiten la cookie firmada `luka_onboarding`
+  y arrancan el OAuth PKCE de Supabase. El callback y la finalización llegan en F2b2.
 - `src/styles/`: `global.css` importa los tokens canónicos desde
   `docs/marca/tokens/tokens.css` (fuente única de verdad de la marca).
 - `publicDir`: apunta a `../public/` (los assets de marca viven una sola vez en el repo).
