@@ -62,6 +62,30 @@ luka_frontend/
    ```
 5. Para probar sin necesidad del bot de WhatsApp, abrí `http://localhost:8001/dev-login` que iniciará sesión automáticamente.
 
+## Migración a Astro (en curso)
+
+El frontend está migrando a Astro en fases (ver `docs/migracion-astro/00-plan-limpieza-preparacion.md`).
+Durante la migración, FastAPI sigue siendo el servicio de producción y `web/` se despliega aparte:
+Astro sirve la landing pública y FastAPI actúa de facade para los paths ya migrados.
+
+Variables del facade (ver `.env.example`):
+
+- `ASTRO_ORIGIN`: URL del servicio de `web/` (Astro).
+- `ASTRO_MIGRATED_PATHS`: lista separada por comas de los paths que sirve Astro; el resto queda en FastAPI.
+  Debe incluir los assets de la landing (CSS construido en `/_astro`, archivos de `public/` y
+  robots/sitemap): sin ellos la landing responde 200 pero sus assets dan 404. Con la lista vacía el
+  facade es no-op.
+
+Para probar la topología de la migración en local usá el build de Astro, no el dev server:
+
+1. Terminal A — Astro: `cd web && npm run build && node dist/server/entry.mjs` (puerto 4321).
+2. Terminal B — FastAPI: `uvicorn app.main:app --reload --port 8001`, con `ASTRO_ORIGIN=http://localhost:4321`
+   y `ASTRO_MIGRATED_PATHS` como en `.env.example`.
+3. Abrí `http://localhost:8001/`: la landing la sirve Astro; `/app`, `/login` y el resto siguen en FastAPI.
+
+El dev server de Astro referencia URLs de Vite (`/@vite`, `/src/...`) que el facade no proxya: la landing
+se vería sin estilos a través de `:8001`.
+
 ## Despliegue en Producción (Render)
 
 ### Opción 1: Usar Render Blueprint (Automático)
