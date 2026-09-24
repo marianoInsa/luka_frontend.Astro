@@ -38,3 +38,29 @@ jobs:
         DATABASE_URL: sqlite:///./luka.db
       run: |
         pytest
+
+  web:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v4
+
+    - name: Set up Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+        cache: 'npm'
+        cache-dependency-path: web/package-lock.json
+
+    - name: Install dependencies
+      working-directory: web
+      run: npm ci
+
+    - name: Check types
+      working-directory: web
+      run: npm run check
+
+    - name: Build
+      working-directory: web
+      run: npm run build
