@@ -6,7 +6,7 @@
 | **Estado** | `v2.0` — 2026-09-23. Reescribe por completo la v1.0 (ver §14). |
 | **Estrategia** | Strangler Fig con **facade transitorio en FastAPI**; cutover incremental por área. |
 | **Alcance** | Repositorio `luka_frontend`: landing, registro/onboarding, dashboard, APIs de gráficos, export CSV y panel de flujos. No incluye cambios en el repo `luka/` (bot de WhatsApp) ni en el esquema de la base compartida. |
-| **Documentos relacionados** | `01-inventario-paridad.md` (contrato de paridad: 25 rutas, cookies, consultas, tests, env); `docs/investigacion-frameworks-js-2026.md` (base técnica); `docs/marca/` (marca y tokens). |
+| **Documentos relacionados** | `01-inventario-paridad.md` (contrato de paridad: 25 rutas, cookies, consultas, tests, env); `02-estado-y-siguientes-pasos.md` (estado de avance y handoff); `docs/investigacion-frameworks-js-2026.md` (base técnica); `docs/marca/` (marca y tokens). |
 
 ---
 
@@ -19,6 +19,8 @@ La migración se hace **por partes, con el servicio vivo**, siguiendo el patrón
 **Contrato de URLs decidido:** un solo dominio; `/` = landing (Astro), `/app` = dashboard (Astro). Es el único cambio de URL del sistema; el bot no cambia.
 
 **Línea base verificada (2026-09-23):** `ruff check .` OK; `pytest` **141 passed** en el venv local. Esa es la referencia de paridad.
+
+**Estado de avance (2026-09-24):** F0, F1 y F2 tienen el código completo; F1 y F2 están validados de punta a punta contra la base real de Supabase. El estado detallado por fase, cómo levantar el entorno local y el checklist de los próximos pasos viven en `02-estado-y-siguientes-pasos.md`.
 
 ---
 

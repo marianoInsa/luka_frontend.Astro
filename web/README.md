@@ -2,7 +2,8 @@
 
 Reemplazo en Astro del frontend actual de FastAPI + Jinja2 + HTMX. Este directorio
 corresponde a las fases **F0** (scaffold), **F1** (landing) y **F2** (onboarding) del plan
-de migración: `docs/migracion-astro/00-plan-limpieza-preparacion.md` §7.
+de migración: `docs/migracion-astro/00-plan-limpieza-preparacion.md` §7. Estado de avance y
+próximos pasos: `docs/migracion-astro/02-estado-y-siguientes-pasos.md`.
 
 Durante la migración, FastAPI (`app/`) sigue siendo el servicio de producción;
 `web/` se construye y despliega por separado.

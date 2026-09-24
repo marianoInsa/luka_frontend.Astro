@@ -68,6 +68,10 @@ El frontend está migrando a Astro en fases (ver `docs/migracion-astro/00-plan-l
 Durante la migración, FastAPI sigue siendo el servicio de producción y `web/` se despliega aparte:
 Astro sirve la landing pública y FastAPI actúa de facade para los paths ya migrados.
 
+**Estado (2026-09-24):** F0/F1/F2 con código completo y validado contra la base real; el próximo paso es
+F3 (login + dashboard). Estado detallado, entorno local y próximos pasos en
+`docs/migracion-astro/02-estado-y-siguientes-pasos.md`.
+
 Variables del facade (ver `.env.example`):
 
 - `ASTRO_ORIGIN`: URL del servicio de `web/` (Astro).
