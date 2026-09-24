@@ -1,10 +1,11 @@
 # 01 — Inventario de paridad para la migración a Astro
 
-- **Propósito:** inventario verificable de todo lo que el frontend actual (FastAPI + Jinja2 + HTMX + Chart.js + SQLAlchemy) expone, para usarlo como insumo de paridad de la migración a Astro y como checklist de corte en F2.
-- **Estado:** v1.0 — 2026-09-23.
-- **Alcance:** repositorio `luka_frontend`. Método: lectura directa de los archivos citados; conteos con `Select-String` (grep) sobre `tests/`; sin modificar el repositorio.
+- **Propósito:** inventario verificable de todo lo que el frontend actual (FastAPI + Jinja2 + HTMX + Chart.js + SQLAlchemy) expone, para usarlo como insumo de paridad de la migración a Astro y como checklist de corte en F5.
+- **Estado:** v1.1 — 2026-09-23.
+- **Nota de actualización v1.1 (2026-09-23):** `00-plan-limpieza-preparacion.md` v2.0 fijó: un solo dominio con `/` = landing y **dashboard en `/app`**; sesión de dashboard = `luka_session` (Supabase queda transitoria del registro); HTMX y los 3 parciales se mantienen; el hosting se decide al final de F1. Este inventario sigue siendo el contrato de paridad: los paths del dashboard se leen con el prefijo `/app`, el resto no cambia, y §9 quedó resuelto.
+- **Alcance:** repositorio `luka_frontend`. Método: lectura directa de los archivos citados; conteos con `Select-String` (grep) sobre `tests/`; sin modificar el código de la aplicación.
 - **Cómo usarlo:** cada fila de §2, §3, §4 y §5 debe quedar cubierta por `web/`; §8 es la lista de verificación antes de apagar FastAPI.
-- **Fuera de alcance:** el plan de fases y la limpieza previa son de `docs/migracion-astro/00-plan-limpieza-preparacion.md` (otro agente; al 2026-09-23 el directorio `docs/migracion-astro/` no existía en el repo). Este documento no lo duplica.
+- **Fuera de alcance:** el plan de fases y la estrategia son de `docs/migracion-astro/00-plan-limpieza-preparacion.md` (v2.0, 2026-09-23). Este documento no lo duplica.
 
 ### Resumen de paridad
 
@@ -23,6 +24,8 @@
 ## 2. Rutas (25)
 
 Todas las rutas están en `app/main.py`; el mount de estáticos es `/static` → `static/` (`app/main.py:90`). El handler global de 401 redirige a `/login` (`app/main.py:1194-1196`), por lo que **todo endpoint autenticado debe replicar esa redirección** (middleware en Astro). Los 4 endpoints `/api/graficos/*` y los 3 parciales requieren `luka_session`; hoy el 401 se convierte en 303.
+
+**Nota v1.1:** la fila #18 (dashboard) pasa de `/` a `/app`; `/` queda para la landing nueva (definida en `00` v2.0 §4, fuera de este inventario). El resto de los paths no cambia.
 
 | # | Método | Ruta | Propósito | Auth | Datos / Template | Destino Astro | Notas |
 |---|--------|------|-----------|------|------------------|---------------|-------|
@@ -43,7 +46,7 @@ Todas las rutas están en `app/main.py`; el mount de estáticos es `/static` →
 | 15 | POST | `/admin/flujos/api/{flow_id}/publicar` | Proxy publicar | Admin | JSON del backend `luka` | `src/pages/api/admin/flujos/[flow_id]/publicar.ts` | `app/main.py:870` |
 | 16 | POST | `/admin/flujos/api/{flow_id}/retirar` | Proxy retirar | Admin | JSON del backend `luka` | `src/pages/api/admin/flujos/[flow_id]/retirar.ts` | `app/main.py:881` |
 | 17 | GET | `/admin/flujos/{flow_id}` | Editor de flujo existente | Admin | `get` + `contracts()` en paralelo → `admin_flow_editor.html` | `src/pages/admin/flujos/[flow_id].astro` | `app/main.py:892`; `asyncio.gather` en `main.py:901-904` |
-| 18 | GET | `/` | Dashboard completo | Sesión | 10 consultas de `app/dashboard.py` → `dashboard.html` | `src/pages/index.astro` | `app/main.py:949` |
+| 18 | GET | `/app` (v1.1; era `/`) | Dashboard completo | Sesión | 10 consultas de `app/dashboard.py` → `dashboard.html` | `src/pages/app.astro` | `app/main.py:949`; landing nueva en `/` (00 v2.0 §4) |
 | 19 | GET | `/exportar/csv` | Exportar movimientos a CSV (streaming) | Sesión | Query inline + `StreamingResponse` | `src/pages/api/exportar/csv.ts` | `app/main.py:990`; `yield_per(100)` en `main.py:1035` |
 | 20 | GET | `/api/graficos/distribucion` | JSON egresos por categoría | Sesión | `get_expenses_by_category` | `src/pages/api/graficos/distribucion.ts` | `app/main.py:1060` |
 | 21 | GET | `/api/graficos/cartera` | JSON cartera ARS/USD por mes | Sesión | `get_portfolio_by_currency` | `src/pages/api/graficos/cartera.ts` | `app/main.py:1074` |
@@ -243,15 +246,19 @@ web/
 
 ---
 
-## 9. Preguntas abiertas
+## 9. Decisiones resueltas (v1.1, 2026-09-23)
 
-1. **`luka_session` y `@supabase/ssr`:** ¿se mantiene la cookie propia firmada (compatible con sesiones en vuelo de 7 días) o se adopta la sesión Supabase como sesión de dashboard (implica re-loguear a todos al corte)?
-2. **`luka_session` sin `Secure`** (`main.py:693-699,714-720`): ¿se corrige en FastAPI antes del corte o se arrastra el comportamiento a Astro por paridad?
-3. **HTMX vs islas:** ¿se conservan los parciales 23-25 y HTMX 2.0.3, o se reemplazan por componentes Astro con `client:load`? Afecta el tamaño del port y los tests de parciales.
-4. **Parámetros `date_from`/`date_to`:** hoy se propagan desde `/login` y el dashboard usa `YYYY-MM-DD` (`main.py:648-661,928-946`). ¿Se conserva el contrato de query params en las URLs de Astro?
-5. **`get_dias_racha`** retorna `0` (placeholder, `dashboard.py:531-536`): ¿se implementa durante la migración o se mantiene el placeholder?
-6. **Tasa USD** hardcodeada en 1300 (`dashboard.py:34-36`): ¿se integra cotización real en F2 o se mantiene la constante?
-7. **Admin en el mismo deploy:** ¿el panel `/admin/flujos` migra en el mismo corte o queda en FastAPI como servicio aparte durante una fase?
-8. **Backend `luka`:** ¿expondrá endpoints directos que hagan innecesario el proxy de `conversation_flow_admin.py`, o el proxy se reimplementa en Astro con `FLOW_ADMIN_API_KEY` server-side?
-9. **Pooler de Supabase:** confirmar si `web/` usará el puerto 6543 (transaction pooler, requiere `prepare: false`) o una conexión directa, y si el plan de Render permite conexiones persistentes.
-10. **Tests E2E de OAuth:** ¿habrá entorno Supabase de staging para Playwright o se simula el proveedor (como hace `FakeSupabaseAuth` hoy)?
+Resueltas en `00` v2.0; se listan acá porque afectan la lectura de este inventario.
+
+| # | Pregunta original | Decisión | Fundamento (00 v2.0) |
+|---|---|---|---|
+| 1 | `luka_session` vs sesión Supabase | **Se mantiene `luka_session`** (HMAC, 7 días) como sesión de dashboard; Supabase queda transitoria del registro | §5.1: las cookies Supabase se borran al finalizar onboarding |
+| 2 | `luka_session` sin `Secure` | **Se corrige en F1** en FastAPI, condicionado a producción; no invalida firmas | §2.3, §7-F1 |
+| 3 | HTMX vs islas | **Se mantiene HTMX 2.0.3** y los parciales 23-25 con el mismo contrato (`HX-Trigger`) | §6.1; paridad 1:1 |
+| 4 | Params `date_from`/`date_to` | **Se conservan** (`YYYY-MM-DD`), incluida la propagación desde `/login` | §6.1 |
+| 5 | `get_dias_racha` placeholder | **Se conserva el placeholder** `0` | §6.2 |
+| 6 | Tasa USD hardcodeada | **Se conserva `1300.0`**; cotización real es ticket aparte (post-F3) | §6.2 |
+| 7 | Admin en el mismo deploy | **Sí**, mismo deploy de Astro, fase F4 | §6.1, §7-F4 |
+| 8 | Backend `luka` y proxy admin | **Se reimplementa el proxy** en Astro con `FLOW_ADMIN_API_KEY` server-side; `luka/` no se toca | §6.1, §7-F4 |
+| 9 | Pooler Supabase | **Puerto 6543 (transaction pooler) con `prepare: false`** | §6.1 (verificado en README de postgres.js) |
+| 10 | E2E de OAuth | **Se simula el proveedor** (`FakeSupabaseAuth`) + smoke manual contra staging | §8 |
