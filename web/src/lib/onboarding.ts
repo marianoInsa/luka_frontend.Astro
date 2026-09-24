@@ -92,7 +92,7 @@ const UUID_HEX = /^[0-9a-f]{32}$/i;
 
 // Espejo de uuid.UUID(str(value)): acepta mayúsculas, guiones, llaves y
 // prefijo urn:uuid; devuelve la forma canónica en minúsculas.
-function parseUuid(value: unknown): string | null {
+export function parseUuid(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const hex = value.replace(/^urn:uuid:/i, '').replace(/[{}-]/g, '');
   if (!UUID_HEX.test(hex)) return null;
