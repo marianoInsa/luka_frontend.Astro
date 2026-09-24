@@ -140,6 +140,34 @@ async def test_non_migrated_path_is_served_locally():
     assert response.json() == {"marker": "local"}
 
 
+@pytest.mark.asyncio
+async def test_non_proxied_path_keeps_the_original_origin_header():
+    async with _origin_client(FastAPI()) as origin_client:
+        facade = FastAPI()
+
+        @facade.post("/local")
+        async def local_page(request: Request):
+            return {"origin": request.headers.get("origin", "")}
+
+        facade.add_middleware(
+            ProxyMiddleware,
+            origin="http://origin.test",
+            paths=("/registro",),
+            client=origin_client,
+        )
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=facade),
+            base_url="http://facade.test",
+            follow_redirects=False,
+        ) as client:
+            response = await client.post(
+                "/local", headers={"Origin": "https://public.example"}
+            )
+
+    assert response.status_code == 200
+    assert response.json()["origin"] == "https://public.example"
+
+
 # --- forwarding ----------------------------------------------------------------
 
 
@@ -160,6 +188,7 @@ def _echo_origin() -> FastAPI:
                 "x_custom": request.headers.get("x-custom", ""),
                 "connection": request.headers.get("connection", ""),
                 "host": request.headers.get("host", ""),
+                "origin": request.headers.get("origin", ""),
                 "body": body.decode(),
             }
         )
@@ -228,6 +257,42 @@ async def test_preserves_percent_encoding_of_path_and_query():
     assert payload["raw_path"] == "/registro/caf%C3%A9"
     assert payload["raw_query"] == "x=%E2%82%AC"
     assert payload["path"] == "/registro/caf\u00e9"
+
+
+@pytest.mark.asyncio
+async def test_rewrites_origin_header_to_the_astro_origin():
+    async with _origin_client(_echo_origin()) as origin_client:
+        facade = _facade_with(
+            origin_client, paths=parse_migrated_paths("/registro")
+        )
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=facade),
+            base_url="http://facade.test",
+            follow_redirects=False,
+        ) as client:
+            response = await client.post(
+                "/registro", headers={"Origin": "https://public.example"}
+            )
+
+    assert response.status_code == 200
+    assert response.json()["origin"] == "http://origin.test"
+
+
+@pytest.mark.asyncio
+async def test_does_not_add_origin_header_when_absent():
+    async with _origin_client(_echo_origin()) as origin_client:
+        facade = _facade_with(
+            origin_client, paths=parse_migrated_paths("/registro")
+        )
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=facade),
+            base_url="http://facade.test",
+            follow_redirects=False,
+        ) as client:
+            response = await client.post("/registro")
+
+    assert response.status_code == 200
+    assert response.json()["origin"] == ""
 
 
 # --- status and header passthrough ---------------------------------------------

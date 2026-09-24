@@ -96,6 +96,12 @@ class ProxyMiddleware:
             header_name = name.decode("latin-1")
             if header_name.lower() in _EXCLUDED_REQUEST_HEADERS:
                 continue
+            if header_name.lower() == "origin":
+                # Transitional facade adaptation: Astro's checkOrigin (on by
+                # default) rejects requests whose Origin does not match the
+                # host it sees (the Astro origin). Removed with the facade at F5.
+                headers.append((header_name, self.origin))
+                continue
             headers.append((header_name, value.decode("latin-1")))
 
         request = self.client.build_request(
