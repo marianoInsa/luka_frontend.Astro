@@ -1,135 +1,131 @@
-# LUKA Frontend
+# LUKA Frontend — Astro (migración)
 
-Plataforma web complementaria para el bot financiero LUKA en WhatsApp.
-Provee un dashboard visual interactivo y detallado, utilizando Jinja2, HTMX, y Chart.js sobre FastAPI.
+Frontend en Astro del bot financiero LUKA en WhatsApp: landing pública, onboarding
+(registro con Google), dashboard y panel de flujos. Corresponde a las fases **F0**
+(scaffold), **F1** (landing), **F2** (onboarding), **F3** (sesión + dashboard) y **F4**
+(panel de flujos) del plan de migración:
+`docs/migracion-astro/00-plan-limpieza-preparacion.md` §7. Estado de avance y
+próximos pasos: `docs/migracion-astro/02-estado-y-siguientes-pasos.md`.
 
-## Tecnologías Utilizadas
+## Requisitos
 
-- **Backend**: Python 3 con [FastAPI](https://fastapi.tiangolo.com/) y SQLAlchemy.
-- **Frontend**: Plantillas Jinja2 con HTML puro, [HTMX](https://htmx.org/) para reactividad del lado del servidor sin necesidad de recargar la página.
-- **Estilos**: Vanilla CSS con diseño avanzado (Dark mode, Glassmorphism, CSS Grid).
-- **Gráficos**: [Chart.js](https://www.chartjs.org/) para métricas dinámicas.
-- **Base de Datos**: PostgreSQL vía Supabase (reutilizando los datos guardados por el bot LUKA).
+- Node >= 22.12 (ver `engines` en `package.json`)
 
-## Contrato de base de datos compartido
+## Comandos
 
-Las migraciones de la base compartida pertenecen a `blob1618/luka`. Este repositorio
-solo mantiene modelos SQLAlchemy consumidores compatibles; no debe usarse
-`Base.metadata.create_all()` para modificar la instancia compartida de Supabase.
-
-## Estructura del Proyecto
-
-```text
-luka_frontend/
-├── app/
-│   ├── main.py              # Entrypoint de FastAPI y rutas HTMX
-│   ├── auth.py              # Generación y validación de tokens de sesión
-│   ├── dashboard.py         # Consultas a la base de datos para armar las métricas
-│   ├── models/
-│   │   └── database.py      # Conexión SQLAlchemy y declaración de tablas
-│   └── templates/
-│       ├── base.html        # Layout principal (Sidebar, dependencias JS/CSS)
-│       ├── dashboard.html   # Estructura del dashboard principal
-│       ├── login.html       # Interfaz de "magic link"
-│       └── partials/        # Archivos que se recargan vía HTMX
-│           ├── charts.html
-│           ├── stats.html
-│           └── transactions.html
-├── static/
-│   └── css/
-│       └── style.css        # Hoja de estilos del proyecto
-├── .env                     # Variables de entorno locales
-├── .env.example             # Plantilla de variables
-├── render.yaml              # Configuración de despliegue como código
-└── requirements.txt         # Dependencias Python
+```bash
+npm install        # dependencias
+npm run dev        # servidor de desarrollo en http://localhost:4321
+npm run check      # chequeo de tipos y de plantillas Astro
+npm run build      # build de producción (dist/)
+npm run preview    # sirve el build localmente
 ```
 
-## Ejecutar en Local
+Producción (adaptador Node standalone):
 
-1. Crea y activa tu entorno virtual:
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate
-   ```
-2. Instala dependencias:
-   ```bash
-   pip install -r requirements.txt
-   ```
-3. Configura tu `.env` tomando como base `.env.example`. **Asegurate de que tu puerto en la URL de Supabase sea el `6543` (el transaction pooler para evitar errores de red).**
-4. Arranca el servidor local en modo desarrollo:
-   ```bash
-   uvicorn app.main:app --reload --port 8001
-   ```
-5. Para probar sin necesidad del bot de WhatsApp, abrí `http://localhost:8001/dev-login` que iniciará sesión automáticamente.
+```bash
+node ./dist/server/entry.mjs   # respeta HOST y PORT del entorno
+```
 
-## Migración a Astro (en curso)
+## Variables de entorno
 
-El frontend está migrando a Astro en fases (ver `docs/migracion-astro/00-plan-limpieza-preparacion.md`).
-Durante la migración, FastAPI sigue siendo el servicio de producción y `web/` se despliega aparte:
-Astro sirve la landing pública y FastAPI actúa de facade para los paths ya migrados.
+Ver `.env.example`: `APP_ENV`, `APP_BASE_URL`, `AUTH_COOKIE_SECURE`, `SECRET_KEY`,
+`DATABASE_URL`, `SUPABASE_URL`, `PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `LUKA_BACKEND_URL`,
+`FLOW_ADMIN_API_KEY` y `FLOW_ADMIN_AUTH_USER_IDS`.
 
-**Estado (2026-09-24):** F0/F1/F2 con código completo y validado contra la base real; el próximo paso es
-F3 (login + dashboard). Estado detallado, entorno local y próximos pasos en
-`docs/migracion-astro/02-estado-y-siguientes-pasos.md`.
+- Las variables `PUBLIC_*` se exponen al navegador por diseño (la publishable key es pública).
+- Los secretos server-only (`SECRET_KEY`, `DATABASE_URL`, `FLOW_ADMIN_API_KEY`) nunca deben
+  usar el prefijo `PUBLIC_`.
+- `SECRET_KEY` firma las cookies firmadas propias (`luka_onboarding`, `luka_pending_google`
+  y `luka_session`, byte-compatible con `itsdangerous`); en producción debe tener 32+
+  caracteres y no ser el placeholder de desarrollo.
+- Para `/dev-login` local: `ENABLE_MOCK_AUTH=true` (solo actúa con `APP_ENV=development`) y,
+  si querés datos, `MOCK_AUTH_USER_ID` apuntando a un `usuario.auth_user_id` existente.
+- `FLOW_ADMIN_AUTH_USER_IDS` (CSV, case-insensitive) es la allowlist del panel de flujos:
+  sin ella nadie pasa el gate (403) y el nav no muestra «Flujos».
+- `LUKA_BACKEND_URL` y `FLOW_ADMIN_API_KEY` apuntan al backend `luka/` que expone la API de
+  flujos; la clave viaja solo server-side en el header `Authorization`.
+- No se commitea `.env` (ya ignorado en `.gitignore`).
 
-Variables del facade (ver `.env.example`):
+## Entorno local (dev)
 
-- `ASTRO_ORIGIN`: URL del servicio de `web/` (Astro).
-- `ASTRO_MIGRATED_PATHS`: lista separada por comas de los paths que sirve Astro; el resto queda en FastAPI.
-  Debe incluir los assets de la landing (CSS construido en `/_astro`, archivos de `public/` y
-  robots/sitemap): sin ellos la landing responde 200 pero sus assets dan 404. Con la lista vacía el
-  facade es no-op.
+Para `npm run dev` hace falta un `.env` en la raíz (ignorado por git; `.env.example`
+lista las claves). El script `dev` lo carga con `node --env-file-if-exists=.env` porque en dev
+las variables server-only (`DATABASE_URL`, `SECRET_KEY`) tienen que estar en `process.env`; las
+`PUBLIC_*` además se exponen por `import.meta.env`.
 
-Para probar la topología de la migración en local usá el build de Astro, no el dev server:
+```bash
+# copiá .env.example a .env y completá los valores reales
+npm run dev            # http://localhost:4321
+```
 
-1. Terminal A — Astro: `cd web && npm run build && node dist/server/entry.mjs` (puerto 4321).
-2. Terminal B — FastAPI: `uvicorn app.main:app --reload --port 8001`, con `ASTRO_ORIGIN=http://localhost:4321`
-   y `ASTRO_MIGRATED_PATHS` como en `.env.example`.
-3. Abrí `http://localhost:8001/`: la landing la sirve Astro; `/app`, `/login` y el resto siguen en FastAPI.
+- `/dev-login` firma una sesión con `MOCK_AUTH_USER_ID`; para ver el dashboard, ese id debe
+  existir como `usuario.auth_user_id` (si no, `/app` redirige a `/login`).
 
-El dev server de Astro referencia URLs de Vite (`/@vite`, `/src/...`) que el facade no proxya: la landing
-se vería sin estilos a través de `:8001`.
+## Estructura
 
-## Despliegue en Producción (Render)
+- `src/pages/`: `index.astro` es la landing pública (prerenderizada y sin JS; el SEO
+  —title, description, canonical y Open Graph— vive ahí). `robots.txt.ts` y
+  `sitemap.xml.ts` son endpoints también prerenderizados.
+- `src/pages/registro.astro` y `src/pages/auth/google.ts` inician el onboarding (F2):
+  validan el token de la invitación, emiten la cookie firmada `luka_onboarding` y arrancan
+  el OAuth PKCE de Supabase. `src/pages/auth/callback.ts` intercambia el código y fija la
+  identidad pendiente; `src/pages/registro/continuar.astro` y `src/pages/registro/finalizar.ts`
+  completan el registro contra la DB (transacción en `src/lib/onboarding.ts`).
+- `src/pages/login.astro`, `logout.ts` y `dev-login.ts` (F3): magic link del bot con consumo
+  atómico (`src/lib/login.ts`), sesión `luka_session` byte-compatible con itsdangerous
+  (`src/lib/session.ts`) y el atajo local de desarrollo.
+- `src/pages/app.astro` (F3): dashboard SSR con Chart.js + HTMX; `src/pages/dashboard/actualizar.astro`
+  y `src/pages/partials/{charts,transactions}.astro` son los 3 parciales con el mismo contrato.
+  `src/pages/api/graficos/*` y `src/pages/exportar/csv.ts` exponen gráficos y CSV (keyset
+  pagination en `src/lib/csv.ts`). Las consultas viven en `src/lib/dashboard.ts`.
+- `src/pages/admin/flujos*.astro` y `src/pages/admin/flujos/api/*` (F4): panel admin con las 3
+  páginas (listado, editor nuevo y editor existente) y los 6 proxies JSON hacia el backend
+  `luka` (`src/lib/flow-admin.ts`). El editor vive en `src/scripts/admin-flows.ts` (port de
+  `static/js/admin_flows.js`) y el shell en `src/layouts/AdminLayout.astro` +
+  `src/components/Admin{FlowsList,FlowEditor}.astro`; el gate 403 por allowlist y el secreto
+  server-side se validan en sus tests.
+- `src/components/Sidebar.astro`: chrome compartido del área privada (dashboard + admin).
+- `src/middleware.ts`: exige `luka_session` en las áreas privadas (`/app`, `/dashboard`,
+  `/partials`, `/api/graficos`, `/exportar`, `/admin`) y redirige 303 a `/login`
+  (paridad con el 401 → `/login` de FastAPI).
+- `src/styles/`: `global.css` importa los tokens canónicos desde
+  `docs/marca/tokens/tokens.css` (fuente única de verdad de la marca).
+- `public/` (raíz): assets de marca (favicons y logos); es el `publicDir` por defecto de
+  Astro.
 
-### Opción 1: Usar Render Blueprint (Automático)
-Dado que el repositorio incluye un archivo `render.yaml`, solo tienes que conectar el repositorio de GitHub en el dashboard de Render en la sección "Blueprints".
+`site` (canonical/OG/sitemap) sale de `APP_BASE_URL` y cae a `http://localhost:4321`
+si no está definida.
 
-### Opción 2: Web Service Manual
-Si creas el Web Service manualmente en Render, utiliza la siguiente configuración:
+## Tests
 
-- **Build Command:** `pip install -r requirements.txt`
-- **Start Command:** `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+`npm test` corre la suite hermética (Vitest, sin red ni DB). Los tests de integración están
+desactivados por defecto y escriben y limpian filas de prueba en la DB real (incluida una fila
+temporal en `auth.users` por la FK de `usuario.auth_user_id`). `vitest.setup.ts` solo copia
+`DATABASE_URL` del `.env` de la raíz:
 
-### Variables de entorno necesarias
-No te olvides de configurar las siguientes **Environment Variables** en Render
-(el listado completo con la plantilla está en `.env.example`):
+```bash
+RUN_DB_INTEGRATION=1 npx vitest run src/lib/onboarding.integration.test.ts
+RUN_DB_INTEGRATION=1 npx vitest run src/lib/dashboard.integration.test.ts src/lib/login.integration.test.ts
+```
 
-- `APP_ENV` (`development` o `production`; en producción se exige HTTPS y cookies seguras).
-- `APP_BASE_URL` (URL pública base del frontend; debe ser HTTPS en producción).
-- `SUPABASE_URL` (URL del proyecto Supabase usada para la autenticación).
-- `SUPABASE_PUBLISHABLE_KEY` (clave publicable de Supabase; empieza con `sb_publishable_`).
-- `AUTH_COOKIE_SECURE` (`true` obligatorio en producción; `false` solo para desarrollo local).
-- `ENABLE_MOCK_AUTH` (solo desarrollo: habilita `/dev-login`; en producción debe quedar desactivado).
-- `SECRET_KEY` (Generá un texto largo, aleatorio y seguro para cifrar las cookies de los usuarios).
-- `MOCK_AUTH_USER_ID` (solo desarrollo: UUID del usuario falso que usa `/dev-login`).
-- `DATABASE_URL` (Debe ser idéntica a la que usás localmente).
-- `LUKA_BACKEND_URL` (URL pública o privada alcanzable del backend `luka`).
-- `FLOW_ADMIN_API_KEY` (misma credencial interna configurada en el backend; nunca se expone al navegador).
-- `FLOW_ADMIN_AUTH_USER_IDS` (lista separada por comas de `auth_user_id` autorizados a administrar flujos).
+La integración del panel admin (`src/lib/flow-admin.integration.test.ts`) es **read-only** (nunca
+crea ni publica flujos) y se activa con `RUN_FLOW_BACKEND=1` más `LUKA_BACKEND_URL` y
+`FLOW_ADMIN_API_KEY` en el entorno:
 
-Las variables marcadas como solo desarrollo (`ENABLE_MOCK_AUTH`, `MOCK_AUTH_USER_ID` y
-`AUTH_COOKIE_SECURE=false`) no deben usarse en producción; el resto son obligatorias.
+```powershell
+$env:RUN_FLOW_BACKEND='1'; npx vitest run src/lib/flow-admin.integration.test.ts
+```
 
-## Panel de flujos conversacionales
+La compatibilidad de `luka_session` con `itsdangerous` (`src/lib/session.vectors.json`) se
+verifica en `src/lib/session.test.ts`; con Python retirado del repo ya no hay comando local
+para regenerar los vectores.
 
-Los administradores autorizados acceden a `/admin/flujos`. El panel lista
-recorridos, crea y edita borradores, valida texto/botones/listas y permite
-publicar, descartar o retirar versiones. Todas las operaciones pasan por la API
-protegida de `luka`; este repositorio no lee ni modifica las tablas de flujos en
-Supabase.
+## Deuda conocida
 
-Los flujos sólo personalizan resultados que el backend ya decidió. No existe un
-menú principal obligatorio: después de `/link` o mientras hay una interacción
-visual pendiente, el usuario puede escribir otra operación y el dispatcher de
-Luka la procesa normalmente.
+- Los estilos se inlinean por defecto (comportamiento `inlineStylesheets: 'auto'` de Astro);
+  el dashboard importa `src/styles/style.css` y el panel admin además
+  `src/styles/admin_flows.css`, ambos por el pipeline de Vite (URL hasheada en `/_astro`).
+- Las fuentes cargan desde Google Fonts en runtime.
+- Hosting: en migración a Cloudflare Workers
+  (`docs/migracion-astro/10-plan-cloudflare-workers.md`); el adaptador actual es Node standalone.

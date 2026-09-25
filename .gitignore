@@ -1,8 +1,12 @@
+node_modules/
+dist/
+.astro/
 .env
-*.db
-*.sqlite
+.env.production
+npm-debug.log*
+.wrangler/
+.dev.vars
 .DS_Store
-
 .vscode/
 .agents/
 .playwright-mcp/

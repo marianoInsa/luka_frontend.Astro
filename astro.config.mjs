@@ -3,7 +3,6 @@ import node from '@astrojs/node';
 
 export default defineConfig({
   site: process.env.APP_BASE_URL || 'http://localhost:4321',
-  publicDir: '../public',
   output: 'server',
   adapter: node({ mode: 'standalone' }),
   server: { port: 4321 },

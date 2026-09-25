@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 const localPath = fileURLToPath(new URL('./tokens.css', import.meta.url));
 const docsPath = fileURLToPath(
-  new URL('../../../docs/marca/tokens/tokens.css', import.meta.url),
+  new URL('../../docs/marca/tokens/tokens.css', import.meta.url),
 );
 
 // La copia local debe seguir a docs/marca/tokens/tokens.css (fuente única). En
