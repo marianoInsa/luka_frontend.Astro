@@ -132,7 +132,7 @@ ${registroCss}</style>
     <main class="registration-container">
       <section class="registration-card" aria-labelledby="auth-error-title">
         <header class="registration-brand">
-          <img class="registration-logo" src="/logo-luka.svg" alt="" width="44" height="39" />
+          <img class="registration-logo" src="/logo-luka.png" alt="" width="44" height="45" />
           <span class="registration-brand-name">LUKA</span>
         </header>
         <div class="registration-state" role="alert">
@@ -164,7 +164,7 @@ ${registroCss}</style>
     <main class="registration-container">
       <section class="registration-card" aria-labelledby="registration-title">
         <header class="registration-brand">
-          <img class="registration-logo" src="/logo-luka.svg" alt="" width="44" height="39" />
+          <img class="registration-logo" src="/logo-luka.png" alt="" width="44" height="45" />
           <span class="registration-brand-name">LUKA</span>
         </header>
         <div class="registration-state registration-success" role="status">

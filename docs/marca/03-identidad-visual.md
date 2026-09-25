@@ -3,6 +3,7 @@
 > **Entregable de Fase 3.** Nivel visceral (Norman): la reacción sensorial inmediata — color, forma, tipografía, aire. Un producto visualmente sereno reduce el estrés operativo de mirar dinero.
 > Dirección aprobada: **paleta nueva** (azul profundo tecnológico + esmeralda de logro), sustituyendo el indigo actual del dashboard.
 > **Decisiones de esta fase cerradas 2026-09-23** (ver §10): paleta aprobada, isotipo definitivo integrado, categorías unificadas con tildes.
+> **Actualización 2026-09-24:** isotipo reemplazado por el símbolo LK en burbuja de diálogo (raster PNG; variantes claro/oscuro/mono retiradas por ahora). Assets de `public/`, `docs/marca/assets/` e íconos inline sincronizados.
 > Fuentes: `luka_frontend/static/css/style.css`, `registro.css`, `admin_flows.css`, `app/templates/**`, `app/dashboard.py`, `luka/app/services/movement_chart.py`, `luka/public/*`, `luka/testing/.streamlit/config.toml`.
 > Tokens: `tokens/design-tokens.json` (fuente de verdad) y `tokens/tokens.css` (implementación).
 
@@ -25,42 +26,39 @@
 | Elemento | Qué es | Estado |
 |---|---|---|
 | **Wordmark** | «LUKA» geométrico (PNG en `luka/public/logo-luka-texto.png`, fondo transparente, casi blanco `#F8F8FF`) | Vigente; pendiente exportar SVG vectorial |
-| **Isotipo** | Símbolo definitivo (D3.3): burbuja de diálogo entrelazada, dos formas orgánicas con gradiente azul→esmeralda; variantes color/claro/oscuro/mono | ✅ Definido e integrado 2026-09-23 (`public/` + `assets/`) |
-| **Favicon** | Derivado del isotipo (viewBox recortado al contenido) + PNG 32/512 y apple-touch 180 | ✅ Integrado 2026-09-23 |
+| **Isotipo** | Símbolo vigente (actualizado 2026-09-24): burbuja de diálogo entrelazada que inscribe «L» y «K» en negativo, gradiente azul→esmeralda; raster PNG (sin fuente vectorial) | ✅ Integrado 2026-09-24 (`public/` + `assets/`) |
+| **Favicon** | Derivado del isotipo: PNG 32/512 y apple-touch 180 | ✅ Integrado 2026-09-24 |
 
-**Criterio (D3.3):** se descarta unificar hacia el monograma K (y también el «A» del frontend): el isotipo es el símbolo nuevo. Los archivos K fueron eliminados de `assets/` y no deben usarse en piezas nuevas.
+**Criterio (D3.3, superseded 2026-09-24):** el isotipo vigente es la burbuja LK (ver §2.2). El «A» triangular del template fue reemplazado por el isotipo nuevo en `logo_login.svg` y `logo_sidebar.svg`; los assets de los símbolos anteriores ya no existen en el repo.
 
 ### 2.2 Construcción y variantes
 
-- Construcción: símbolo orgánico de dos formas entrelazadas que sugiere una burbuja de diálogo; 6 paths con curvas continuas, viewBox `0 0 333 295` (contenido medido: x 5.8→330.1, y 4.3→292.7).
-- Colores propios del símbolo (no se recolorean): sólidos `#0667EE`, `#0689AF`, `#0EA099` + gradientes `#0EB86B → #0687B5` y `#0C8CBB → #0B72E5`.
+- Construcción: burbuja de diálogo entrelazada en dos formas orgánicas que inscriben «L» y «K» en negativo. Master raster `assets/isotipo-color.png` (451×460 px, fondo transparente, relación 0.98:1); **sin fuente vectorial** (pendiente exportar SVG).
+- Colores propios del símbolo (no se recolorean): gradiente azul→esmeralda alineado con `--gradient-brand` (§3); muestras medidas del master: azul `#0A5DFB`, esmeralda `#1F9F77`, teal `#10919F`.
 - Variantes (set canónico en `docs/marca/assets/`; copias de producción en `luka_frontend/public/`):
   | Archivo | Uso |
   |---|---|
-  | `assets/isotipo-color.svg` (`public/logo-luka.svg`) | Por defecto: fondos claros y oscuros, espacios de marca |
-  | `assets/isotipo-claro.svg` (`public/logo-luka-claro.svg`) | Fondos oscuros: navy, fotos o superficies de bajo contraste |
-  | `assets/isotipo-oscuro.svg` (`public/logo-luka-oscuro.svg`) | Fondos claros: una tinta negra |
-  | `assets/isotipo-mono.svg` (`public/logo-luka-mono.svg`) | Monocromo `currentColor`: sellos, marcas de agua, impresión a una tinta, integraciones de terceros |
-  | `assets/favicon.svg` (`public/favicon.svg`) | Favicon: viewBox recortado al contenido `4 2 328 292` |
+  | `assets/isotipo-color.png` (`public/logo-luka.png`) | Por defecto: fondos claros y oscuros, espacios de marca |
+
+  **Claro/oscuro/mono retirados 2026-09-24** (no hay fuente vectorial para recolorear); reponer cuando exista export SVG del isotipo.
 - PNG derivados (`luka_frontend/public/`): `favicon-32.png` y `favicon-512.png` (fondo transparente); `apple-touch-icon.png` (180×180, fondo navy `#0A1626` con isotipo color).
 - **Zona de resguardo:** margen mínimo = 25 % del ancho del símbolo. Nada entra en ese perímetro.
-- **Tamaños mínimos:** 16 px (verificado a 16/24/32/48 px); por debajo, no usar.
-- **Contraste:** usar la variante correcta según fondo (claro sobre oscuro, oscuro sobre claro); la variante color exige contraste ≥ 3:1.
+- **Tamaños mínimos:** 16 px; el master raster actual está verificado a 32 px (`favicon-32.png`). Por debajo de 16 px, no usar.
+- **Contraste:** la variante de color exige contraste ≥ 3:1 con el fondo. Sin variantes claro/oscuro/mono (retiradas 2026-09-24), no recolorear el isotipo ni aplicarle filtros para forzar contraste.
 
 ### 2.3 Usos indebidos
 
 - No rotar, estirar, inclinar ni aplicar sombras/contornos/biseles.
 - No cambiar el ángulo ni los colores del gradiente; no usar degradados adicionales.
 - No recrear el wordmark con otra tipografía ni separarlo del isotipo dentro de una misma pieza sin respetar el lockup.
-- No poner el isotipo claro sobre fondos con contraste < 3:1.
-- No recolorear ni alterar las variantes: los colores del símbolo son fijos.
+- No recolorear ni alterar el isotipo: los colores del símbolo son fijos.
 - No descomponer el símbolo: no separar las formas entrelazadas, no recortar partes ni cambiar su relación de entrelazado.
-- No usar la variante de color sobre fondos con contraste < 3:1 (usar `isotipo-claro`, `isotipo-oscuro` o `isotipo-mono`).
-- No usar el «A» triangular del template (`logo_login.svg`) ni los assets K (eliminados) en piezas nuevas: deprecados a nivel de marca (ver §9).
+- No usar el isotipo sobre fondos con contraste < 3:1 ni en tamaños menores a 16 px (hoy no hay variantes alternativas: retiradas 2026-09-24).
+- No reutilizar símbolos anteriores (monograma K, «A» triangular): el template ya usa el isotipo vigente (`logo_login.svg`, `logo_sidebar.svg`).
 
 ### 2.4 Cumplimiento del brief (D3.3)
 
-El símbolo entregado cumple el brief: es abstracto y propio, evoca **fluidez, diálogo** (burbuja entrelazada) y **balance**, sin clichés (globo, *swoosh*, monedas, alcancías) ni los monogramas K/A; es legible a 16 px (QA a 16/24/32/48 px) y está disponible en una tinta (`isotipo-mono.svg`, `currentColor`). Assets de producción en `luka_frontend/public/` y set canónico en `docs/marca/assets/`.
+El símbolo vigente (2026-09-24) mantiene el brief: burbuja entrelazada, **fluidez/diálogo**, sin clichés (globo, *swoosh*, monedas, alcancías). Es raster: no hay variante de una tinta ni QA a 16 px hasta que exista export SVG. Assets de producción en `luka_frontend/public/` y set canónico en `docs/marca/assets/`.
 
 ---
 
@@ -275,12 +273,12 @@ Cobertura: color (primitivo/semántico/categórico/gradientes), tipografía, esp
 | Texto `#f1f5f9` / `#94a3b8` / `#475569` | — | `#E8EFFA` / `#A9BCD6` / `#8AA0C4` |
 | Rojo `#f87171` en montos negativos y barras | — | `--money-out` grafito; rojo solo en error/exceso crítico |
 | Gráficos `PALETTE = #3066BE, #087F8C, #7A5195, #BB5A24, #A33757, #58752D` (`luka/app/services/movement_chart.py:22`) | — | Paleta categórica §3.4 |
-| Logo gradiente `#6366f1 → #a855f7` | — | Gradiente de marca `#2563EB → #0E9F6E` |
+| Logo anterior indigo→violeta `#6366f1 → #a855f7` | — | ✅ Reemplazado 2026-09-24 por el isotipo LK con gradiente azul→esmeralda (`--gradient-brand`) |
 | Categorías del dashboard: 8 entradas con «Entretenimiento», «Hogar», «Otro» (`app/dashboard.py:23-32`) | — | 9 canónicas + Otros §3.4 |
 | Categoría `Educacion` sin tilde (código, semillas y filas existentes) | — | «Educación» con tilde en todo el sistema: migración de datos (`UPDATE categorias`), semillas, taxonomía y tests (§3.4) |
-| Isotipo K provisional e isotipo «A» del frontend | — | Isotipo definitivo (§2.1–2.2); assets K eliminados |
+| Isotipo K provisional e isotipo «A» del frontend | — | ✅ Reemplazados 2026-09-24 por el isotipo vigente (§2.1–2.2) en `public/`, `assets/` y los íconos inline (`logo_login.svg`, `logo_sidebar.svg`) |
 | Inter cargada, sin Space Grotesk | — | Sumar Space Grotesk (solo display) |
-| Sin favicon | — | `assets/favicon.svg` + PNG (`favicon-32`, `favicon-512`, `apple-touch-icon`) en `luka_frontend/public/` |
+| Sin favicon | — | PNG (`favicon-32`, `favicon-512`, `apple-touch-icon`) en `luka_frontend/public/`; sin `favicon.svg` desde 2026-09-24 |
 
 **Alcance:** esta fase documenta; la aplicación de tokens al código se planifica aparte (tarea técnica con sus tests de UI). Prioridad sugerida: (1) tokens semánticos de color, (2) categorías, (3) gráficos, (4) logo/favicon, (5) tipografía display.
 
@@ -292,7 +290,7 @@ Cobertura: color (primitivo/semántico/categórico/gradientes), tipografía, esp
 |---|---|---|
 | D3.1 | Paleta navy + azul `#2563EB` + esmeralda `#0E9F6E`, semánticos verificados AA | ✅ Aprobado 2026-09-23 |
 | D3.2 | Rojo prohibido para gastos; grafito para egreso | ✅ Aprobado 2026-09-23 |
-| D3.3 | Símbolo nuevo para el isotipo (fluidez/diálogo/balance); K y A deprecados | ✅ Cumplido 2026-09-23 — isotipo definitivo en `public/` y `docs/marca/assets/` |
+| D3.3 | Símbolo nuevo para el isotipo (fluidez/diálogo/balance); K y A deprecados | ✅ Cumplido 2026-09-23 — **superseded 2026-09-24:** isotipo LK en burbuja (PNG), variantes claro/oscuro/mono retiradas |
 | D3.4 | Space Grotesk (display) + Inter (UI/datos, tabular) + JetBrains Mono | ✅ Aprobado 2026-09-23 |
 | D3.5 | Design tokens versionados en `docs/marca/tokens/` como fuente de verdad | ✅ Aprobado 2026-09-23 |
 | D3.6 | Categorías unificadas con tildes (display, código y datos) + color oficial en ambos temas | ✅ Aprobado — migración pendiente |

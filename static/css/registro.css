@@ -65,7 +65,7 @@
 .registration-logo {
   width: 40px;
   height: 40px;
-  filter: drop-shadow(0 0 18px rgba(99, 102, 241, .55));
+  filter: drop-shadow(0 0 18px rgba(10, 93, 251, .55));
 }
 
 .registration-logo svg {

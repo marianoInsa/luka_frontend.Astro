@@ -35,11 +35,7 @@ docs/marca/
 │   ├── design-tokens.json          ← fuente de verdad de diseño
 │   └── tokens.css                  ← implementación (dark + light)
 └── assets/
-    ├── isotipo-color.svg           ← isotipo definitivo (por defecto)
-    ├── isotipo-claro.svg           ← variante para fondos oscuros
-    ├── isotipo-oscuro.svg          ← variante para fondos claros
-    ├── isotipo-mono.svg            ← monocromo currentColor
-    └── favicon.svg                 ← favicon (viewBox recortado)
+    └── isotipo-color.png           ← isotipo vigente (PNG; pendiente export SVG)
 ```
 
 ---
@@ -63,7 +59,7 @@ docs/marca/
 ### Fase 3 — Identidad visual (`03`)
 - **Paleta nueva:** navy profundo + azul `#2563EB` (confianza/acción) + esmeralda `#0E9F6E` (logro/ahorro); grafito para gasto; rojo solo para error.
 - **Contraste WCAG AA verificado** en todos los pares texto/superficie y botones; categorías ≥ 3:1.
-- **Isotipo:** definido — burbuja entrelazada azul→esmeralda; variantes claro/oscuro/mono; favicon; wordmark PNG vigente.
+- **Isotipo:** vigente 2026-09-24 — burbuja entrelazada LK azul→esmeralda (PNG; variantes claro/oscuro/mono retiradas); favicon PNG 32/512; wordmark PNG vigente.
 - **Tipografía:** Space Grotesk (display) + Inter con cifras tabulares (UI/datos) + JetBrains Mono.
 - **9 categorías + Otros** con color oficial y nombres unificados con tildes en código y datos (migración pendiente).
 - **Migración documentada** (indigo actual → paleta nueva) sin tocar código en esta fase.
@@ -124,11 +120,8 @@ docs/marca/
 | Activo | Ruta | Uso |
 |---|---|---|
 | Wordmark LUKA | `luka/public/logo-luka-texto.png` | Marca principal (pendiente versión SVG) |
-| Isotipo color (por defecto) | `docs/marca/assets/isotipo-color.svg` · `luka_frontend/public/logo-luka.svg` | Fondos claros y oscuros, espacios de marca |
-| Isotipo claro | `docs/marca/assets/isotipo-claro.svg` · `luka_frontend/public/logo-luka-claro.svg` | Fondos oscuros |
-| Isotipo oscuro | `docs/marca/assets/isotipo-oscuro.svg` · `luka_frontend/public/logo-luka-oscuro.svg` | Fondos claros (una tinta negra) |
-| Isotipo mono | `docs/marca/assets/isotipo-mono.svg` · `luka_frontend/public/logo-luka-mono.svg` | `currentColor`: sellos, marcas de agua, una tinta |
-| Favicon | `luka_frontend/public/favicon.svg` + `favicon-32.png` + `favicon-512.png` + `apple-touch-icon.png` | Pestaña/navegador e iOS |
+| Isotipo color (por defecto) | `docs/marca/assets/isotipo-color.png` · `luka_frontend/public/logo-luka.png` | Fondos claros y oscuros, espacios de marca |
+| Favicon | `luka_frontend/public/favicon-32.png` + `favicon-512.png` + `apple-touch-icon.png` | Pestaña/navegador e iOS |
 | Design tokens | `docs/marca/tokens/design-tokens.json` | Fuente de verdad |
 | CSS de tokens | `docs/marca/tokens/tokens.css` | Implementación dark + light |
 | Iconos UI | `luka_frontend/app/templates/components/icons/` | Set lineal vigente |
@@ -159,6 +152,7 @@ Detalle completo: `05-gobernanza-manual-vivo.md` §2.
 | `v0.1.0` | 2026-09-23 | Creación inicial: fases 1–5, tokens v1.0.0, isotipo propuesto, inventario de microcopy, verificación de contraste WCAG. Basado en análisis de `luka/`, `luka_frontend/`, `luka-llm-research/` y backlog Jira STK (179 issues). Estado: borrador para aprobación. |
 | `v0.2.0` | 2026-09-23 | Decisiones D1.1–D5.5 cerradas en sesión conjunta: Onlyness (versión hoja de ruta), emojis reducidos a 5, copy de degradación aprobado, símbolo nuevo de isotipo, categorías con tildes, presupuesto MECLABS y checklists como guía no bloqueante, aprobación en equipo, revisión mensual. |
 | `v0.3.0` | 2026-09-23 | Isotipo definitivo integrado: SVG color/claro/oscuro/mono + favicon en `public/` y `docs/marca/assets/`; PNG 32/512 y apple-touch; `03` §2 y §10 actualizados; assets K provisionales eliminados. |
+| `v0.4.0` | 2026-09-24 | Isotipo reemplazado por el símbolo LK en burbuja (PNG azul→esmeralda): `public/` sincronizado (logo + favicons), variantes claro/oscuro/mono retiradas, master en `docs/marca/assets/isotipo-color.png`; íconos inline (`logo_login.svg`, `logo_sidebar.svg`) migrados; `03` §2/§9/§10 y `01-inventario-paridad` actualizados. |
 
 ---
 

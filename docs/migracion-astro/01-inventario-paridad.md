@@ -206,7 +206,7 @@ web/
 └─ astro.config.mjs                   # @astrojs/node standalone
 ```
 
-**Reutilizable del repo actual (sin cambios):** `docs/marca/tokens/tokens.css` y `docs/marca/tokens/design-tokens.json` (tokens), logos/isotipos en `docs/marca/assets/` (`favicon.svg`, `isotipo-*.svg`), los 25 SVG vigentes de `app/templates/components/icons/` como componentes Astro (`icon_nav_budgets.svg` se retiró con el link muerto de «Presupuestos», 2026-09-23), `static/css/style.css` (25.193 B), `registro.css` (5.707 B) y `admin_flows.css` (9.967 B) como referencia visual, y `static/js/admin_flows.js` (19.762 B) como referencia de comportamiento del editor. HTMX 2.0.3 (`base.html:12`) puede conservarse o reemplazarse por islas; Chart.js y la fuente Inter (`base.html:10`) se mantienen.
+**Reutilizable del repo actual (sin cambios):** `docs/marca/tokens/tokens.css` y `docs/marca/tokens/design-tokens.json` (tokens), logos/isotipos en `docs/marca/assets/` (`isotipo-color.png`) y `luka_frontend/public/` (logo + favicon PNG), los 25 SVG vigentes de `app/templates/components/icons/` como componentes Astro (`icon_nav_budgets.svg` se retiró con el link muerto de «Presupuestos», 2026-09-23), `static/css/style.css` (25.193 B), `registro.css` (5.707 B) y `admin_flows.css` (9.967 B) como referencia visual, y `static/js/admin_flows.js` (19.762 B) como referencia de comportamiento del editor. HTMX 2.0.3 (`base.html:12`) puede conservarse o reemplazarse por islas; Chart.js y la fuente Inter (`base.html:10`) se mantienen.
 
 ---
 

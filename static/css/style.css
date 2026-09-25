@@ -98,7 +98,7 @@ a { color: inherit; text-decoration: none; }
 .brand-logo {
   width: 36px; height: 36px;
   display: flex; align-items: center; justify-content: center;
-  filter: drop-shadow(0 0 12px rgba(99,102,241,.6));
+  filter: drop-shadow(0 0 12px rgba(10,93,251,.6));
 }
 .brand-name {
   font-size: 1.25rem;
@@ -663,7 +663,7 @@ a { color: inherit; text-decoration: none; }
 
 .login-logo {
   margin-bottom: 16px;
-  filter: drop-shadow(0 0 24px rgba(99,102,241,.5));
+  filter: drop-shadow(0 0 24px rgba(10,93,251,.5));
 }
 .login-title {
   font-size: 2.2rem;

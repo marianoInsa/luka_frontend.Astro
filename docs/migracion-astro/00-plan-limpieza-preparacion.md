@@ -241,7 +241,8 @@ Nota de seguridad: la reimplementación es código sensible (firma). Requiere co
 4. `httpx==0.27.2` a `requirements.txt`.
 5. Landing Astro en `/`: prerender, 0 KB de JS de framework, SEO (title/description/canonical/OG), `sitemap.xml`/`robots.txt`, assets de marca, copy según `docs/marca/02-identidad-verbal.md`. Deploy estático (Render Static Site: guía oficial de Astro para Render cubre Static Site; no tiene spin-down).
 6. Activar `ASTRO_MIGRATED_PATHS` con la landing completa → cutover. Valor verificado en la validación manual del 2026-09-24:
-   `/,/_astro,/robots.txt,/sitemap.xml,/favicon.svg,/favicon-32.png,/favicon-512.png,/apple-touch-icon.png,/logo-luka.svg,/logo-luka-claro.svg,/logo-luka-oscuro.svg,/logo-luka-mono.svg`.
+   `/,/_astro,/robots.txt,/sitemap.xml,/favicon-32.png,/favicon-512.png,/apple-touch-icon.png,/logo-luka.png`.
+   (Lista de assets actualizada con el logo nuevo: se retiraron `favicon.svg`, `logo-luka.svg` y las variantes claro/oscuro/mono; se agregó `logo-luka.png`.)
    **Solo `/` no alcanza**: el HTML pasa por el facade pero sus assets (`/_astro/*.css`, logos, favicons, robots/sitemap) darían 404. En local, probar la topología con el build de Astro (`node dist/server/entry.mjs`), no con el dev server (sus URLs de Vite no se proxyean).
 7. **Cerrar gate de hosting** (§9).
 
