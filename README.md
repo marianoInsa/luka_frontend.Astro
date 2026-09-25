@@ -1,6 +1,6 @@
 # LUKA Frontend — Astro
 
-Frontend en Astro del bot financiero LUKA en WhatsApp: landing pública, onboarding
+Frontend en Astro del agente financiero LUKA en WhatsApp: landing pública, onboarding
 (registro con Google), dashboard y panel de flujos.
 
 ## Requisitos
