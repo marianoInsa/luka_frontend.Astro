@@ -28,6 +28,9 @@ Producción viva: Worker **`luka-frontend`** → `https://luka-frontend.marianoi
 | T8 (M3) | ✅ | `b9396b5` (binding), `85bdf42` (prerender node), `558cadc`; login real en prod OK |
 | T9 / T10 | ⏳ | ver `02-estado-y-siguientes-pasos.md` §6 y §7 |
 
+**No re-ejecutar T0–T8**: ya están hechas, validadas y mergeadas; los checkboxes internos quedaron
+sin tildar para no reescribir el documento. Retomar directamente en T9.
+
 Artefactos de producción: Hyperdrive id `56a6dbc0d07640a5b8fe6d16bcb7c975`; secrets cargados (solo
 nombres) `SECRET_KEY`, `SUPABASE_URL`, `PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `LUKA_BACKEND_URL`,
 `FLOW_ADMIN_API_KEY`, `FLOW_ADMIN_AUTH_USER_IDS`. Workers Builds: root `/`, build
