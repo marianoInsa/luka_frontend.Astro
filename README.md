@@ -1,11 +1,7 @@
-# LUKA Frontend — Astro (migración)
+# LUKA Frontend — Astro
 
 Frontend en Astro del bot financiero LUKA en WhatsApp: landing pública, onboarding
-(registro con Google), dashboard y panel de flujos. Corresponde a las fases **F0**
-(scaffold), **F1** (landing), **F2** (onboarding), **F3** (sesión + dashboard) y **F4**
-(panel de flujos) del plan de migración:
-`docs/migracion-astro/00-plan-limpieza-preparacion.md` §7. Estado de avance y
-próximos pasos: `docs/migracion-astro/02-estado-y-siguientes-pasos.md`.
+(registro con Google), dashboard y panel de flujos.
 
 ## Requisitos
 
@@ -21,11 +17,21 @@ npm run build      # build de producción (dist/)
 npm run preview    # sirve el build localmente
 ```
 
-Producción (adaptador Node standalone):
+Producción local:
 
 ```bash
-node ./dist/server/entry.mjs   # respeta HOST y PORT del entorno
+npm run preview
 ```
+
+## Despliegue
+
+La aplicación se despliega en Cloudflare Workers con Wrangler:
+
+```bash
+npm run deploy
+```
+
+Sitio publicado: https://luka-frontend.marianoinsaurralde5.workers.dev/
 
 ## Variables de entorno
 
@@ -87,8 +93,7 @@ npm run dev            # http://localhost:4321
   server-side se validan en sus tests.
 - `src/components/Sidebar.astro`: chrome compartido del área privada (dashboard + admin).
 - `src/middleware.ts`: exige `luka_session` en las áreas privadas (`/app`, `/dashboard`,
-  `/partials`, `/api/graficos`, `/exportar`, `/admin`) y redirige 303 a `/login`
-  (paridad con el 401 → `/login` de FastAPI).
+  `/partials`, `/api/graficos`, `/exportar`, `/admin`) y redirige 303 a `/login`.
 - `src/styles/`: `global.css` importa los tokens canónicos desde
   `docs/marca/tokens/tokens.css` (fuente única de verdad de la marca).
 - `public/` (raíz): assets de marca (favicons y logos); es el `publicDir` por defecto de
@@ -118,8 +123,7 @@ $env:RUN_FLOW_BACKEND='1'; npx vitest run src/lib/flow-admin.integration.test.ts
 ```
 
 La compatibilidad de `luka_session` con `itsdangerous` (`src/lib/session.vectors.json`) se
-verifica en `src/lib/session.test.ts`; con Python retirado del repo ya no hay comando local
-para regenerar los vectores.
+verifica en `src/lib/session.test.ts`.
 
 ## Deuda conocida
 
@@ -127,5 +131,4 @@ para regenerar los vectores.
   el dashboard importa `src/styles/style.css` y el panel admin además
   `src/styles/admin_flows.css`, ambos por el pipeline de Vite (URL hasheada en `/_astro`).
 - Las fuentes cargan desde Google Fonts en runtime.
-- Hosting: en migración a Cloudflare Workers
-  (`docs/migracion-astro/10-plan-cloudflare-workers.md`); el adaptador actual es Node standalone.
+- Hosting: Cloudflare Workers mediante `@astrojs/cloudflare` y Wrangler.
