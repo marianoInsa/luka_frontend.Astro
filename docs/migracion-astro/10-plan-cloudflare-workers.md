@@ -1,19 +1,40 @@
 # 10 · Plan: migración completa a Astro + Cloudflare Workers (fork)
 
-> **Para el agente que ejecuta:** usar `superpowers:subagent-driven-development` (recomendado) o
-> `superpowers:executing-plans` para ejecutar tarea por tarea. Seguir los checkboxes en orden; cada
-> tarea termina con verificación y commit. Los hitos **M0–M4** se mergean a `main` con
-> `git merge --ff-only` (ver §Estrategia de ramas y deploys). Este documento es autosuficiente: no
-> depende de la conversación que lo originó.
-
 | Campo | Valor |
 |---|---|
 | **Repositorio** | Fork de `luka_frontend` (todas las ramas forkeadas) |
 | **Rama de trabajo** | `migration` (ya existe en el fork; **no** crear rama nueva) |
 | **Branch de producción** | `main` (merge ff-only por hito; Workers Builds apunta acá) |
-| **Estado** | Propuesta lista para ejecutar |
-| **Fecha** | 2026-09-24 |
+| **Estado** | **Ejecutada hasta M3 (tareas 0–8)**; pendientes T9 (cutover Supabase/`luka` + validación real) y T10 (docs + M4). Ver §Estado de ejecución |
+| **Fecha** | 2026-09-24 (plan) · ejecución 2026-09-25 |
 | **Histórico** | `00-plan-limpieza-preparacion.md`, `01-inventario-paridad.md`, `02-estado-y-siguientes-pasos.md` (fases F0-F4 cerradas) |
+
+> **Para el agente que ejecuta:** usar `superpowers:subagent-driven-development` (recomendado) o
+> `superpowers:executing-plans` para ejecutar tarea por tarea. Seguir los checkboxes en orden; cada
+> tarea termina con verificación y commit. Los hitos **M0–M4** se mergean a `main` con
+> `git merge --ff-only` (ver §Estrategia de ramas y deploys). Este documento es autosuficiente: no
+> depende de la conversación que lo originó. Para retomar, leer primero
+> `02-estado-y-siguientes-pasos.md`.
+
+## Estado de ejecución (2026-09-25)
+
+Producción viva: Worker **`luka-frontend`** → `https://luka-frontend.marianoinsaurralde5.workers.dev`
+(deployado por **Workers Builds desde `main`**; bundle 1621 KiB crudo / 383.7 KiB gzip).
+
+| Tarea | Estado | Evidencia |
+|---|---|---|
+| T0–T4 (M0, M1) | ✅ | `842cc52`, `64c9eaf`, `e1b1586`, `cb137f9` |
+| T5–T7 (M2) | ✅ | `b5e3052`+`2467e7e`, `adcb635`, `8560d21` |
+| T8 (M3) | ✅ | `b9396b5` (binding), `85bdf42` (prerender node), `558cadc`; login real en prod OK |
+| T9 / T10 | ⏳ | ver `02-estado-y-siguientes-pasos.md` §6 y §7 |
+
+Artefactos de producción: Hyperdrive id `56a6dbc0d07640a5b8fe6d16bcb7c975`; secrets cargados (solo
+nombres) `SECRET_KEY`, `SUPABASE_URL`, `PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `LUKA_BACKEND_URL`,
+`FLOW_ADMIN_API_KEY`, `FLOW_ADMIN_AUTH_USER_IDS`. Workers Builds: root `/`, build
+`npm ci && npm run build`, deploy `npx wrangler deploy`, branch `main`, build vars `APP_BASE_URL` y
+`PUBLIC_SUPABASE_PUBLISHABLE_KEY`. El `name` del config debe seguir siendo `luka-frontend` (Workers
+Builds lo pisa con `WRANGLER_CI_OVERRIDE_NAME`). El Worker duplicado `luka-frontend-astro` se
+eliminó; su check fallido fue one-off.
 
 ## Objetivo
 
