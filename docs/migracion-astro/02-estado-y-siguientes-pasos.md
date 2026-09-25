@@ -4,7 +4,7 @@
 |---|---|
 | **Fecha** | 2026-09-25 (cierre) |
 | **Rama** | `migration` (merge ff-only a `main` por hito; branch de producción del Worker = `main`) |
-| **Fase** | **Migración cerrada (M4)**: T9 validada en producción y T10 completada. Pendiente operativo: sincronizar `FLOW_ADMIN_API_KEY` con Render para el panel admin |
+| **Fase** | **Migración cerrada (M4)**: T9 y T10 completadas y validadas en producción, incluido el panel admin |
 | **Plan vigente** | `10-plan-cloudflare-workers.md` (incluye hallazgos de ejecución en T7/T8) |
 | **Contrato de paridad** | `01-inventario-paridad.md` (v1.1) |
 
@@ -21,9 +21,8 @@ vive en la **raíz** del repo y corre en **Cloudflare Workers**.
   configurados.
 - **T9 validada (2026-09-25):** Redirect URL de Supabase y `ONBOARDING_REGISTRATION_URL` de Render
   apuntando al Worker; **registro Google real completo** (303/303/200/200), **magic link real del
-  bot** con `luka_session`, dashboard con datos reales (idéntico al frontend anterior) y **CSV**
-  exportado OK. Falta solo el panel admin: la `FLOW_ADMIN_API_KEY` local no coincide con la de
-  Render (401), hay que sincronizarla (ver §6).
+  bot** con `luka_session`, dashboard con datos reales (idéntico al frontend anterior), **CSV**
+  exportado OK y **admin validado end-to-end** (listado real vía Worker; credencial sincronizada).
 - **T10 completada:** README/AGENTS finales, `00` (F5), `01 §8` (checklist cerrado), `02` y este
   estado; `.opencode/` y `opencode.json` quedan fuera de git.
 - El Worker duplicado `luka-frontend-astro` fue eliminado; su check fallido en GitHub fue un
@@ -41,7 +40,7 @@ vive en la **raíz** del repo y corre en **Cloudflare Workers**.
 | T6 Hyperdrive + `runtime.ts` | ✅ | `adcb635` |
 | T7 E2E local en workerd + **M2** | ✅ | `8560d21` (hallazgos H1–H5 abajo) |
 | T8 Hyperdrive remoto + secrets + deploy + **M3** | ✅ | `b9396b5`, `85bdf42`, `558cadc`; login real en prod OK |
-| T9 cutover Supabase/`luka` | ✅ | registro/magic link/dashboard/CSV reales; pendiente operativo: credencial admin (§6) |
+| T9 cutover Supabase/`luka` | ✅ | registro/magic link/dashboard/CSV/admin reales (§6) |
 | T10 docs + **M4** | ✅ | README/AGENTS, `00` F5, `01 §8`, §7 |
 
 Los commits de README del usuario (`d0a412b`, `397625c`) y el hotfix de config
@@ -121,12 +120,12 @@ En `.superpowers/sdd/10-plan-cloudflare-workers/`:
    - Dashboard con datos reales idéntico al frontend anterior; `/exportar/csv` OK.
    - Hallazgo y fix: `APP_BASE_URL` faltaba como var de runtime del Worker (el build var no llega
      al runtime) → `POST /auth/google` respondía 503. Corregido en `2cb2ccb` (`wrangler.jsonc`).
-4. ⏳ **Pendiente operativo — admin:** la validación read-only contra el backend real da 401
-   "Invalid administrative credential": la `FLOW_ADMIN_API_KEY` de `.dev.vars`/Cloudflare no
-   coincide con la del servicio `luka` en Render. Sincronizar el valor de Render en el Worker
-   (`npx wrangler secret put FLOW_ADMIN_API_KEY`) y en `.dev.vars`, y verificar
-   `https://luka-frontend.marianoinsaurralde5.workers.dev/admin/flujos` con sesión. Si el panel
-   responde 403, revisar además `FLOW_ADMIN_AUTH_USER_IDS`.
+4. ✅ **Admin:** sincronizada la `FLOW_ADMIN_API_KEY` con Render (Cloudflare secret + `.dev.vars`) y
+   re-seteado el secret `LUKA_BACKEND_URL` del Worker a `https://luka-f2nb.onrender.com` (el `.env`
+   viejo traía `http://localhost:8000`). Evidencia: integración read-only 2/2 contra
+   `https://luka-f2nb.onrender.com` y `/admin/flujos` en el Worker → 200 con el listado real de
+   flujos (sin alerta), con sesión válida. Nota: la primera request a Render free puede
+   cold-startear >5s (usar `--testTimeout=20000`).
 5. **Rollback:** reponer `ONBOARDING_REGISTRATION_URL` y borrar la Redirect URL nueva; el Worker
    se revierte con `npx wrangler rollback`.
 
@@ -156,7 +155,7 @@ En `.superpowers/sdd/10-plan-cloudflare-workers/`:
 ## 9. Estado de git (cierre 2026-09-25)
 
 - **M4 ejecutado**: `main` = `migration` (merge `--ff-only` + push); `git log main..migration` vacío.
-- El commit de cierre de T10 (docs + `.gitignore`) es el tope de ambas ramas y dispara el último
-  build de Workers Builds.
+- Commits de cierre: `3d8b538` (docs T10 + `.gitignore`) y el commit que documenta el cierre de la
+  validación admin (topes de ambas ramas, disparan Workers Builds).
 - Historial relevante: `2cb2ccb` (fix `APP_BASE_URL` runtime), `2881aaf`/`39caf05` (handoff),
   `397625c` (README/trigger), `d0a412b` (README).

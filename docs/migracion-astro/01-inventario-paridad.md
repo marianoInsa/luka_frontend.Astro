@@ -244,10 +244,10 @@ web/
 - [x] Tráfico de producción servido por el Worker (Supabase y `luka/` apuntan a `https://luka-frontend.marianoinsaurralde5.workers.dev`).
 - [x] Rollback definido y documentado (`npx wrangler rollback` + repo original FastAPI/Render intacto); no ensayado en producción.
 
-**Pendiente operativo (no bloquea el cierre):** la `FLOW_ADMIN_API_KEY` local no coincide con la
-del servicio `luka` en Render (401 "Invalid administrative credential" en la validación read-only
-del backend). El panel `/admin/flujos` requiere sincronizar esa credencial entre Cloudflare y
-Render; el resto del checklist quedó validado.
+**Admin validado (2026-09-25):** `FLOW_ADMIN_API_KEY` sincronizada con Render; el test de
+integración read-only del backend pasa 2/2 y `/admin/flujos` sirve el listado real desde el Worker
+(200, sin alerta). Nota: contra Render free la primera request cold-start puede superar el timeout
+por defecto de Vitest (`--testTimeout=20000`).
 
 ---
 

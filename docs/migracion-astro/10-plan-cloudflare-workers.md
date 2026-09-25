@@ -5,7 +5,7 @@
 | **Repositorio** | Fork de `luka_frontend` (todas las ramas forkeadas) |
 | **Rama de trabajo** | `migration` (ya existe en el fork; **no** crear rama nueva) |
 | **Branch de producción** | `main` (merge ff-only por hito; Workers Builds apunta acá) |
-| **Estado** | **Ejecutada completa (T0–T10, M0–M4)**; cierre 2026-09-25. Pendiente operativo: sincronizar `FLOW_ADMIN_API_KEY` con Render (admin). Ver §Estado de ejecución |
+| **Estado** | **Ejecutada completa (T0–T10, M0–M4)**; cierre 2026-09-25 (admin incluido). Ver §Estado de ejecución |
 | **Fecha** | 2026-09-24 (plan) · ejecución 2026-09-25 |
 | **Histórico** | `00-plan-limpieza-preparacion.md`, `01-inventario-paridad.md`, `02-estado-y-siguientes-pasos.md` (fases F0-F4 cerradas) |
 
@@ -26,7 +26,7 @@ Producción viva: Worker **`luka-frontend`** → `https://luka-frontend.marianoi
 | T0–T4 (M0, M1) | ✅ | `842cc52`, `64c9eaf`, `e1b1586`, `cb137f9` |
 | T5–T7 (M2) | ✅ | `b5e3052`+`2467e7e`, `adcb635`, `8560d21` |
 | T8 (M3) | ✅ | `b9396b5` (binding), `85bdf42` (prerender node), `558cadc`; login real en prod OK |
-| T9 | ✅ | cutover Supabase/Render + validación real (registro Google, magic link, dashboard, CSV); fix `2cb2ccb` (`APP_BASE_URL` runtime). Admin pendiente de credencial |
+| T9 | ✅ | cutover Supabase/Render + validación real (registro Google, magic link, dashboard, CSV, admin 200 con listado real); fix `2cb2ccb` (`APP_BASE_URL` runtime) |
 | T10 (M4) | ✅ | docs finales + `.gitignore`; merge ff-only a `main` (ver `02` §7/§9) |
 
 **No re-ejecutar T0–T8**: ya están hechas, validadas y mergeadas; sus checkboxes internos quedaron
@@ -594,8 +594,8 @@ Cambiar **solo** esa variable.
   - [x] Registro completo (Google real): 303 `/auth/google` → 303 `/auth/callback` → 200
     `/registro/continuar` → 200 `/registro/finalizar`.
   - [x] Magic link real del bot: `/login` 303 → `/app` 200 con `luka_session`.
-  - [x] Dashboard con datos reales y CSV; **admin pendiente**: `FLOW_ADMIN_API_KEY` de Cloudflare
-    no coincide con la de Render (401), sincronizar la credencial.
+  - [x] Dashboard con datos reales y CSV; **admin validado**: `FLOW_ADMIN_API_KEY` sincronizada con
+    Render, integración read-only 2/2 y `/admin/flujos` → 200 con listado real (worker).
   - [x] Cleanup de filas de prueba (harness T7; la validación real no sembró filas).
   - Fix asociado: `APP_BASE_URL` como var de runtime (`2cb2ccb`).
 
@@ -660,5 +660,6 @@ Supabase apuntando al Worker.
 - [x] `main` es la branch de producción del Worker y `git log main..migration` está vacío.
 - [x] Repo sin carpeta `web/` ni archivos Python; CI corre solo en la raíz.
 
-**Pendiente operativo único:** sincronizar `FLOW_ADMIN_API_KEY` entre Render y Cloudflare (401 en
-la validación read-only del backend). Ver `02` §6.
+**Admin validado (2026-09-25):** `FLOW_ADMIN_API_KEY` sincronizada Render ↔ Cloudflare y
+`LUKA_BACKEND_URL` del Worker fijada a `https://luka-f2nb.onrender.com`; `/admin/flujos` sirve el
+listado real (200). Ver `02` §6.
