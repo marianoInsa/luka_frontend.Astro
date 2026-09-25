@@ -28,6 +28,15 @@ Queda **aplicarla al código**: la landing actual es un hero mínimo sin narrati
 - **D-7**: Paridad intacta: HTMX y los 3 parciales 1:1; sin DDL; sin tocar `wrangler.jsonc`, `prerenderEnvironment: 'node'` ni el `name` del Worker.
 - **D-8**: Regla de color: egreso gris cálido, ingreso oliva, rojo solo error/exceso; el color nunca es la única señal.
 - **D-9**: Movimiento discreto y anulado bajo `prefers-reduced-motion`; sin parallax ni scrollytelling.
+- **D-10**: Nav **sticky flotante con glassmorphism** (blur + fondo translúcido + borde sutil); CTA WhatsApp siempre visible.
+- **D-11**: Hero **sin eyebrow** («ASISTENTE FINANCIERO POR WHATSAPP» se elimina) y **sin microcopy bajo los botones**. El teléfono del hero se adapta del componente «Great UI Mobile Mockup» de 21st.dev (id `23322`, MIT, React + framer-motion) **re-implementado en HTML/CSS vanilla con tokens** (sin dependencias nuevas).
+- **D-12**: **Sin marquee de categorías**: no aporta valor y agrega ruido.
+- **D-13**: Beneficios se rediseña como bento con jerarquía real y movimiento; prohibido el tile gigante y vacío («Categorías automáticas»).
+- **D-14**: **Prohibidas las tarjetas genéricas de «pulse effect» / punto parpadeante** en toda la landing.
+- **D-15**: Conflicto y tour de producto requieren **mayor impacto visual** (no dos columnas planas).
+- **D-16**: Plan de 3 pasos **sin menciones de precio ni costo** (el producto no es comprable aún) y con representación visual de cómo LUKA clasifica; más impacto.
+- **D-17**: FAQ simple, sin adornos; Cierre aprobado tal cual.
+- **D-18**: Dashboard v1 **aprobado como aceptable**: se implementa el retoque conservador de §4 sin rediseño de layout.
 
 ## 3. Landing (`/`)
 
@@ -35,15 +44,17 @@ Reescritura de `src/pages/index.astro` (prerender, CSS inline, JS mínimo). Secu
 
 | # | Bloque | Contenido |
 |---|---|---|
-| 1 | Nav sticky | Logo + anclas (Cómo funciona / Beneficios / Dudas) + CTA WhatsApp persistente |
-| 2 | Hero | H1 «Hacete cargo de tu plata sin planillas ni culpa» + sub + CTA dual (WhatsApp coral + «Ver cómo funciona» ghost) + microcopy; mini-dashboard flotante (KPI, anillo categórico, barras) + teléfono con chat |
-| 3 | Marquee | Chips de las 9 categorías con `--cat-*`; copia duplicada `aria-hidden`; pausa en hover/focus |
-| 4 | Bento beneficios | Grid asimétrico con tiles tintados al 10 % (`color-mix`) y mini-viz en divs |
-| 5 | Conflicto | HOY (gris cálido apagado) vs CON LUKA (acentos categóricos) |
-| 6 | Tour | 3 tabs CSS sin JS (Gastos / Límites / Balances) con UI construida |
-| 7 | Plan | Timeline de 3 pasos (coral → ámbar → oliva) |
-| 8 | FAQ + Cierre | 5 `details/summary` + banda `--gradient-brand` con CTA final |
+| 1 | Nav sticky flotante | Glassmorphism (blur + fondo translúcido + borde sutil), logo + anclas (Cómo funciona / Beneficios / Dudas) + CTA WhatsApp persistente |
+| 2 | Hero | H1 «Hacete cargo de tu plata sin planillas ni culpa» + sub + CTA dual (WhatsApp coral + «Ver cómo funciona» ghost). **Sin eyebrow y sin microcopy bajo los botones.** Composición: mockup de teléfono con chat de WhatsApp adaptado del componente 21st.dev id `23322` (re-implementado vanilla) + mini-dashboard |
+| 3 | Beneficios (bento v2) | Rediseñar: bento con jerarquía real, tiles densos (mini-viz + copy corto) y movimiento discreto; prohibido el tile vacío gigante |
+| 4 | Conflicto | Rediseñar con impacto visual (contraste narrativo HOY vs CON LUKA, no dos columnas planas) |
+| 5 | Tour | Rediseñar con impacto (Gastos / Límites / Balances sobre la misma escena, no tabs planos) |
+| 6 | Plan | 3 pasos **sin pricing** + visual del «cerebro» de LUKA clasificando el gasto; más impacto |
+| 7 | FAQ | Simple y sencilla, sin adornos ni tarjetas genéricas |
+| 8 | Cierre | Aprobado tal cual: banda `--gradient-brand` + CTA final |
 | — | Footer | Logo + © + link de contacto WhatsApp |
+
+- **Eliminado respecto de la revisión v1:** marquee de categorías (D-12), eyebrow del hero (D-11), microcopy del hero (D-11), tarjetas/puntos «pulse» (D-14).
 
 - **A11y**: `alt` en imágenes, `aria-labelledby` por sección, foco visible, contraste AA, marquee duplicado `aria-hidden`, revelado progresivo que nunca oculta contenido sin JS.
 - **SEO**: `title`/`description`/OG actualizados al H1; canonical sin cambios.
@@ -65,13 +76,15 @@ Retoque conservador, **sin cambiar layout ni contratos HTMX**:
 
 DS «LUKA — Bodegón»: dark, coral primario, Rubik como **proxy** de Gabarito (Stitch no la ofrece; el código usa Gabarito), Inter UI, radio 8.
 
-**Generadas y aprobables:**
+**v1 generada y revisada por el usuario el 2026-09-25** (feedback en §3 y en el plan, Fase 0):
 - Hero + nav + marquee → `screens/1f13587f0e3541349f4e4526fc011d50`
 - Bento de beneficios → `screens/4751199a113146f58df3654f58e0bd94`
 - Conflicto + tour → `screens/426c589d2ff44b0d929c164d8427642c`
 - Plan + FAQ + cierre → `screens/48111d9223124a35b558db2d35ac5e3e`
 
-**Pendientes (el MCP timeoutea, quedan en el proyecto):** dashboard normal y dashboard con skeletons. Se reintentan antes de tocar `style.css`; si no salen, el dashboard se implementa directo desde tokens + spec (es retoque conservador).
+**Rediseño obligatorio antes de tocar código** (Fase 0 del plan): hero+nav sin eyebrow/microcopy y con nav glass flotante, beneficios bento denso, conflicto+tour con impacto, plan sin pricing y con el cerebro de LUKA clasificando. FAQ se regenera simple y cierre se aprueba tal cual.
+
+**Opcionales (el MCP timeoutea; quedan en el proyecto):** dashboard normal y dashboard con skeletons (v1 del dashboard **aprobada**): se reintentan una vez; si no salen, se implementa directo desde tokens (retoque conservador, D-18).
 
 ## 6. Ejecución
 
