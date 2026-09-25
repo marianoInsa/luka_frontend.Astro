@@ -1,7 +1,7 @@
 # 00 · The Luka Brand Compass (Manual Maestro de Marca)
 
 > **Entregable Final.** Documento central: índice, resumen ejecutivo, decisiones de marca y gobernanza.
-> **Estado:** `v0.5.0` — identidad v2 «Bodegón» aprobada (2026-09-25); pendientes de implementación: adopción de tokens en landing/dashboard, recambio del isotipo (recoloreo + SVG), migración de categorías, copy de degradación y reacciones ✅/❌.
+> **Estado:** `v0.5.0` — identidad v2 «Bodegón» aprobada (2026-09-25); pendientes de implementación: adopción de tokens en landing/dashboard, isotipo a SVG vectorial (D3.8), migración de categorías, copy de degradación y reacciones ✅/❌.
 > **Alcance:** producto Luka (WhatsApp + dashboard web) en sus repos `luka/` y `luka_frontend/`.
 > **Cómo funciona este manual:** los documentos de fase contienen el detalle; este archivo es la brújula que los conecta y el registro de decisiones.
 
@@ -59,7 +59,7 @@ docs/marca/
 ### Fase 3 — Identidad visual (`03`)
 - **Paleta v2 «Bodegón» (2026-09-25):** cálido rioplatense — berenjena + coral `#F0704C` (acción) + durazno `#F2A48C` (acento) + oliva `#8FBF6F` (logro/ingreso); gris cálido para gasto; rojo `#F2555A` solo error. Sustituye la v1 navy/azul/esmeralda (descartada por genérica).
 - **Contraste WCAG AA verificado** en todos los pares texto/superficie y botones; categorías ≥ 3:1 sobre base, superficie y elevada.
-- **Isotipo:** burbuja entrelazada LK; recoloreo coral→durazno en curso y **SVG vectorial pendiente** (D3.8); favicons y wordmark se regeneran con el asset nuevo. El PNG v1 sigue publicado como provisional.
+- **Isotipo:** burbuja entrelazada LK recoloreada a coral→durazno y vigente desde 2026-09-25 (master 1024×1024); **SVG vectorial pendiente** (D3.8). Favicons e íconos inline regenerados.
 - **Tipografía v2:** Gabarito (display) + Inter con cifras tabulares (UI/datos) + JetBrains Mono.
 - **9 categorías + Otros** con color oficial v2 y nombres unificados con tildes (migración de datos pendiente en `luka/`).
 - **Tema claro diferido** (D3.7): tokens v2.0.0 solo oscuro, sin variante sin verificar.
@@ -100,7 +100,7 @@ docs/marca/
 | D3.1 | Paleta navy/azul/esmeralda verificada AA | 3 | ⛔ **Superseded 2026-09-25** por D3.1′ |
 | D3.1′ | Paleta «Bodegón»: berenjena + coral `#F0704C` + durazno `#F2A48C` + oliva `#8FBF6F`, AA verificada | 3 | ✅ Aprobado 2026-09-25 |
 | D3.2 | Rojo prohibido para gasto; gris cálido para egreso | 3 | ✅ Vigente (ratificado v2) |
-| D3.3 | Símbolo nuevo de isotipo (fluidez/diálogo/balance); K/A deprecados | 3 | ✅ Vigente — burbuja LK con recoloreo v2 en curso |
+| D3.3 | Símbolo nuevo de isotipo (fluidez/diálogo/balance); K/A deprecados | 3 | ✅ Vigente — burbuja LK con recoloreo v2 vigente desde 2026-09-25 |
 | D3.4 | Space Grotesk (display) + Inter (UI/datos) + JetBrains Mono | 3 | ⛔ **Superseded 2026-09-25** por D3.4′ |
 | D3.4′ | **Gabarito** (display) + Inter (UI/datos, tabular) + JetBrains Mono | 3 | ✅ Aprobado 2026-09-25 |
 | D3.5 | Tokens versionados como fuente de verdad | 3 | ✅ Vigente — tokens v2.0.0 |
@@ -126,8 +126,8 @@ docs/marca/
 | Activo | Ruta | Uso |
 |---|---|---|
 | Wordmark LUKA | `luka/public/logo-luka-texto.png` | Marca principal (a rediseñar en v2; pendiente SVG) |
-| Isotipo color (v2) | `docs/marca/assets/isotipo-color.png` · `public/logo-luka.png` | Recoloreo coral→durazno en curso; SVG pendiente (D3.8) |
-| Favicon | `public/favicon-32.png`, `favicon-512.png`, `apple-touch-icon.png` | Se regeneran con el isotipo v2 (los actuales son v1 provisionales) |
+| Isotipo color (v2) | `docs/marca/assets/isotipo-color.png` · `public/logo-luka.png` | Vigente 2026-09-25 (master 1024×1024); SVG pendiente (D3.8) |
+| Favicon | `public/favicon-32.png`, `favicon-512.png`, `apple-touch-icon.png` | Vigentes 2026-09-25 (isotipo v2) |
 | Design tokens | `docs/marca/tokens/design-tokens.json` | Fuente de verdad — **v2.0.0**, tema oscuro |
 | CSS de tokens | `docs/marca/tokens/tokens.css` · `src/styles/tokens.css` | Implementación + copia sincronizada (test de drift) |
 | Iconos UI | `src/components/icons/` | Set lineal vigente |

@@ -3,7 +3,7 @@
 > **Entregable de Fase 3.** Nivel visceral (Norman): la reacción sensorial inmediata — color, forma, tipografía, aire. Un producto visualmente cálido y ordenado baja la ansiedad de mirar dinero.
 > **Dirección vigente (v2 «Bodegón», 2026-09-25):** identidad **cálida rioplatense** — berenjena profunda, coral de acción, durazno y oliva. Reemplaza la paleta v1 (navy + azul `#2563EB` + esmeralda), descartada por genérica (azul/verde/gris: lenguaje de banco, no de Luka).
 > **Decisiones de esta fase:** v1 cerradas 2026-09-23; **v2 re-iteradas y aprobadas 2026-09-25** (ver §10, D3.1′–D3.7).
-> **Pendiente:** recambio de assets del isotipo (recoloreo PNG en curso; SVG vectorial pendiente) y adopción de tokens en el CSS del dashboard/landing (se planifica en las ramas `landing-page` y `dashboard`).
+> **Pendiente:** export del isotipo a SVG vectorial (D3.8) y adopción de tokens en el CSS del dashboard/landing (se planifica en las ramas `landing-page` y `dashboard`).
 > Fuentes: `src/styles/*.css`, `src/pages/**`, `src/components/**`, `docs/marca/assets/`, `public/*`.
 > Tokens: `tokens/design-tokens.json` (fuente de verdad) y `tokens/tokens.css` (implementación).
 
@@ -26,14 +26,14 @@
 | Elemento | Qué es | Estado |
 |---|---|---|
 | **Wordmark** | «LUKA» en Gabarito 700, tracking amplio (PNG en `public/logo-luka-texto.png`) | A rediseñar en la v2 |
-| **Isotipo** | Burbuja de diálogo entrelazada que inscribe «L» y «K» en negativo, con degradado cálido coral→durazno | 🔄 Recoloreo en curso (PNG); **SVG vectorial pendiente** |
-| **Favicon** | Derivado del isotipo: PNG 32/512 y apple-touch 180 (fondo `--berry-900`) | 🔄 Se regenera con el isotipo |
+| **Isotipo** | Burbuja de diálogo entrelazada que inscribe «L» y «K» en negativo, con degradado cálido coral→durazno | ✅ Integrado 2026-09-25 (PNG; master 1024×1024); SVG vectorial pendiente (D3.8) |
+| **Favicon** | Derivado del isotipo: PNG 32/512 y apple-touch 180 (fondo `--berry-900`) | ✅ Regenerado 2026-09-25 con el isotipo v2 |
 
-**Regla de convivencia:** hasta que el isotipo recoloreado y el SVG estén en `public/` y `docs/marca/assets/`, no se publica una pieza nueva con el símbolo azul→esmeralda (el favicon actual queda como provisional en la web desplegada).
+**Regla de convivencia:** el isotipo v2 (coral→durazno) está vigente en `public/` y `docs/marca/assets/` desde 2026-09-25; no se publican piezas nuevas con símbolos anteriores.
 
 ### 2.2 Construcción y variantes
 
-- Construcción: burbuja de diálogo entrelazada en dos formas orgánicas que inscriben «L» y «K» en negativo; master raster `assets/isotipo-color.png` (451×460 px, fondo transparente).
+- Construcción: burbuja de diálogo entrelazada en dos formas orgánicas que inscriben «L» y «K» en negativo; master raster `assets/isotipo-color.png` (1024×1024 px, fondo transparente).
 - Colores v2 del símbolo (fijos, derivados de tokens): coral `#F0704C` (forma frontal), durazno `#F2A48C` (forma trasera), mezcla terracota `#E8805F` (superposiciones), alineados con `--gradient-brand`.
 - **Objetivo de la v2:** exportar el símbolo como **SVG con rellenos editables** (`currentColor` o variables CSS) para eliminar el raster del sistema y permitir variantes mono/contraste.
 - PNG derivados (`public/`): `favicon-32.png`, `favicon-512.png` (fondo transparente) y `apple-touch-icon.png` (180×180, fondo `#1B1420`).
@@ -259,8 +259,8 @@ Cobertura: color (primitivo/semántico/categórico/gradientes), tipografía, esp
 | `--warning` v1 | `#FBBF24` | `#E8B44A` |
 | `--danger` v1 | `#F87171` | `#F2555A` |
 | Fuente display | Space Grotesk | Gabarito |
-| Isotipo | PNG azul→esmeralda | PNG recoloreado coral→durazno (en curso) + SVG (pendiente) |
-| Favicons | PNG v1 | Se regeneran con el isotipo v2 |
+| Isotipo | PNG azul→esmeralda | PNG v2 coral→durazno vigente 2026-09-25 (master 1024×1024) + SVG (pendiente, D3.8) |
+| Favicons | PNG v1 | Regenerados 2026-09-25 con el isotipo v2 |
 | Tema claro (`[data-theme="light"]`) | Bloque completo v1 | **Retirado** de tokens v2 (diferido, D3.7); reponer con contraste verificado cuando exista toggle |
 | Dashboard `style.css` (legacy) | indigo `#6366f1`, rojo `#f87171` en egresos | Tokens v2 (rama `dashboard`) |
 | Landing `index.astro` | hero mínimo azul/soft | Rediseño con tokens v2 (rama `landing-page`) |
