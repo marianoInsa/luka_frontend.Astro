@@ -33,5 +33,8 @@ $env:RUN_DB_INTEGRATION='1'; npx vitest run src/lib/onboarding.integration.test.
 - `luka_session` es la sesión durable del dashboard; la sesión Supabase es transitoria del registro.
 - HTMX y los 3 parciales se mantienen (paridad 1:1 con el frontend actual).
 - No commitear ni pushear sin pedido explícito del usuario.
+- **Nunca versionar documentación con nombres de competidores** (benchmarks, comparativas, capturas):
+  el análisis competitivo vive en `.superpowers/sdd/` (gitignored) y el repo solo recibe el resultado
+  sin referencias.
 - No tocar `prerenderEnvironment: 'node'` (el build con Hyperdrive falla sin él) ni el `name`
   `luka-frontend` de `wrangler.jsonc` (Workers Builds lo pisa con `WRANGLER_CI_OVERRIDE_NAME`).
