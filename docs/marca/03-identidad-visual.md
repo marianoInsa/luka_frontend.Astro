@@ -1,19 +1,19 @@
 # 03 · Identidad Visual y Diseño Visceral
 
-> **Entregable de Fase 3.** Nivel visceral (Norman): la reacción sensorial inmediata — color, forma, tipografía, aire. Un producto visualmente sereno reduce el estrés operativo de mirar dinero.
-> Dirección aprobada: **paleta nueva** (azul profundo tecnológico + esmeralda de logro), sustituyendo el indigo actual del dashboard.
-> **Decisiones de esta fase cerradas 2026-09-23** (ver §10): paleta aprobada, isotipo definitivo integrado, categorías unificadas con tildes.
-> **Actualización 2026-09-24:** isotipo reemplazado por el símbolo LK en burbuja de diálogo (raster PNG; variantes claro/oscuro/mono retiradas por ahora). Assets de `public/`, `docs/marca/assets/` e íconos inline sincronizados.
-> Fuentes: `luka_frontend/static/css/style.css`, `registro.css`, `admin_flows.css`, `app/templates/**`, `app/dashboard.py`, `luka/app/services/movement_chart.py`, `luka/public/*`, `luka/testing/.streamlit/config.toml`.
+> **Entregable de Fase 3.** Nivel visceral (Norman): la reacción sensorial inmediata — color, forma, tipografía, aire. Un producto visualmente cálido y ordenado baja la ansiedad de mirar dinero.
+> **Dirección vigente (v2 «Bodegón», 2026-09-25):** identidad **cálida rioplatense** — berenjena profunda, coral de acción, durazno y oliva. Reemplaza la paleta v1 (navy + azul `#2563EB` + esmeralda), descartada por genérica (azul/verde/gris: lenguaje de banco, no de Luka).
+> **Decisiones de esta fase:** v1 cerradas 2026-09-23; **v2 re-iteradas y aprobadas 2026-09-25** (ver §10, D3.1′–D3.7).
+> **Pendiente:** recambio de assets del isotipo (recoloreo PNG en curso; SVG vectorial pendiente) y adopción de tokens en el CSS del dashboard/landing (se planifica en las ramas `landing-page` y `dashboard`).
+> Fuentes: `src/styles/*.css`, `src/pages/**`, `src/components/**`, `docs/marca/assets/`, `public/*`.
 > Tokens: `tokens/design-tokens.json` (fuente de verdad) y `tokens/tokens.css` (implementación).
 
 ---
 
 ## 1. Principios visuales
 
-1. **Calma sobre densidad.** Fondos profundos, superficies limpias, aire generoso. El dinero ya estresa; el tablero no debe hacerlo.
-2. **Oscuro por defecto, claro por derecho.** El producto vive en modo oscuro (WhatsApp de noche incluido); el tema claro es una variante completa, no un parche.
-3. **El color comunica, no decora.** Cada color semántico tiene un único significado (ahorro, advertencia, gasto, error). Nunca se usa rojo para un gasto normal.
+1. **Calma sobre densidad.** Fondos profundos y cálidos, superficies limpias, aire generoso. El dinero ya estresa; el tablero no debe hacerlo.
+2. **Oscuro como único tema (por ahora).** El producto vive en modo oscuro (WhatsApp de noche incluido). El tema claro queda **diferido** hasta que exista un toggle que lo consuma (D3.7); no se mantiene una variante sin verificar.
+3. **El color comunica, no decora.** Cada color semántico tiene un único significado (ahorro, advertencia, gasto, error). Nunca rojo para un gasto normal.
 4. **Los números son protagonistas.** Cifras tabulares, formato es-AR, jerarquía tipográfica clara.
 5. **Movimiento discreto.** Micro-animaciones al servicio de la comprensión (fadeUp, feedback), nunca espectáculo.
 
@@ -25,143 +25,128 @@
 
 | Elemento | Qué es | Estado |
 |---|---|---|
-| **Wordmark** | «LUKA» geométrico (PNG en `luka/public/logo-luka-texto.png`, fondo transparente, casi blanco `#F8F8FF`) | Vigente; pendiente exportar SVG vectorial |
-| **Isotipo** | Símbolo vigente (actualizado 2026-09-24): burbuja de diálogo entrelazada que inscribe «L» y «K» en negativo, gradiente azul→esmeralda; raster PNG (sin fuente vectorial) | ✅ Integrado 2026-09-24 (`public/` + `assets/`) |
-| **Favicon** | Derivado del isotipo: PNG 32/512 y apple-touch 180 | ✅ Integrado 2026-09-24 |
+| **Wordmark** | «LUKA» en Gabarito 700, tracking amplio (PNG en `public/logo-luka-texto.png`) | A rediseñar en la v2 |
+| **Isotipo** | Burbuja de diálogo entrelazada que inscribe «L» y «K» en negativo, con degradado cálido coral→durazno | 🔄 Recoloreo en curso (PNG); **SVG vectorial pendiente** |
+| **Favicon** | Derivado del isotipo: PNG 32/512 y apple-touch 180 (fondo `--berry-900`) | 🔄 Se regenera con el isotipo |
 
-**Criterio (D3.3, superseded 2026-09-24):** el isotipo vigente es la burbuja LK (ver §2.2). El «A» triangular del template fue reemplazado por el isotipo nuevo en `logo_login.svg` y `logo_sidebar.svg`; los assets de los símbolos anteriores ya no existen en el repo.
+**Regla de convivencia:** hasta que el isotipo recoloreado y el SVG estén en `public/` y `docs/marca/assets/`, no se publica una pieza nueva con el símbolo azul→esmeralda (el favicon actual queda como provisional en la web desplegada).
 
 ### 2.2 Construcción y variantes
 
-- Construcción: burbuja de diálogo entrelazada en dos formas orgánicas que inscriben «L» y «K» en negativo. Master raster `assets/isotipo-color.png` (451×460 px, fondo transparente, relación 0.98:1); **sin fuente vectorial** (pendiente exportar SVG).
-- Colores propios del símbolo (no se recolorean): gradiente azul→esmeralda alineado con `--gradient-brand` (§3); muestras medidas del master: azul `#0A5DFB`, esmeralda `#1F9F77`, teal `#10919F`.
-- Variantes (set canónico en `docs/marca/assets/`; copias de producción en `luka_frontend/public/`):
-  | Archivo | Uso |
-  |---|---|
-  | `assets/isotipo-color.png` (`public/logo-luka.png`) | Por defecto: fondos claros y oscuros, espacios de marca |
-
-  **Claro/oscuro/mono retirados 2026-09-24** (no hay fuente vectorial para recolorear); reponer cuando exista export SVG del isotipo.
-- PNG derivados (`luka_frontend/public/`): `favicon-32.png` y `favicon-512.png` (fondo transparente); `apple-touch-icon.png` (180×180, fondo navy `#0A1626` con isotipo color).
+- Construcción: burbuja de diálogo entrelazada en dos formas orgánicas que inscriben «L» y «K» en negativo; master raster `assets/isotipo-color.png` (451×460 px, fondo transparente).
+- Colores v2 del símbolo (fijos, derivados de tokens): coral `#F0704C` (forma frontal), durazno `#F2A48C` (forma trasera), mezcla terracota `#E8805F` (superposiciones), alineados con `--gradient-brand`.
+- **Objetivo de la v2:** exportar el símbolo como **SVG con rellenos editables** (`currentColor` o variables CSS) para eliminar el raster del sistema y permitir variantes mono/contraste.
+- PNG derivados (`public/`): `favicon-32.png`, `favicon-512.png` (fondo transparente) y `apple-touch-icon.png` (180×180, fondo `#1B1420`).
 - **Zona de resguardo:** margen mínimo = 25 % del ancho del símbolo. Nada entra en ese perímetro.
-- **Tamaños mínimos:** 16 px; el master raster actual está verificado a 32 px (`favicon-32.png`). Por debajo de 16 px, no usar.
-- **Contraste:** la variante de color exige contraste ≥ 3:1 con el fondo. Sin variantes claro/oscuro/mono (retiradas 2026-09-24), no recolorear el isotipo ni aplicarle filtros para forzar contraste.
+- **Tamaños mínimos:** 16 px; el master actual está verificado a 32 px (`favicon-32.png`). Por debajo de 16 px, no usar.
+- **Contraste:** el símbolo exige contraste ≥ 3:1 con el fondo. Sobre fondo claro, usar la variante con contorno/knockout (a definir con el SVG); no recolorear ni aplicar filtros a mano.
 
 ### 2.3 Usos indebidos
 
 - No rotar, estirar, inclinar ni aplicar sombras/contornos/biseles.
-- No cambiar el ángulo ni los colores del gradiente; no usar degradados adicionales.
+- No cambiar el ángulo ni los colores del degradado; no usar degradados adicionales.
 - No recrear el wordmark con otra tipografía ni separarlo del isotipo dentro de una misma pieza sin respetar el lockup.
-- No recolorear ni alterar el isotipo: los colores del símbolo son fijos.
+- No recolorear el isotipo con colores fuera de los tokens de marca.
 - No descomponer el símbolo: no separar las formas entrelazadas, no recortar partes ni cambiar su relación de entrelazado.
-- No usar el isotipo sobre fondos con contraste < 3:1 ni en tamaños menores a 16 px (hoy no hay variantes alternativas: retiradas 2026-09-24).
-- No reutilizar símbolos anteriores (monograma K, «A» triangular): el template ya usa el isotipo vigente (`logo_login.svg`, `logo_sidebar.svg`).
+- No usar el isotipo sobre fondos con contraste < 3:1 ni en tamaños menores a 16 px.
+- No reutilizar símbolos anteriores (monograma K, «A» triangular, variante azul→esmeralda).
 
-### 2.4 Cumplimiento del brief (D3.3)
+### 2.4 Cumplimiento del brief
 
-El símbolo vigente (2026-09-24) mantiene el brief: burbuja entrelazada, **fluidez/diálogo**, sin clichés (globo, *swoosh*, monedas, alcancías). Es raster: no hay variante de una tinta ni QA a 16 px hasta que exista export SVG. Assets de producción en `luka_frontend/public/` y set canónico en `docs/marca/assets/`.
+El símbolo mantiene el brief: burbuja entrelazada, **fluidez/diálogo**, sin clichés (globo, *swoosh*, monedas, alcancías). La v2 solo cambia la familia cromática (frío → cálido) y suma vector.
 
 ---
 
 ## 3. Sistema de color
 
-### 3.1 Decisión de psicología y semiótica financiera
+### 3.1 Decisión de psicología y semiótica
+
+Identidad **«Bodegón»**: la mesa compartida, la sobremesa, la plata charlada. Cálida, urbana, nocturna y con calle — lo opuesto al banco.
 
 | Rol | Color | Por qué |
 |---|---|---|
-| Primario / acción | **Azul profundo** (`#2563EB`, base navy `#0A1626`) | Solidez y serenidad con matiz tecnológico; el azul es el color de la confianza financiera y el más seguro para acciones |
-| Logro / ahorro / ingreso | **Esmeralda balanceado** (`#0E9F6E` / `#34D399`) | Verde de crecimiento sin fosforescencia: celebra sin gritar |
-| Advertencia de presupuesto | **Ámbar cálido** (`#B45309` / `#FBBF24`) | Alerta preventiva y constructiva; no es fracaso |
-| Gasto / consumo | **Grafito neutro** (`#64748B` / `#94A3B8`) | **Nunca rojo para gastar**: el rojo genera aversión psicológica al registro (la gente deja de anotar) |
-| Error / pérdida / riesgo | **Rojo** (`#DC2626` / `#F87171`) | Reservado a errores reales, acciones destructivas y estados críticos |
-| Superficies | Navy `#0A1626` / `#102138` / `#17304D` | Profundidad sin negro puro; menos fatiga visual |
-| Espacio en blanco | Aire generoso (`--space-6` a `--space-16`) | Evita la sobrecarga cognitiva de los tableros financieros densos |
+| Primario / acción | **Coral** (`#F0704C`) | Energía cálida y humana; invita a actuar sin la frialdad del azul financiero |
+| Acento / hover | **Durazno** (`#F2A48C`) | Detalles, links y foco; misma familia, un paso más suave |
+| Logro / ahorro / ingreso | **Oliva** (`#8FBF6F`) | Verde de campo, no de semáforo: celebra sin gritar |
+| Advertencia de presupuesto | **Ámbar** (`#E8B44A`) | Alerta preventiva y constructiva; no es fracaso |
+| Gasto / consumo | **Gris cálido** (`#B3A3AC`) | **Nunca rojo para gastar**: el rojo genera aversión al registro |
+| Error / pérdida / riesgo | **Rojo** (`#F2555A`) | Reservado a errores reales, acciones destructivas y estados críticos |
+| Superficies | Berenjena `#1B1420` / `#271C2E` / `#34263C` | Profundidad cálida sin negro puro; menos fatiga visual |
+| Espacio en blanco | Aire generoso (`--space-6` a `--space-16`) | Evita la sobrecarga de los tableros financieros densos |
 
-**Regla de oro:** el rojo no se usa para egresos, montos negativos normales ni categorías; solo para error/riesgo/destructivo. (Hoy el dashboard usa `#f87171` para montos negativos y exceso: se corrige en la adopción.)
+**Reglas de oro:**
+1. El rojo no se usa para egresos, montos negativos normales ni categorías; solo error/riesgo/destructivo.
+2. `--danger` como **texto** solo sobre `--bg-base` (5.33:1) o `--bg-surface` (4.82:1); sobre `--bg-elevated` da 4.18:1 → acompañar con ícono o subir el fondo.
+3. `--danger` y `--action` comparten calidez: nunca uno al lado del otro sin ícono y texto que los distingan (daltonismo).
+4. El ámbar de advertencia y `--cat-educacion` comparten familia: no conviven en el mismo indicador.
 
 ### 3.2 Primitivos
 
 | Token | HEX | Uso |
 |---|---|---|
-| `navy-950` | `#06101F` | Fondos de overlays/hero |
-| `navy-900` | `#0A1626` | Fondo base (dark) |
-| `navy-800` | `#102138` | Superficie (cards, sidebar) |
-| `navy-700` | `#17304D` | Superficie elevada |
-| `navy-600` | `#1F4166` | Bordes fuertes/estados hover |
-| `blue-700` | `#1D4ED8` | Acción en tema claro |
-| `blue-600` | `#2563EB` | Acción por defecto (dark), gradiente |
-| `blue-500` | `#3B82F6` | Hover |
-| `blue-400` | `#6EA8FF` | Acento/links/texto interactivo en dark |
-| `blue-300` | `#A5C6FF` | Detalles, gráficos |
-| `emerald-700` | `#047857` | Éxito/ahorro en claro |
-| `emerald-600` | `#0E9F6E` | Gradiente, éxito en claro |
-| `emerald-500` | `#10B981` | Acentos |
-| `emerald-400` | `#34D399` | Éxito/ahorro/ingreso en dark |
-| `amber-700` | `#B45309` | Advertencia en claro |
-| `amber-500` | `#F59E0B` | Detalles de advertencia |
-| `amber-400` | `#FBBF24` | Advertencia en dark |
-| `red-600` | `#DC2626` | Error/destructivo en claro |
-| `red-400` | `#F87171` | Error/destructivo en dark |
-| `graphite-700/500/400/300` | `#334155` / `#64748B` / `#94A3B8` / `#CBD5E1` | Gasto/neutro, texto secundario, bordes |
+| `berry-950` | `#150F19` | Fondos de overlays/hero |
+| `berry-900` | `#1B1420` | Fondo base |
+| `berry-800` | `#271C2E` | Superficie (cards, sidebar) |
+| `berry-700` | `#34263C` | Superficie elevada |
+| `berry-600` | `#453154` | Bordes fuertes / hover |
+| `coral-600` | `#E5613F` | Acción presionada |
+| `coral-500` | `#F0704C` | Acción por defecto, gradiente |
+| `coral-400` | `#F58E70` | Hover |
+| `peach-300` | `#F2A48C` | Acento, gradiente |
+| `olive-500` | `#8FBF6F` | Éxito / ahorro / ingreso |
+| `amber-500` | `#E8B44A` | Advertencia |
+| `red-500` | `#F2555A` | Error / destructivo |
+| `warm-500` | `#B3A3AC` | Egreso / neutro cálido |
+| `espresso-950` | `#2A0F07` | Texto sobre acción |
 
 ### 3.3 Semánticos — verificados WCAG AA
 
-Contraste calculado con luminancia relativa WCAG 2.x (script de verificación, 2026-09-23). Umbral texto ≥ 4.5:1; no-texto ≥ 3:1.
+Contraste calculado con luminancia relativa WCAG 2.x (script de verificación, 2026-09-25). Umbral texto ≥ 4.5:1; no-texto ≥ 3:1.
 
-**Tema oscuro** (sobre `bg-base #0A1626` / `bg-surface #102138` / `bg-elevated #17304D`):
+**Tema oscuro** (sobre `bg-base #1B1420` / `bg-surface #271C2E` / `bg-elevated #34263C`):
 
 | Token | Valor | base | surface | elevated |
 |---|---|---|---|---|
-| `text-primary` | `#E8EFFA` | 15.71 | 14.00 | 11.59 |
-| `text-secondary` | `#A9BCD6` | 9.39 | 8.37 | 6.93 |
-| `text-muted` | `#8AA0C4` | 6.84 | 6.10 | 5.05 |
-| `accent` | `#6EA8FF` | 7.54 | 6.72 | 5.56 |
-| `success` / `money-in` | `#34D399` | 9.45 | 8.42 | 6.97 |
-| `warning` | `#FBBF24` | 10.89 | 9.70 | 8.03 |
-| `danger` | `#F87171` | 6.57 | 5.85 | 4.85 |
-| `money-out` | `#94A3B8` | 7.09 | 6.32 | 5.23 |
-| Botón | blanco sobre `#2563EB` | 5.17 | — | — |
+| `text-primary` | `#F5ECE2` | 15.40 | 13.92 | 12.08 |
+| `text-secondary` | `#D6C4D2` | 10.87 | 9.82 | 8.52 |
+| `text-muted` | `#AC9BB0` | 6.91 | 6.25 | 5.42 |
+| `accent` | `#F2A48C` | 8.96 | 8.10 | 7.03 |
+| `action` | `#F0704C` | 6.10 | 5.52 | 4.79 |
+| `success` / `money-in` | `#8FBF6F` | 8.44 | 7.62 | 6.62 |
+| `warning` | `#E8B44A` | 9.47 | 8.56 | 7.43 |
+| `danger` | `#F2555A` | 5.33 | 4.82 | 4.18 ⚠ |
+| `money-out` | `#B3A3AC` | 7.50 | 6.77 | 5.88 |
+| Botón | `#2A0F07` sobre `#F0704C` | 6.09 | — | — |
+| Botón hover | `#2A0F07` sobre `#F58E70` | 7.68 | — | — |
 
-**Tema claro** (sobre `bg-base #F4F7FC` / `bg-surface #FFFFFF`):
-
-| Token | Valor | base | surface |
-|---|---|---|---|
-| `text-primary` | `#0A1626` | 16.92 | 18.17 |
-| `text-secondary` | `#475569` | 7.06 | 7.58 |
-| `text-muted` | `#5B6B80` | 5.07 | 5.44 |
-| `accent` / `action` | `#1D4ED8` | 6.24 | 6.70 |
-| `success` / `money-in` | `#047857` | 5.11 | 5.48 |
-| `warning` | `#B45309` | 4.68 | 5.02 |
-| `danger` | `#DC2626` | 4.50 | 4.83 |
-| `money-out` | `#5B6B80` | 5.07 | 5.44 |
-| Botón | blanco sobre `#1D4ED8` | 6.70 | — |
-
-> `--text-muted` no debe usarse para texto de lectura continua: es para hints y metadatos.
+> `--text-muted` no debe usarse para lectura continua: es para hints y metadatos.
+> ⚠ `--danger` no cumple 4.5:1 sobre `bg-elevated`: usar sobre base/surface o acompañar con ícono + texto.
 
 ### 3.4 Colores de categoría (9 canónicas + Otros)
 
-Un color por categoría, consistente entre chat (gráficos PNG), dashboard y badges. Contraste ≥ 3:1 sobre el fondo correspondiente (mínimo medido: dark 3.82, light 3.56 — todos cumplen no-texto).
+Un color por categoría, consistente entre chat (gráficos PNG), dashboard y badges. Contraste ≥ 3:1 sobre base, superficie y elevada (mínimo medido: **3.57** en `Otros` sobre elevated; el resto ≥ 4.11).
 
-| Categoría (display, código y datos) | Dark | Light |
-|---|---|---|
-| Servicios | `#6EA8FF` | `#2563EB` |
-| Comida | `#F97316` | `#EA580C` |
-| Transporte | `#22D3EE` | `#0891B2` |
-| Ocio | `#A78BFA` | `#7C3AED` |
-| Vivienda | `#818CF8` | `#4F46E5` |
-| Salud | `#2DD4BF` | `#0D9488` |
-| Educación | `#A3E635` | `#4D7C0F` |
-| Ropa | `#F472B6` | `#DB2777` |
-| Ingresos | `#34D399` | `#059669` |
-| Otros (bucket de gráficos) | `#64748B` | `#64748B` |
+| Categoría (display, código y datos) | Valor | base | surface | elevated |
+|---|---|---|---|---|
+| Servicios | `#9B9BE0` | 6.99 | 6.32 | 5.48 |
+| Comida | `#F0704C` | 6.10 | 5.52 | 4.79 |
+| Transporte | `#7FB5C9` | 8.01 | 7.24 | 6.29 |
+| Ocio | `#B08BD0` | 6.38 | 5.77 | 5.00 |
+| Vivienda | `#E8A87C` | 8.84 | 7.99 | 6.94 |
+| Salud | `#57C4B0` | 8.50 | 7.69 | 6.67 |
+| Educación | `#E0B84A` | 9.53 | 8.61 | 7.47 |
+| Ropa | `#E87FA8` | 6.88 | 6.22 | 5.40 |
+| Ingresos | `#8FBF6F` | 8.44 | 7.62 | 6.62 |
+| Otros (bucket de gráficos) | `#8A7C87` | 4.55 | 4.11 | 3.57 |
 
-**Regla de nombres (D3.6, aprobada 2026-09-23):** la categoría canónica se unifica **con tildes** en display, código y almacenamiento («Educación»). Requiere migración: renombrar semillas y taxonomía (`onboarding_finalization.py:19-29`), tests, y filas existentes (`Educacion` → `Educación`) — ver §9.
+**Regla de nombres (D3.6, ratificada v2):** la categoría canónica se unifica **con tildes** en display, código y almacenamiento («Educación»). La migración de datos sigue pendiente en el repo `luka/`.
 
 ### 3.5 Reglas de uso del color
 
-- Superficies: máximo 3 niveles (base/surface/elevated). Nada de gradientes de fondo salvo el hero.
-- Estados interactivos: hover = subir un paso el azul; focus = borde `--accent` + halo `--shadow-glow`; disabled = `text-muted` + 40 % opacidad.
+- Superficies: máximo 3 niveles (base/surface/elevated). Sin gradientes de fondo salvo el hero.
+- Estados interactivos: hover = un paso más claro de coral; focus = borde `--accent` + halo `--shadow-glow`; disabled = `text-muted` + 40 % opacidad.
 - Glassmorphism vigente: `--bg-glass` + borde `--border` sobre superficies elevadas; no usarlo en tablas de datos.
-- El color nunca es la única señal de estado: siempre acompañar con texto/ícono (accesibilidad para daltonismo).
+- El color nunca es la única señal de estado: siempre acompañar con texto/ícono (daltonismo).
 
 ---
 
@@ -171,11 +156,11 @@ Un color por categoría, consistente entre chat (gráficos PNG), dashboard y bad
 
 | Rol | Familia | Fallbacks | Estado |
 |---|---|---|---|
-| **Display** (encabezados de marca, landing, títulos de sección) | **Space Grotesk** (500/700) | Inter, system-ui | Nueva; agregar a Google Fonts al construir landing |
-| **UI / datos** (cuerpo, números, tablas, chat) | **Inter** (400/500/600/700/800) | system-ui, `-apple-system`, Segoe UI | Ya en uso |
-| **Mono** (código, comandos del bot) | **JetBrains Mono** (400/600) | Fira Code, monospace | Ya en uso |
+| **Display** (marca, landing, títulos de página) | **Gabarito** (500/700) | Inter, system-ui | Nueva v2; reemplaza a Space Grotesk |
+| **UI / datos** (cuerpo, números, tablas, chat) | **Inter** (400/500/600/700/800) | system-ui, `-apple-system`, Segoe UI | Sin cambios |
+| **Mono** (código, comandos del bot) | **JetBrains Mono** (400/600) | Fira Code, monospace | Sin cambios |
 
-La UI del producto no cambia de familia: Inter ya cumple legibilidad y tiene cifras tabulares. Space Grotesk se reserva a display para no re-tematizar toda la interfaz.
+La UI del producto no cambia de familia: Inter ya cumple legibilidad y tiene cifras tabulares. Gabarito se reserva a display (marca, landing, títulos) para no re-tematizar toda la interfaz.
 
 ### 4.2 Escala
 
@@ -202,8 +187,8 @@ La UI del producto no cambia de familia: Inter ya cumple legibilidad y tiene cif
 
 ## 5. Iconografía
 
-- **Estilo:** line-style, grilla 24×24, trazo 1.75–2 px, esquinas y extremos redondeados, sin relleno. Reutilizar el set existente del frontend (`app/templates/components/icons/`, ~30 SVG) como base oficial de UI.
-- **Iconos de acción del chat:** la semántica visual de reacción de WhatsApp se documenta como sistema: `⏳` en proceso (STK-180, implementado) → `✅` éxito / `❌` error (STK-222, roadmap).
+- **Estilo:** line-style, grilla 24×24, trazo 1.75–2 px, esquinas y extremos redondeados, sin relleno. Set existente del frontend (`src/components/icons/`, ~25 SVG) como base oficial de UI.
+- **Iconos de acción del chat:** `⏳` en proceso → `✅` éxito / `❌` error.
 - **Categorías:** cada una de las 9 canónicas debe tener un ícono lineal propio, legible a 16 px en móvil, coloreado con `--cat-*`.
 - **Prohibido:** emojis como iconografía de UI (se usan solo en texto del chat, `02-identidad-verbal.md` §4.4); iconos rellenos mezclados con lineales; íconos de más de 2 trazos conceptuales.
 
@@ -234,14 +219,14 @@ La UI del producto no cambia de familia: Inter ya cumple legibilidad y tiene cif
 | Alerta de límite | ⚠️ + categoría en negrita + montos; máximo 4 líneas |
 | Sugerencia | 💡 + propuesta + botones («Sí, avisame» / «No, gracias») |
 | Lista | 📌 + ítems con guion; máximo 10 antes de paginar |
-| Gráfico | PNG 2× con paleta categórica, fondo `--bg-surface` (oscuro) o blanco (claro), sin mezclar monedas |
+| Gráfico | PNG 2× con paleta categórica, fondo `--bg-surface` |
 | Estados de reacción | ⏳ procesando · ✅ listo · ❌ error |
 
 ---
 
 ## 7. Gráficos y datos
 
-- **Paleta de datos:** la tabla §3.4 en el orden canónico; «Otros» siempre grafito; máximo 6 elementos por gráfico (5 categorías + Otros), regla ya vigente (`docs/movement-charts.md`).
+- **Paleta de datos:** la tabla §3.4 en el orden canónico; «Otros» siempre gris cálido; máximo 6 elementos por gráfico (5 categorías + Otros).
 - **Torta:** etiquetas con nombre + %; nunca más de 6 porciones; ingreso vs egreso no se mezcla en una torta.
 - **Barras:** orden descendente por monto; grilla sutil (`--border`), sin 3D ni sombras.
 - **Evolución mensual:** línea/área con relleno al 12 %; máx. 24 meses.
@@ -254,33 +239,34 @@ La UI del producto no cambia de familia: Inter ya cumple legibilidad y tiene cif
 
 | Archivo | Rol |
 |---|---|
-| `tokens/design-tokens.json` | Fuente de verdad (W3C-style `$type`/`$value`), versionada |
-| `tokens/tokens.css` | Implementación lista para copiar: `:root` (oscuro) + `[data-theme="light"]` |
+| `tokens/design-tokens.json` | Fuente de verdad (W3C-style `$type`/`$value`), **v2.0.0** |
+| `tokens/tokens.css` | Implementación lista para copiar: `:root` oscuro (+ utilidades `.tabular`) |
+| `src/styles/tokens.css` | Copia sincronizada del proyecto Astro (test `src/styles/tokens.test.ts` la verifica byte a byte) |
 
-Cobertura: color (primitivo/semántico/categórico/gradientes), tipografía, espaciado, radios, sombras, movimiento. Regla de gobernanza: **ningún valor de diseño se escribe hardcodeado en componentes**; todo sale de tokens (ver `05-gobernanza-manual-vivo.md` §4).
+Cobertura: color (primitivo/semántico/categórico/gradientes), tipografía, espaciado, radios, sombras, movimiento. Regla de gobernanza: **ningún valor de diseño se escribe hardcodeado en componentes**; todo sale de tokens (`05-gobernanza-manual-vivo.md` §4).
 
 ---
 
-## 9. Migración desde el estado actual (sin tocar código en esta fase)
+## 9. Migración desde el estado actual
 
-| Actual | Valor | Destino |
+| Actual | Valor | Destino v2 |
 |---|---|---|
-| `--accent-primary` | `#6366f1` | `--action` `#2563EB` |
-| `--accent-violet` | `#8b5cf6` | Retirar como «violeta de marca»; usar `--cat-ocio`/`--cat-vivienda` según contexto |
-| `--accent-pink` | `#ec4899` | `--cat-ropa` |
-| `--accent-teal` | `#14b8a6` | `--cat-salud` |
-| `--accent-amber` | `#f59e0b` | `--warning` o `--cat-comida` según uso |
-| Texto `#f1f5f9` / `#94a3b8` / `#475569` | — | `#E8EFFA` / `#A9BCD6` / `#8AA0C4` |
-| Rojo `#f87171` en montos negativos y barras | — | `--money-out` grafito; rojo solo en error/exceso crítico |
-| Gráficos `PALETTE = #3066BE, #087F8C, #7A5195, #BB5A24, #A33757, #58752D` (`luka/app/services/movement_chart.py:22`) | — | Paleta categórica §3.4 |
-| Logo anterior indigo→violeta `#6366f1 → #a855f7` | — | ✅ Reemplazado 2026-09-24 por el isotipo LK con gradiente azul→esmeralda (`--gradient-brand`) |
-| Categorías del dashboard: 8 entradas con «Entretenimiento», «Hogar», «Otro» (`app/dashboard.py:23-32`) | — | 9 canónicas + Otros §3.4 |
-| Categoría `Educacion` sin tilde (código, semillas y filas existentes) | — | «Educación» con tilde en todo el sistema: migración de datos (`UPDATE categorias`), semillas, taxonomía y tests (§3.4) |
-| Isotipo K provisional e isotipo «A» del frontend | — | ✅ Reemplazados 2026-09-24 por el isotipo vigente (§2.1–2.2) en `public/`, `assets/` y los íconos inline (`logo_login.svg`, `logo_sidebar.svg`) |
-| Inter cargada, sin Space Grotesk | — | Sumar Space Grotesk (solo display) |
-| Sin favicon | — | PNG (`favicon-32`, `favicon-512`, `apple-touch-icon`) en `luka_frontend/public/`; sin `favicon.svg` desde 2026-09-24 |
+| Tokens v1 `navy-900`/`navy-800`/`navy-700` | `#0A1626` / `#102138` / `#17304D` | `berry-900/800/700` `#1B1420` / `#271C2E` / `#34263C` |
+| `--action` v1 | `#2563EB` | `#F0704C` coral |
+| `--accent` v1 | `#6EA8FF` | `#F2A48C` durazno |
+| `--money-in` v1 | `#34D399` | `#8FBF6F` oliva |
+| `--money-out` v1 | `#94A3B8` | `#B3A3AC` gris cálido |
+| `--warning` v1 | `#FBBF24` | `#E8B44A` |
+| `--danger` v1 | `#F87171` | `#F2555A` |
+| Fuente display | Space Grotesk | Gabarito |
+| Isotipo | PNG azul→esmeralda | PNG recoloreado coral→durazno (en curso) + SVG (pendiente) |
+| Favicons | PNG v1 | Se regeneran con el isotipo v2 |
+| Tema claro (`[data-theme="light"]`) | Bloque completo v1 | **Retirado** de tokens v2 (diferido, D3.7); reponer con contraste verificado cuando exista toggle |
+| Dashboard `style.css` (legacy) | indigo `#6366f1`, rojo `#f87171` en egresos | Tokens v2 (rama `dashboard`) |
+| Landing `index.astro` | hero mínimo azul/soft | Rediseño con tokens v2 (rama `landing-page`) |
+| Gráficos `app.astro` | colores hardcodeados | Tokens v2 (`--cat-*`, `--money-*`) |
 
-**Alcance:** esta fase documenta; la aplicación de tokens al código se planifica aparte (tarea técnica con sus tests de UI). Prioridad sugerida: (1) tokens semánticos de color, (2) categorías, (3) gráficos, (4) logo/favicon, (5) tipografía display.
+**Alcance:** esta fase documenta y versiona los tokens. La adopción en código se ejecuta en las ramas `landing-page` (landing y CTA a WhatsApp) y `dashboard` (tokens, skeletons, a11y), con sus tests de guard.
 
 ---
 
@@ -288,87 +274,70 @@ Cobertura: color (primitivo/semántico/categórico/gradientes), tipografía, esp
 
 | # | Decisión | Estado |
 |---|---|---|
-| D3.1 | Paleta navy + azul `#2563EB` + esmeralda `#0E9F6E`, semánticos verificados AA | ✅ Aprobado 2026-09-23 |
-| D3.2 | Rojo prohibido para gastos; grafito para egreso | ✅ Aprobado 2026-09-23 |
-| D3.3 | Símbolo nuevo para el isotipo (fluidez/diálogo/balance); K y A deprecados | ✅ Cumplido 2026-09-23 — **superseded 2026-09-24:** isotipo LK en burbuja (PNG), variantes claro/oscuro/mono retiradas |
-| D3.4 | Space Grotesk (display) + Inter (UI/datos, tabular) + JetBrains Mono | ✅ Aprobado 2026-09-23 |
-| D3.5 | Design tokens versionados en `docs/marca/tokens/` como fuente de verdad | ✅ Aprobado 2026-09-23 |
-| D3.6 | Categorías unificadas con tildes (display, código y datos) + color oficial en ambos temas | ✅ Aprobado — migración pendiente |
+| D3.1 | Paleta navy + azul `#2563EB` + esmeralda `#0E9F6E` | ⛔ **Superseded 2026-09-25** por D3.1′ |
+| D3.1′ | **Paleta «Bodegón»**: berenjena + coral `#F0704C` + durazno `#F2A48C` + oliva `#8FBF6F`, semánticos verificados AA | ✅ Aprobado 2026-09-25 |
+| D3.2 | Rojo prohibido para gastos; gris cálido para egreso | ✅ Vigente |
+| D3.3 | Símbolo nuevo de isotipo (L/K en burbuja); K y A deprecados | ✅ Vigente |
+| D3.4 | Space Grotesk (display) + Inter (UI/datos) + JetBrains Mono | ⛔ **Superseded 2026-09-25** por D3.4′ |
+| D3.4′ | **Gabarito** (display) + Inter (UI/datos, tabular) + JetBrains Mono | ✅ Aprobado 2026-09-25 |
+| D3.5 | Design tokens versionados en `docs/marca/tokens/` como fuente de verdad | ✅ Vigente (v2.0.0) |
+| D3.6 | Categorías unificadas con tildes (display, código y datos) + color oficial | ✅ Vigente — migración de datos pendiente en `luka/` |
+| D3.7 | **Tema oscuro único**; tema claro diferido hasta que exista toggle (no se versiona una variante sin contraste verificado) | ✅ Aprobado 2026-09-25 |
+| D3.8 | **Símbolo vectorial (SVG)** como formato objetivo; PNG recoloreado es transitorio | ✅ Aprobado 2026-09-25 |
+| D3.9 | Regla de convivencia `danger`/`action`: nunca sin ícono+texto; `danger` texto no va sobre elevated | ✅ Aprobado 2026-09-25 |
 
 ---
 
 ## 11. Anexo · Valores RGB
 
-Conversión estándar de los HEX del sistema (sRGB 8-bit). Los semánticos que reutilizan primitivos no se repiten.
+Conversión estándar de los HEX del sistema (sRGB 8-bit).
 
 **Primitivos**
 
 | Token | HEX | RGB |
 |---|---|---|
-| `navy-950` | `#06101F` | 6, 16, 31 |
-| `navy-900` | `#0A1626` | 10, 22, 38 |
-| `navy-800` | `#102138` | 16, 33, 56 |
-| `navy-700` | `#17304D` | 23, 48, 77 |
-| `navy-600` | `#1F4166` | 31, 65, 102 |
-| `blue-700` | `#1D4ED8` | 29, 78, 216 |
-| `blue-600` | `#2563EB` | 37, 99, 235 |
-| `blue-500` | `#3B82F6` | 59, 130, 246 |
-| `blue-400` | `#6EA8FF` | 110, 168, 255 |
-| `blue-300` | `#A5C6FF` | 165, 198, 255 |
-| `emerald-700` | `#047857` | 4, 120, 87 |
-| `emerald-600` | `#0E9F6E` | 14, 159, 110 |
-| `emerald-500` | `#10B981` | 16, 185, 129 |
-| `emerald-400` | `#34D399` | 52, 211, 153 |
-| `amber-700` | `#B45309` | 180, 83, 9 |
-| `amber-500` | `#F59E0B` | 245, 158, 11 |
-| `amber-400` | `#FBBF24` | 251, 191, 36 |
-| `red-600` | `#DC2626` | 220, 38, 38 |
-| `red-400` | `#F87171` | 248, 113, 113 |
-| `graphite-700` | `#334155` | 51, 65, 85 |
-| `graphite-500` | `#64748B` | 100, 116, 139 |
-| `graphite-400` | `#94A3B8` | 148, 163, 184 |
-| `graphite-300` | `#CBD5E1` | 203, 213, 225 |
+| `berry-950` | `#150F19` | 21, 15, 25 |
+| `berry-900` | `#1B1420` | 27, 20, 32 |
+| `berry-800` | `#271C2E` | 39, 28, 46 |
+| `berry-700` | `#34263C` | 52, 38, 60 |
+| `berry-600` | `#453154` | 69, 49, 84 |
+| `coral-600` | `#E5613F` | 229, 97, 63 |
+| `coral-500` | `#F0704C` | 240, 112, 76 |
+| `coral-400` | `#F58E70` | 245, 142, 112 |
+| `peach-300` | `#F2A48C` | 242, 164, 140 |
+| `olive-500` | `#8FBF6F` | 143, 191, 111 |
+| `amber-500` | `#E8B44A` | 232, 180, 74 |
+| `red-500` | `#F2555A` | 242, 85, 90 |
+| `warm-500` | `#B3A3AC` | 179, 163, 172 |
+| `espresso-950` | `#2A0F07` | 42, 15, 7 |
 
 **Semánticos propios (sin primitivo equivalente)**
 
 | Token | HEX | RGB |
 |---|---|---|
-| `text-primary` (dark) | `#E8EFFA` | 232, 239, 250 |
-| `text-secondary` (dark) | `#A9BCD6` | 169, 188, 214 |
-| `text-muted` (dark) | `#8AA0C4` | 138, 160, 196 |
-| `bg-base` (light) | `#F4F7FC` | 244, 247, 252 |
-| `text-secondary` (light) | `#475569` | 71, 85, 105 |
-| `text-muted` / `money-out` (light) | `#5B6B80` | 91, 107, 128 |
+| `text-primary` | `#F5ECE2` | 245, 236, 226 |
+| `text-secondary` | `#D6C4D2` | 214, 196, 210 |
+| `text-muted` | `#AC9BB0` | 172, 155, 176 |
 
 **Categorías**
 
 | Categoría | HEX | RGB |
 |---|---|---|
-| Servicios (dark) | `#6EA8FF` | 110, 168, 255 |
-| Comida (dark) | `#F97316` | 249, 115, 22 |
-| Transporte (dark) | `#22D3EE` | 34, 211, 238 |
-| Ocio (dark) | `#A78BFA` | 167, 139, 250 |
-| Vivienda (dark) | `#818CF8` | 129, 140, 248 |
-| Salud (dark) | `#2DD4BF` | 45, 212, 191 |
-| Educación (dark) | `#A3E635` | 163, 230, 53 |
-| Ropa (dark) | `#F472B6` | 244, 114, 182 |
-| Ingresos (dark) | `#34D399` | 52, 211, 153 |
-| Otros (ambos temas) | `#64748B` | 100, 116, 139 |
-| Servicios (light) | `#2563EB` | 37, 99, 235 |
-| Comida (light) | `#EA580C` | 234, 88, 12 |
-| Transporte (light) | `#0891B2` | 8, 145, 178 |
-| Ocio (light) | `#7C3AED` | 124, 58, 237 |
-| Vivienda (light) | `#4F46E5` | 79, 70, 229 |
-| Salud (light) | `#0D9488` | 13, 148, 136 |
-| Educación (light) | `#4D7C0F` | 77, 124, 15 |
-| Ropa (light) | `#DB2777` | 219, 39, 119 |
-| Ingresos (light) | `#059669` | 5, 150, 105 |
+| Servicios | `#9B9BE0` | 155, 155, 224 |
+| Comida | `#F0704C` | 240, 112, 76 |
+| Transporte | `#7FB5C9` | 127, 181, 201 |
+| Ocio | `#B08BD0` | 176, 139, 208 |
+| Vivienda | `#E8A87C` | 232, 168, 124 |
+| Salud | `#57C4B0` | 87, 196, 176 |
+| Educación | `#E0B84A` | 224, 184, 74 |
+| Ropa | `#E87FA8` | 232, 127, 168 |
+| Ingresos | `#8FBF6F` | 143, 191, 111 |
+| Otros | `#8A7C87` | 138, 124, 135 |
 
 ---
 
 ## 12. Fuentes
 
-- `luka_frontend/static/css/style.css`, `registro.css`, `admin_flows.css`, `app/templates/**`, `app/dashboard.py`
-- `luka/app/services/movement_chart.py`, `luka/docs/movement-charts.md`, `luka/public/*`, `luka/testing/.streamlit/config.toml`
-- Verificación de contraste: script de luminancia WCAG ejecutado 2026-09-23 (resultados en §3.3–3.4)
-- Norman, D. *Emotional Design* (nivel visceral); Neumeier, M. *The Brand Gap* (originalidad/epidemias visuales).
+- `src/styles/*.css`, `src/pages/**`, `src/components/**`, `public/*`, `docs/marca/assets/*`.
+- Verificación de contraste: script de luminancia WCAG ejecutado 2026-09-25 (resultados en §3.3–3.4).
+- Norman, D. *Emotional Design* (nivel visceral); Neumeier, M. *The Brand Gap* (originalidad/epidemias visuales); Miller, D. *Building a StoryBrand* (claridad de marca).

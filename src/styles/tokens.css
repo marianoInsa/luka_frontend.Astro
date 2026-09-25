@@ -1,76 +1,68 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   LUKA BRAND TOKENS v1.0.0 — 2026-09-23
+   LUKA BRAND TOKENS v2.0.0 — 2026-09-25
    Fuente de verdad: docs/marca/tokens/design-tokens.json
-   Tema oscuro por defecto (producto) + tema claro con [data-theme="light"].
-   Contraste WCAG AA verificado: ver docs/marca/03-identidad-visual.md §4.6.
+   Identidad «Bodegón»: cálido rioplatense (berenjena + coral + durazno + oliva).
+   Tema oscuro único; tema claro diferido (D3.7, 03-identidad-visual.md §10).
+   Contraste WCAG AA/3:1 verificado: ver docs/marca/03-identidad-visual.md §3.3.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 :root {
   color-scheme: dark;
 
   /* ── Primitivos ────────────────────────────────────────────────────────── */
-  --navy-950: #06101F;
-  --navy-900: #0A1626;
-  --navy-800: #102138;
-  --navy-700: #17304D;
-  --navy-600: #1F4166;
-  --blue-700: #1D4ED8;
-  --blue-600: #2563EB;
-  --blue-500: #3B82F6;
-  --blue-400: #6EA8FF;
-  --blue-300: #A5C6FF;
-  --emerald-700: #047857;
-  --emerald-600: #0E9F6E;
-  --emerald-500: #10B981;
-  --emerald-400: #34D399;
-  --amber-700: #B45309;
-  --amber-500: #F59E0B;
-  --amber-400: #FBBF24;
-  --red-600: #DC2626;
-  --red-400: #F87171;
-  --graphite-700: #334155;
-  --graphite-500: #64748B;
-  --graphite-400: #94A3B8;
-  --graphite-300: #CBD5E1;
+  --berry-950: #150F19;
+  --berry-900: #1B1420;
+  --berry-800: #271C2E;
+  --berry-700: #34263C;
+  --berry-600: #453154;
+  --coral-600: #E5613F;
+  --coral-500: #F0704C;
+  --coral-400: #F58E70;
+  --peach-300: #F2A48C;
+  --olive-500: #8FBF6F;
+  --amber-500: #E8B44A;
+  --red-500: #F2555A;
+  --warm-500: #B3A3AC;
+  --espresso-950: #2A0F07;
 
   /* ── Semánticos (oscuro) ───────────────────────────────────────────────── */
-  --bg-base: var(--navy-900);
-  --bg-surface: var(--navy-800);
-  --bg-elevated: var(--navy-700);
-  --bg-glass: rgba(255, 255, 255, 0.05);
-  --border: rgba(255, 255, 255, 0.09);
-  --border-strong: rgba(255, 255, 255, 0.16);
-  --text-primary: #E8EFFA;
-  --text-secondary: #A9BCD6;
-  --text-muted: #8AA0C4;
-  --accent: var(--blue-400);
-  --action: var(--blue-600);
-  --action-hover: var(--blue-500);
-  --on-action: #FFFFFF;
-  --success: var(--emerald-400);
-  --warning: var(--amber-400);
-  --danger: var(--red-400);
-  --money-in: var(--emerald-400);
-  --money-out: var(--graphite-400);
+  --bg-base: var(--berry-900);
+  --bg-surface: var(--berry-800);
+  --bg-elevated: var(--berry-700);
+  --bg-glass: rgba(245, 236, 226, 0.05);
+  --border: rgba(245, 236, 226, 0.10);
+  --border-strong: rgba(245, 236, 226, 0.18);
+  --text-primary: #F5ECE2;
+  --text-secondary: #D6C4D2;
+  --text-muted: #AC9BB0;
+  --accent: var(--peach-300);
+  --action: var(--coral-500);
+  --action-hover: var(--coral-400);
+  --on-action: var(--espresso-950);
+  --success: var(--olive-500);
+  --warning: var(--amber-500);
+  --danger: var(--red-500);
+  --money-in: var(--olive-500);
+  --money-out: var(--warm-500);
 
   /* ── Categóricas (oscuro) ──────────────────────────────────────────────── */
-  --cat-servicios: #6EA8FF;
-  --cat-comida: #F97316;
-  --cat-transporte: #22D3EE;
-  --cat-ocio: #A78BFA;
-  --cat-vivienda: #818CF8;
-  --cat-salud: #2DD4BF;
-  --cat-educacion: #A3E635;
-  --cat-ropa: #F472B6;
-  --cat-ingresos: #34D399;
-  --cat-otros: #64748B;
+  --cat-servicios: #9B9BE0;
+  --cat-comida: #F0704C;
+  --cat-transporte: #7FB5C9;
+  --cat-ocio: #B08BD0;
+  --cat-vivienda: #E8A87C;
+  --cat-salud: #57C4B0;
+  --cat-educacion: #E0B84A;
+  --cat-ropa: #E87FA8;
+  --cat-ingresos: #8FBF6F;
+  --cat-otros: #8A7C87;
 
   /* ── Gradientes ────────────────────────────────────────────────────────── */
-  --gradient-brand: linear-gradient(135deg, #2563EB 0%, #0E9F6E 100%);
-  --gradient-brand-soft: linear-gradient(135deg, rgba(37, 99, 235, 0.18) 0%, rgba(14, 159, 110, 0.18) 100%);
+  --gradient-brand: linear-gradient(135deg, #F0704C 0%, #F2A48C 100%);
+  --gradient-brand-soft: linear-gradient(135deg, rgba(240, 112, 76, 0.18) 0%, rgba(242, 164, 140, 0.14) 100%);
 
   /* ── Tipografía ────────────────────────────────────────────────────────── */
-  --font-display: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+  --font-display: 'Gabarito', 'Inter', system-ui, sans-serif;
   --font-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
   --text-display-lg: 700 32px/1.15 var(--font-display);
@@ -103,8 +95,8 @@
   --radius-full: 999px;
 
   /* ── Sombras ───────────────────────────────────────────────────────────── */
-  --shadow-card: 0 4px 32px rgba(6, 16, 31, 0.45);
-  --shadow-glow: 0 0 40px rgba(37, 99, 235, 0.18);
+  --shadow-card: 0 4px 32px rgba(10, 6, 13, 0.55);
+  --shadow-glow: 0 0 40px rgba(240, 112, 76, 0.20);
 
   /* ── Movimiento ────────────────────────────────────────────────────────── */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
@@ -112,39 +104,6 @@
   --duration-fast: 150ms;
   --duration-base: 250ms;
   --duration-slow: 400ms;
-}
-
-/* ── Tema claro ──────────────────────────────────────────────────────────── */
-[data-theme="light"] {
-  color-scheme: light;
-  --bg-base: #F4F7FC;
-  --bg-surface: #FFFFFF;
-  --bg-elevated: #FFFFFF;
-  --bg-glass: rgba(16, 33, 56, 0.03);
-  --border: rgba(16, 33, 56, 0.12);
-  --border-strong: rgba(16, 33, 56, 0.22);
-  --text-primary: #0A1626;
-  --text-secondary: #475569;
-  --text-muted: #5B6B80;
-  --accent: var(--blue-700);
-  --action: var(--blue-700);
-  --action-hover: var(--blue-600);
-  --success: var(--emerald-700);
-  --warning: var(--amber-700);
-  --danger: var(--red-600);
-  --money-in: var(--emerald-700);
-  --money-out: #5B6B80;
-  --cat-servicios: #2563EB;
-  --cat-comida: #EA580C;
-  --cat-transporte: #0891B2;
-  --cat-ocio: #7C3AED;
-  --cat-vivienda: #4F46E5;
-  --cat-salud: #0D9488;
-  --cat-educacion: #4D7C0F;
-  --cat-ropa: #DB2777;
-  --cat-ingresos: #059669;
-  --shadow-card: 0 4px 24px rgba(6, 16, 31, 0.10);
-  --shadow-glow: 0 0 40px rgba(29, 78, 216, 0.12);
 }
 
 /* ── Utilidades de datos ─────────────────────────────────────────────────── */

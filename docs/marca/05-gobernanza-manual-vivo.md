@@ -70,7 +70,7 @@ Antes de publicar **una función, un mensaje masivo o una pantalla**, el respons
 ### 2.5 Filtro visual y accesibilidad
 
 - [ ] Todo color sale de tokens (`03-identidad-visual.md` §8); nada hardcodeado.
-- [ ] Contraste texto ≥ 4.5:1 y no-texto ≥ 3:1 en el tema correspondiente.
+- [ ] Contraste texto ≥ 4.5:1 y no-texto ≥ 3:1 sobre el fondo donde se usa (tema oscuro único vigente, D3.7).
 - [ ] Estado nunca comunicado solo por color.
 - [ ] Números con cifras tabulares y formato es-AR.
 - [ ] Foco visible, navegación por teclado y `alt`/`aria-label` en el componente nuevo (web).
@@ -83,7 +83,7 @@ Antes de publicar **una función, un mensaje masivo o una pantalla**, el respons
 | Aspecto | Regla |
 |---|---|
 | **Ubicación** | `luka_frontend/docs/marca/` (este repositorio). Fuente de verdad única; los tokens viven en `tokens/`. |
-| **Versionado** | Semver del manual en este encabezado: `v1.0.0`. Cambios de fondo (propósito, tono, paleta) → major; secciones nuevas → minor; correcciones → patch. |
+| **Versionado** | Semver del manual en este encabezado: `v0.5.0`. Cambios de fondo (propósito, tono, paleta) → major; secciones nuevas → minor; correcciones → patch. |
 | **Registro** | Toda modificación actualiza el changelog del `00-luka-brand-compass.md` (sección §7) con fecha, autor y motivo. |
 | **Aprobación** | En equipo (D5.2): los cambios se proponen por PR y requieren al menos una revisión de otra persona del equipo. Sin owner único. |
 | **Ritmo** | Revisión completa **mensual** (D5.4); revisión extraordinaria tras cualquier release de producto o incidente de marca. |
@@ -94,7 +94,7 @@ Antes de publicar **una función, un mensaje masivo o una pantalla**, el respons
 
 ## 4. Repositorio de tokens compartido
 
-**Fuente de verdad:** `docs/marca/tokens/design-tokens.json` → **implementación:** `docs/marca/tokens/tokens.css` → **código:** `static/css/*.css` (adopción pendiente, `03-identidad-visual.md` §9).
+**Fuente de verdad:** `docs/marca/tokens/design-tokens.json` (v2.0.0, tema oscuro) → **implementación:** `docs/marca/tokens/tokens.css` → **código:** `src/styles/tokens.css` (copia sincronizada con test de drift) y `src/styles/*.css` (adopción pendiente en las ramas `landing-page` y `dashboard`, `03-identidad-visual.md` §9).
 
 ### 4.1 Proceso de cambio de un token
 

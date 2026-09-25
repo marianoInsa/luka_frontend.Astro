@@ -1,7 +1,7 @@
 # 00 · The Luka Brand Compass (Manual Maestro de Marca)
 
 > **Entregable Final.** Documento central: índice, resumen ejecutivo, decisiones de marca y gobernanza.
-> **Estado:** `v0.3.0` — **decisiones cerradas** (2026-09-23); pendientes de implementación: migración de categorías, copy de degradación y reacciones ✅/❌.
+> **Estado:** `v0.5.0` — identidad v2 «Bodegón» aprobada (2026-09-25); pendientes de implementación: adopción de tokens en landing/dashboard, recambio del isotipo (recoloreo + SVG), migración de categorías, copy de degradación y reacciones ✅/❌.
 > **Alcance:** producto Luka (WhatsApp + dashboard web) en sus repos `luka/` y `luka_frontend/`.
 > **Cómo funciona este manual:** los documentos de fase contienen el detalle; este archivo es la brújula que los conecta y el registro de decisiones.
 
@@ -57,12 +57,13 @@ docs/marca/
 - **Anexo:** inventario de ~70 mensajes reales — fuente de consistencia para todo copy nuevo.
 
 ### Fase 3 — Identidad visual (`03`)
-- **Paleta nueva:** navy profundo + azul `#2563EB` (confianza/acción) + esmeralda `#0E9F6E` (logro/ahorro); grafito para gasto; rojo solo para error.
-- **Contraste WCAG AA verificado** en todos los pares texto/superficie y botones; categorías ≥ 3:1.
-- **Isotipo:** vigente 2026-09-24 — burbuja entrelazada LK azul→esmeralda (PNG; variantes claro/oscuro/mono retiradas); favicon PNG 32/512; wordmark PNG vigente.
-- **Tipografía:** Space Grotesk (display) + Inter con cifras tabulares (UI/datos) + JetBrains Mono.
-- **9 categorías + Otros** con color oficial y nombres unificados con tildes en código y datos (migración pendiente).
-- **Migración documentada** (indigo actual → paleta nueva) sin tocar código en esta fase.
+- **Paleta v2 «Bodegón» (2026-09-25):** cálido rioplatense — berenjena + coral `#F0704C` (acción) + durazno `#F2A48C` (acento) + oliva `#8FBF6F` (logro/ingreso); gris cálido para gasto; rojo `#F2555A` solo error. Sustituye la v1 navy/azul/esmeralda (descartada por genérica).
+- **Contraste WCAG AA verificado** en todos los pares texto/superficie y botones; categorías ≥ 3:1 sobre base, superficie y elevada.
+- **Isotipo:** burbuja entrelazada LK; recoloreo coral→durazno en curso y **SVG vectorial pendiente** (D3.8); favicons y wordmark se regeneran con el asset nuevo. El PNG v1 sigue publicado como provisional.
+- **Tipografía v2:** Gabarito (display) + Inter con cifras tabulares (UI/datos) + JetBrains Mono.
+- **9 categorías + Otros** con color oficial v2 y nombres unificados con tildes (migración de datos pendiente en `luka/`).
+- **Tema claro diferido** (D3.7): tokens v2.0.0 solo oscuro, sin variante sin verificar.
+- **Migración documentada** (tokens v1/indigo → v2) sin tocar código en esta fase.
 
 ### Fase 4 — Diseño conductual (`04`)
 - **Brechas de Norman** auditadas: registro en 1 mensaje (ejecución) y feedback ⏳/✅/❌ + balances (evaluación).
@@ -96,12 +97,17 @@ docs/marca/
 | D2.4 | Set de emojis reducido a 5 oficiales; resto deprecado | 2 | ✅ Aprobado 2026-09-23 |
 | D2.5 | Prohibiciones de copy como guía de estilo (no bloqueante) | 2 | ✅ Aprobado 2026-09-23 |
 | D2.6 | Reemplazo de mensajes «Se perdió el contexto» por voz Luka | 2 | ✅ Copy aprobado — implementación pendiente |
-| D3.1 | Paleta navy/azul/esmeralda verificada AA | 3 | ✅ Aprobado 2026-09-23 |
-| D3.2 | Rojo prohibido para gasto; grafito para egreso | 3 | ✅ Aprobado 2026-09-23 |
-| D3.3 | Símbolo nuevo de isotipo (fluidez/diálogo/balance); K/A deprecados | 3 | ✅ Cumplido 2026-09-23 — isotipo definitivo en `public/` y `docs/marca/assets/` |
-| D3.4 | Space Grotesk (display) + Inter (UI/datos) + JetBrains Mono | 3 | ✅ Aprobado 2026-09-23 |
-| D3.5 | Tokens versionados como fuente de verdad | 3 | ✅ Aprobado 2026-09-23 |
-| D3.6 | Categorías unificadas con tildes + color oficial | 3 | ✅ Aprobado — migración pendiente |
+| D3.1 | Paleta navy/azul/esmeralda verificada AA | 3 | ⛔ **Superseded 2026-09-25** por D3.1′ |
+| D3.1′ | Paleta «Bodegón»: berenjena + coral `#F0704C` + durazno `#F2A48C` + oliva `#8FBF6F`, AA verificada | 3 | ✅ Aprobado 2026-09-25 |
+| D3.2 | Rojo prohibido para gasto; gris cálido para egreso | 3 | ✅ Vigente (ratificado v2) |
+| D3.3 | Símbolo nuevo de isotipo (fluidez/diálogo/balance); K/A deprecados | 3 | ✅ Vigente — burbuja LK con recoloreo v2 en curso |
+| D3.4 | Space Grotesk (display) + Inter (UI/datos) + JetBrains Mono | 3 | ⛔ **Superseded 2026-09-25** por D3.4′ |
+| D3.4′ | **Gabarito** (display) + Inter (UI/datos, tabular) + JetBrains Mono | 3 | ✅ Aprobado 2026-09-25 |
+| D3.5 | Tokens versionados como fuente de verdad | 3 | ✅ Vigente — tokens v2.0.0 |
+| D3.6 | Categorías unificadas con tildes + color oficial | 3 | ✅ Vigente — migración de datos pendiente |
+| D3.7 | Tema oscuro único; tema claro diferido hasta que exista toggle | 3 | ✅ Aprobado 2026-09-25 |
+| D3.8 | Símbolo vectorial (SVG) como formato objetivo | 3 | ✅ Aprobado 2026-09-25 — export pendiente |
+| D3.9 | Convivencia `danger`/`action`: nunca sin ícono+texto; `danger` texto no va sobre elevated | 3 | ✅ Aprobado 2026-09-25 |
 | D4.1 | Presupuesto de decisiones por flujo como guía (no bloqueante) | 4 | ✅ Aprobado 2026-09-23 |
 | D4.2 | Patrón undo/deshacer para acciones destructivas (roadmap) | 4 | ✅ Aprobado 2026-09-23 |
 | D4.3 | Contrato de feedback ⏳/✅/❌ + mensaje | 4 | ✅ Aprobado 2026-09-23 |
@@ -119,13 +125,13 @@ docs/marca/
 
 | Activo | Ruta | Uso |
 |---|---|---|
-| Wordmark LUKA | `luka/public/logo-luka-texto.png` | Marca principal (pendiente versión SVG) |
-| Isotipo color (por defecto) | `docs/marca/assets/isotipo-color.png` · `luka_frontend/public/logo-luka.png` | Fondos claros y oscuros, espacios de marca |
-| Favicon | `luka_frontend/public/favicon-32.png` + `favicon-512.png` + `apple-touch-icon.png` | Pestaña/navegador e iOS |
-| Design tokens | `docs/marca/tokens/design-tokens.json` | Fuente de verdad |
-| CSS de tokens | `docs/marca/tokens/tokens.css` | Implementación dark + light |
-| Iconos UI | `luka_frontend/app/templates/components/icons/` | Set lineal vigente |
-| Paleta de gráficos | `luka/app/services/movement_chart.py` | **A migrar** a tokens categóricos |
+| Wordmark LUKA | `luka/public/logo-luka-texto.png` | Marca principal (a rediseñar en v2; pendiente SVG) |
+| Isotipo color (v2) | `docs/marca/assets/isotipo-color.png` · `public/logo-luka.png` | Recoloreo coral→durazno en curso; SVG pendiente (D3.8) |
+| Favicon | `public/favicon-32.png`, `favicon-512.png`, `apple-touch-icon.png` | Se regeneran con el isotipo v2 (los actuales son v1 provisionales) |
+| Design tokens | `docs/marca/tokens/design-tokens.json` | Fuente de verdad — **v2.0.0**, tema oscuro |
+| CSS de tokens | `docs/marca/tokens/tokens.css` · `src/styles/tokens.css` | Implementación + copia sincronizada (test de drift) |
+| Iconos UI | `src/components/icons/` | Set lineal vigente |
+| Paleta de gráficos | `luka/app/services/movement_chart.py` | **A migrar** a tokens categóricos v2 |
 
 ---
 
@@ -153,6 +159,7 @@ Detalle completo: `05-gobernanza-manual-vivo.md` §2.
 | `v0.2.0` | 2026-09-23 | Decisiones D1.1–D5.5 cerradas en sesión conjunta: Onlyness (versión hoja de ruta), emojis reducidos a 5, copy de degradación aprobado, símbolo nuevo de isotipo, categorías con tildes, presupuesto MECLABS y checklists como guía no bloqueante, aprobación en equipo, revisión mensual. |
 | `v0.3.0` | 2026-09-23 | Isotipo definitivo integrado: SVG color/claro/oscuro/mono + favicon en `public/` y `docs/marca/assets/`; PNG 32/512 y apple-touch; `03` §2 y §10 actualizados; assets K provisionales eliminados. |
 | `v0.4.0` | 2026-09-24 | Isotipo reemplazado por el símbolo LK en burbuja (PNG azul→esmeralda): `public/` sincronizado (logo + favicons), variantes claro/oscuro/mono retiradas, master en `docs/marca/assets/isotipo-color.png`; íconos inline (`logo_login.svg`, `logo_sidebar.svg`) migrados; `03` §2/§9/§10 y `01-inventario-paridad` actualizados. |
+| `v0.5.0` | 2026-09-25 | **Identidad v2 «Bodegón»** aprobada: paleta cálida rioplatense (berenjena + coral + durazno + oliva; rojo solo error), Gabarito como display, tema claro diferido (D3.7), símbolo vectorial objetivo (D3.8) y regla de convivencia `danger`/`action` (D3.9). Tokens **v2.0.0** (dark) en `design-tokens.json`, `tokens.css` y copia `src/styles/`; `03` reescrito (§2–§4, §9–§11) y D3.1/D3.4 superseded. Motivación: la paleta v1 (azul/verde/gris) era genérica y no representaba la identidad de LUKA. |
 
 ---
 
