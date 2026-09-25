@@ -84,7 +84,9 @@ DS «LUKA — Bodegón»: dark, coral primario, Rubik como **proxy** de Gabarito
 
 **Rediseño obligatorio antes de tocar código** (Fase 0 del plan): hero+nav sin eyebrow/microcopy y con nav glass flotante, beneficios bento denso, conflicto+tour con impacto, plan sin pricing y con el cerebro de LUKA clasificando. FAQ se regenera simple y cierre se aprueba tal cual.
 
-**Opcionales (el MCP timeoutea; quedan en el proyecto):** dashboard normal y dashboard con skeletons (v1 del dashboard **aprobada**): se reintentan una vez; si no salen, se implementa directo desde tokens (retoque conservador, D-18).
+**v2 dashboard con DS Bodegón (generada 2026-09-25; referencia visual de Fase 2, D-18):**
+- Dashboard normal → `screens/6981d126bbf948dd8c5e803b22f62d71`
+- Dashboard estado de carga (skeletons) → `screens/43cf00e8dbc449f1868b0410b323fb00`
 
 ## 6. Ejecución
 
