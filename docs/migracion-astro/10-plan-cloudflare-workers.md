@@ -501,6 +501,18 @@ Anotar `https://luka-frontend.<cuenta>.workers.dev` y revisar el tamaño del bun
 `/robots.txt`. Si `process.env` no estuviera poblado en el Worker, diagnosticar con
 `npx wrangler tail`; contingencia: leer las vars desde `runtime.ts` con
 `import { env } from 'cloudflare:workers'`.
+- [ ] **Paso 5b (opcional): confirmar conexiones Hyperdrive** —
+`SELECT DISTINCT usename, application_name FROM pg_stat_activity WHERE application_name = 'Cloudflare Hyperdrive';`
+(las conexiones de Hyperdrive se identifican con `application_name = 'Cloudflare Hyperdrive'`).
+
+**Nota (dev local con el binding ya presente):** a partir de este paso, `astro dev`/`astro preview`
+usan la simulación local de Hyperdrive y el fallback a `DATABASE_URL` de `.dev.vars` deja de aplicar.
+Para previsualizar contra Supabase, exportar antes de arrancar (no se commitean credenciales):
+```powershell
+$env:CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE="postgres://postgres.<REF>:<PASS>@aws-1-<region>.pooler.supabase.com:5432/postgres?sslmode=require"
+```
+Alternativa: `npx wrangler dev --remote` (usa la config remota de Hyperdrive y **escribe en la base
+real**, usarlo con cuidado).
 
 - [ ] **Paso 6: M3 — merge a `main`**
 ```powershell
@@ -585,6 +597,7 @@ Supabase apuntando al Worker.
 | `main` del fork diverge del upstream en M1 | El rollback es el **repo original** (intacto) + `wrangler rollback` del Worker; el fork no vuelve atrás |
 | Auto-deploy prematuro pisa el deploy manual | Workers Builds se conecta recién después del merge M3, sobre `main` ya validado |
 | Merge a `main` con la suite roja | Criterio de salida de cada tarea antes del merge; `--ff-only` detecta divergencias |
+| Preview local tras agregar el binding Hyperdrive | Exportar `CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE` (session pooler con `sslmode=require`) o usar `wrangler dev --remote` con cuidado (ver Tarea 8) |
 
 ## Checklist de cierre (adaptado de `01-inventario-paridad.md` §8)
 
