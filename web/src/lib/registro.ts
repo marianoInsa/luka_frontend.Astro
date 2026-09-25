@@ -1,4 +1,4 @@
-import tokensCss from '../../../docs/marca/tokens/tokens.css?raw';
+import tokensCss from '../styles/tokens.css?raw';
 import registroCss from '../styles/registro.css?raw';
 
 import type { RegistrationValidation } from './onboarding';
