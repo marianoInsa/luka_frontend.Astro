@@ -420,14 +420,25 @@ git commit -m "feat: Hyperdrive para Postgres en Workers"
 
 ---
 
-## Tarea 7 — E2E local sobre `astro preview` (workerd) + **M2**
+## Tarea 7 — E2E local en workerd + **M2**
 
 **Files:** ninguno (validación).
 
-- [ ] **Paso 1: Preview con env real**
+**Hallazgos de plataforma (leer antes de ejecutar):**
+- `astro preview` **no carga `.dev.vars`** (cae a las `vars` del build; `/dev-login` daría 404) →
+  usar `npx wrangler dev`, que sí lo carga.
+- Supabase **directo es IPv6-only**; el session pooler (`aws-1-<region>.pooler.supabase.com:5432`)
+  es IPv4 y es la vía válida.
+- El TLS de `cloudflare:sockets` contra Supavisor está roto en workerd (workerd#2712): la DB local
+  se valida **simulando el binding Hyperdrive** (binding temporal en `wrangler.jsonc` antes del
+  build + `CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE=<session pooler>`) o se
+  difiere a T9 contra el Worker desplegado. El fallback singleton de `db.ts` no sirve para más de
+  un request en workerd ("I/O on behalf of a different request").
+
+- [ ] **Paso 1: Build y arranque**
 ```powershell
 npm run build
-npm run preview
+npx wrangler dev      # :4321; sí lee .dev.vars (astro preview no)
 ```
 `.dev.vars` debe tener `DATABASE_URL`, `SECRET_KEY`, `APP_ENV=development`,
 `ENABLE_MOCK_AUTH=true`, `MOCK_AUTH_USER_ID`, `SUPABASE_URL`,
@@ -455,8 +466,9 @@ git push origin main
 git checkout migration
 ```
 
-**Criterio de salida:** checklist completo en verde y `main` con la suite verde. Si algo falla por
-workerd (p. ej. `cloudflare:sockets` en dev), resolverlo o documentarlo antes de la Tarea 8.
+**Criterio de salida:** checklist completo en verde y `main` con la suite verde. Los ítems que
+dependen de la DB pueden validarse contra el Worker desplegado en T9 si workerd local no coopera
+(ver hallazgos); documentar lo que quede diferido.
 
 ---
 
