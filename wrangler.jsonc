@@ -6,6 +6,12 @@
   "compatibility_flags": ["nodejs_compat"],
   "assets": { "binding": "ASSETS", "directory": "./dist" },
   "observability": { "enabled": true },
-  "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "56a6dbc0d07640a5b8fe6d16bcb7c975" }],
-  "vars": { "APP_ENV": "production", "AUTH_COOKIE_SECURE": "true" }
+  "hyperdrive": [
+    { "binding": "HYPERDRIVE", "id": "56a6dbc0d07640a5b8fe6d16bcb7c975" },
+  ],
+  "vars": {
+    "APP_BASE_URL": "https://luka-frontend.marianoinsaurralde5.workers.dev",
+    "APP_ENV": "production",
+    "AUTH_COOKIE_SECURE": "true",
+  },
 }
