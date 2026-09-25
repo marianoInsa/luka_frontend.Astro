@@ -490,6 +490,12 @@ Nunca la transaction pooler (6543).
 "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "<ID_DEVUELTO>" }]
 ```
 
+**Nota de build:** con el binding Hyperdrive presente, `astro build` intenta resolver una conexión local
+desde el prerender en workerd y falla. Por eso `astro.config.mjs` usa
+`cloudflare({ imageService: 'passthrough', prerenderEnvironment: 'node' })` (el prerender de la
+landing no necesita workerd). Sin ese cambio, el build exige
+`CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE` también en CI.
+
 - [ ] **Paso 3: Secrets**
 ```powershell
 npx wrangler secret put SECRET_KEY            # 32+ chars aleatorios
