@@ -27,14 +27,14 @@ const { transactions } = Astro.props;
             <p class="tx-meta">
               <span
                 class="tx-category"
-                style={`color: ${tx.tipo === 'ingreso' ? '#64748b' : tx.color};`}
+                style={`color: ${tx.tipo === 'ingreso' ? 'var(--money-out)' : tx.color};`}
               >
                 {tx.tipo === 'ingreso' && tx.category === 'Otro' ? 'Ingreso' : tx.category}
               </span>
               · {tx.date} a las {tx.time}
             </p>
           </div>
-          <div class="tx-amount" style={tx.tipo === 'ingreso' ? 'color: #10b981;' : undefined}>
+          <div class="tx-amount" style={tx.tipo === 'ingreso' ? 'color: var(--money-in);' : undefined}>
             {tx.tipo === 'ingreso' ? '+' : '-'}
             {tx.moneda === 'USD' ? 'U$D' : '$'}
             {formatDecimals(tx.amount)}

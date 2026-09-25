@@ -53,7 +53,7 @@ const whatsappLabel = user.whatsapp_id ? `+${user.whatsapp_id.slice(-4)}` : '+·
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Gabarito:wght@500;700&family=Inter:wght@300;400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
     <script src="https://unpkg.com/htmx.org@2.0.3" defer></script>
@@ -76,6 +76,7 @@ const whatsappLabel = user.whatsapp_id ? `+${user.whatsapp_id.slice(-4)}` : '+·
           hx-target="#stats-section"
           hx-swap="innerHTML"
           hx-trigger="change"
+          hx-indicator="#stats-loading"
           id="filter-form"
         >
           <div class="filter-group">
@@ -91,6 +92,9 @@ const whatsappLabel = user.whatsapp_id ? `+${user.whatsapp_id.slice(-4)}` : '+·
 
       <!-- ── Stats Cards ── -->
       <section id="stats-section">
+        <div id="stats-loading" class="stats-grid" aria-hidden="true">
+          {Array.from({ length: 4 }).map(() => <div class="skeleton skeleton-stat" />)}
+        </div>
         <Stats stats={stats} patrimonio={patrimonio} consumo={consumo} />
       </section>
 
@@ -142,7 +146,7 @@ const whatsappLabel = user.whatsapp_id ? `+${user.whatsapp_id.slice(-4)}` : '+·
                   <div class="budget-bar-bg">
                     <div
                       class:list={['budget-bar-fill', budget.over && 'bar-over']}
-                      style={`width: ${budget.pct}%; background: ${budget.color};`}
+                      style={`width: ${budget.pct}%; background: ${budget.over ? 'var(--danger)' : budget.pct >= 80 ? 'var(--warning)' : 'var(--action)'};`}
                       role="progressbar"
                       aria-valuenow={budget.pct}
                       aria-valuemin="0"
@@ -190,22 +194,53 @@ const whatsappLabel = user.whatsapp_id ? `+${user.whatsapp_id.slice(-4)}` : '+·
       let pieChart, flowChart, portfolioChart;
 
       // ── Helpers ──────────────────────────────────────────────────────────────────
+      const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+      const CATEGORY_COLOR_VARS = {
+        servicios: '--cat-servicios',
+        comida: '--cat-comida',
+        transporte: '--cat-transporte',
+        ocio: '--cat-ocio',
+        vivienda: '--cat-vivienda',
+        hogar: '--cat-vivienda',
+        salud: '--cat-salud',
+        educacion: '--cat-educacion',
+        ropa: '--cat-ropa',
+        ingresos: '--cat-ingresos',
+        otros: '--cat-otros',
+      };
+
+      function categoryColor(name, fallback) {
+        const key = String(name)
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .toLowerCase()
+          .trim();
+        const varName = CATEGORY_COLOR_VARS[key === 'otro' ? 'otros' : key];
+        return varName ? cssVar(varName) : fallback;
+      }
+
       const CHART_DEFAULTS = {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
           legend: {
-            labels: { color: '#94a3b8', font: { family: 'Inter', size: 12 }, padding: 14 }
+            labels: { color: cssVar('--text-secondary'), font: { family: 'Inter', size: 12 }, padding: 14 }
           },
         },
         scales: {
-          x: { ticks: { color: '#64748b', font: { family: 'Inter', size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
-          y: { ticks: { color: '#64748b', font: { family: 'Inter', size: 11 }, callback: v => `$${Number(v).toLocaleString('es-AR')}` }, grid: { color: 'rgba(255,255,255,0.04)' } }
+          x: { ticks: { color: cssVar('--text-muted'), font: { family: 'Inter', size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+          y: { ticks: { color: cssVar('--text-muted'), font: { family: 'Inter', size: 11 }, callback: v => `$${Number(v).toLocaleString('es-AR')}` }, grid: { color: 'rgba(255,255,255,0.04)' } }
         }
       };
 
       function moneyLabel(v) {
         return ` $${Number(v).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
+      }
+
+      function markChartLoaded(containerId) {
+        const wrapper = document.getElementById(containerId)?.querySelector('.chart-wrapper');
+        if (wrapper) { wrapper.dataset.loading = 'false'; wrapper.setAttribute('aria-busy', 'false'); }
       }
 
       // ── Manejo de estados vacíos para gráficos ───────────────────────────────────
@@ -250,7 +285,7 @@ const whatsappLabel = user.whatsapp_id ? `+${user.whatsapp_id.slice(-4)}` : '+·
             labels: data.map(d => d.category),
             datasets: [{
               data: data.map(d => d.total),
-              backgroundColor: data.map(d => d.color),
+              backgroundColor: data.map(d => categoryColor(d.category, d.color)),
               borderWidth: 0,
               hoverOffset: 12,
             }]
@@ -260,7 +295,7 @@ const whatsappLabel = user.whatsapp_id ? `+${user.whatsapp_id.slice(-4)}` : '+·
             maintainAspectRatio: false,
             cutout: '72%',
             plugins: {
-              legend: { position: 'bottom', labels: { color: '#94a3b8', font: { family: 'Inter', size: 12 }, padding: 16 } },
+              legend: { position: 'bottom', labels: { color: cssVar('--text-secondary'), font: { family: 'Inter', size: 12 }, padding: 16 } },
               tooltip: { callbacks: { label: ctx => moneyLabel(ctx.parsed) } }
             }
           }
@@ -280,14 +315,14 @@ const whatsappLabel = user.whatsapp_id ? `+${user.whatsapp_id.slice(-4)}` : '+·
               {
                 label: 'ARS',
                 data: data.map(d => d.ARS),
-                backgroundColor: 'rgba(99,102,241,0.75)',
+                backgroundColor: cssVar('--cat-servicios'),
                 borderRadius: 4,
                 borderSkipped: false,
               },
               {
                 label: 'USD (en ARS)',
                 data: data.map(d => d.USD),
-                backgroundColor: 'rgba(16,185,129,0.75)',
+                backgroundColor: cssVar('--cat-ingresos'),
                 borderRadius: 4,
                 borderSkipped: false,
               }
@@ -318,14 +353,14 @@ const whatsappLabel = user.whatsapp_id ? `+${user.whatsapp_id.slice(-4)}` : '+·
               {
                 label: 'Ingresos',
                 data: data.map(d => d.ingresos),
-                backgroundColor: 'rgba(20,184,166,0.80)',
+                backgroundColor: cssVar('--money-in'),
                 borderRadius: 5,
                 borderSkipped: false,
               },
               {
                 label: 'Egresos',
                 data: data.map(d => d.egresos),
-                backgroundColor: 'rgba(236,72,153,0.75)',
+                backgroundColor: cssVar('--money-out'),
                 borderRadius: 5,
                 borderSkipped: false,
               }
@@ -363,11 +398,18 @@ const whatsappLabel = user.whatsapp_id ? `+${user.whatsapp_id.slice(-4)}` : '+·
             if (!handleEmptyChart('card-pie', !isCatEmpty)) buildPieChart(catData);
             if (!handleEmptyChart('card-portfolio', !isPortEmpty)) buildPortfolioChart(portData);
             if (!handleEmptyChart('card-flow', !isFlowEmpty)) buildFlowChart(flowData);
+
+            markChartLoaded('card-pie');
+            markChartLoaded('card-portfolio');
+            markChartLoaded('card-flow');
           } else {
             console.error("Error fetching chart data");
           }
         } catch (err) {
           console.error("Failed to load charts:", err);
+          for (const id of ['card-pie', 'card-portfolio', 'card-flow']) {
+            document.getElementById(id)?.querySelector('.chart-wrapper')?.setAttribute('aria-busy', 'false');
+          }
         }
       }
 
@@ -387,8 +429,12 @@ const whatsappLabel = user.whatsapp_id ? `+${user.whatsapp_id.slice(-4)}` : '+·
         await fetchAndBuildCharts(from, to);
 
         // Also refresh transactions
+        const txList = document.getElementById('transactions-list');
+        txList.setAttribute('aria-busy', 'true');
+        txList.innerHTML = '<div class="tx-skeleton-row"><div class="skeleton" style="height:44px;border-radius:999px"></div><div class="skeleton" style="height:16px"></div><div class="skeleton" style="height:16px"></div></div>'.repeat(5);
         const txRes = await fetch(`/partials/transactions?date_from=${from}&date_to=${to}`);
-        document.getElementById('transactions-list').innerHTML = await txRes.text();
+        txList.innerHTML = await txRes.text();
+        txList.setAttribute('aria-busy', 'false');
       });
 
       function exportCSV() {

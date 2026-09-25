@@ -12,14 +12,14 @@ interface Props {
 const { stats, patrimonio, consumo } = Astro.props;
 
 const hasData = stats.transaction_count > 0;
-const patrimonioColor = !hasData ? '#94a3b8' : patrimonio.is_positive ? '#10b981' : '#f87171';
+const patrimonioColor = !hasData ? 'var(--money-out)' : patrimonio.is_positive ? 'var(--success)' : 'var(--danger)';
 const consumoColor = !hasData
-  ? '#94a3b8'
+  ? 'var(--money-out)'
   : consumo.over
-    ? '#f87171'
+    ? 'var(--danger)'
     : consumo.pct > 80
-      ? '#f59e0b'
-      : '#6366f1';
+      ? 'var(--warning)'
+      : 'var(--action)';
 const consumoOver = consumo.over === true;
 ---
 
@@ -36,7 +36,6 @@ const consumoOver = consumo.over === true;
         class:list={[
           'stat-value',
           !hasData && 'stat-value--muted',
-          hasData && !patrimonio.is_positive && 'stat-value--negative',
         ]}
       >
         {hasData ? `${patrimonio.is_positive ? '+' : ''}$${formatInt(patrimonio.total_ars)}` : 'Sin datos'}
@@ -46,7 +45,7 @@ const consumoOver = consumo.over === true;
 
   <!-- KPI 2: Cotización USD -->
   <div class="stat-card" id="stat-cotizacion">
-    <div class="stat-icon" style="--icon-color: #10b981;">
+    <div class="stat-icon" style="--icon-color: var(--success);">
       <Icon name="icon_dollar" />
     </div>
     <div class="stat-body">
@@ -92,7 +91,7 @@ const consumoOver = consumo.over === true;
 
   <!-- KPI 4: Días de Racha -->
   <div class="stat-card stat-card--placeholder" id="stat-racha">
-    <div class="stat-icon" style="--icon-color: #f59e0b;">
+    <div class="stat-icon" style="--icon-color: var(--warning);">
       <Icon name="icon_streak" />
     </div>
     <div class="stat-body">
@@ -104,7 +103,7 @@ const consumoOver = consumo.over === true;
 
   <!-- KPI 6: Categoría Top -->
   <div class="stat-card" id="stat-category">
-    <div class="stat-icon" style={`--icon-color: ${hasData ? '#8b5cf6' : '#94a3b8'};`}>
+    <div class="stat-icon" style={`--icon-color: ${hasData ? 'var(--cat-ocio)' : 'var(--money-out)'};`}>
       <Icon name="icon_tag_stats" />
     </div>
     <div class="stat-body">
