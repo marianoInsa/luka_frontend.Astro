@@ -1,20 +1,29 @@
 import postgres from 'postgres';
 
 import { envValue } from './env';
+import { hyperdriveConnectionString } from './runtime';
 
 export type Sql = ReturnType<typeof postgres>;
 
 let client: Sql | null = null;
 
 /**
- * Lazily creates the postgres.js client. The module is importable (and the
- * build stays green) without DATABASE_URL; the error only happens on first use.
+ * En el Worker (binding HYPERDRIVE) devuelve un cliente nuevo por llamada:
+ * Hyperdrive hace el pooling y los sockets de Workers no sobreviven entre
+ * requests. Sin binding (dev/tests), singleton lazy con DATABASE_URL; el
+ * módulo es importable (y el build queda verde) sin DATABASE_URL: el error
+ * recién aparece al primer uso.
  *
  * `envValue` lee `process.env` (lo que cargan el server standalone, Render y
  * `npm run dev` con `--env-file-if-exists=.env`) y cae a `import.meta.env`.
  * https://docs.astro.build/en/guides/environment-variables/
  */
 export function getDb(): Sql {
+  const hyperdrive = hyperdriveConnectionString();
+  if (hyperdrive) {
+    return postgres(hyperdrive, { max: 5, fetch_types: false, prepare: true });
+  }
+
   if (client) return client;
 
   const url = envValue('DATABASE_URL');

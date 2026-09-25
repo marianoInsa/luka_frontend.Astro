@@ -1,12 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-// Vitest no puebla process.env desde .env, así que el test de integración gated
-// no veía DATABASE_URL. Solo se copia esa variable: el resto de la suite sigue
-// hermética.
+// Vitest no puebla process.env desde .dev.vars, así que el test de integración
+// gated no veía DATABASE_URL. Solo se copia esa variable: el resto de la suite
+// sigue hermética.
 if (!process.env.DATABASE_URL) {
   try {
-    const envPath = fileURLToPath(new URL('.env', import.meta.url));
+    const envPath = fileURLToPath(new URL('.dev.vars', import.meta.url));
     for (const line of readFileSync(envPath, 'utf8').split(/\r?\n/)) {
       const match = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/.exec(line);
       if (match?.[1] === 'DATABASE_URL') {
@@ -14,6 +14,6 @@ if (!process.env.DATABASE_URL) {
       }
     }
   } catch {
-    // Sin .env: los tests gated se saltan y el resto no lo necesita.
+    // Sin .dev.vars: los tests gated se saltan y el resto no lo necesita.
   }
 }

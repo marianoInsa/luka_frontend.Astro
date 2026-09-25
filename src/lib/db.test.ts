@@ -1,6 +1,11 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { closeDb, getDb } from './db';
+import { hyperdriveConnectionString } from './runtime';
+
+vi.mock('./runtime', () => ({ hyperdriveConnectionString: vi.fn() }));
+
+const mockedHyperdrive = vi.mocked(hyperdriveConnectionString);
 
 const originalDatabaseUrl = process.env.DATABASE_URL;
 
@@ -13,10 +18,17 @@ afterEach(async () => {
   }
 });
 
-describe('getDb', () => {
+describe('getDb without Hyperdrive', () => {
+  beforeEach(() => {
+    mockedHyperdrive.mockReset();
+  });
+
   it('is importable and returns a lazy singleton without opening a connection', () => {
     process.env.DATABASE_URL = 'postgres://user:pass@localhost:5432/luka';
     const first = getDb();
+    expect(mockedHyperdrive).toHaveBeenCalled();
+    expect(first.options.host).toEqual(['localhost']);
+    expect(first.options.prepare).toBe(false);
     expect(getDb()).toBe(first);
   });
 
@@ -34,5 +46,29 @@ describe('getDb', () => {
 
   it('closeDb without an active client is a no-op', async () => {
     await expect(closeDb()).resolves.toBeUndefined();
+  });
+});
+
+describe('getDb with Hyperdrive', () => {
+  beforeEach(() => {
+    mockedHyperdrive.mockReturnValue('postgres://hyper:pass@hyperdrive.internal:5432/luka');
+  });
+
+  it('builds a fresh client per call with the binding connection string and options', () => {
+    process.env.DATABASE_URL = 'postgres://user:pass@localhost:5432/luka';
+
+    const first = getDb();
+    const second = getDb();
+
+    expect(second).not.toBe(first);
+    expect(first.options.host).toEqual(['hyperdrive.internal']);
+    expect(first.options.max).toBe(5);
+    expect(first.options.fetch_types).toBe(false);
+    expect(first.options.prepare).toBe(true);
+  });
+
+  it('does not require DATABASE_URL when the binding is present', () => {
+    delete process.env.DATABASE_URL;
+    expect(() => getDb()).not.toThrow();
   });
 });
