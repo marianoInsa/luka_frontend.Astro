@@ -3,4 +3,6 @@ dist/
 .astro/
 .env
 .env.production
+.wrangler/
+.dev.vars
 npm-debug.log*
