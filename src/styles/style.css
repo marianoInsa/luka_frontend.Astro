@@ -869,3 +869,32 @@ a { color: inherit; text-decoration: none; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.12); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.22); }
+
+/* ── Skeletons ───────────────────────────────────────────────────────────── */
+.skeleton {
+  background: var(--bg-glass);
+  border-radius: var(--radius-sm);
+  position: relative;
+  overflow: hidden;
+}
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 20%, rgba(245, 236, 226, 0.07) 50%, transparent 80%);
+  animation: skeleton-sweep 1.4s ease-in-out infinite;
+}
+@keyframes skeleton-sweep {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(100%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after { animation: none; }
+}
+#stats-loading { display: none; }
+#stats-loading.htmx-request { display: grid; }
+#stats-loading.htmx-request + .stats-grid { display: none; }
+.skeleton-stat { height: 108px; border-radius: var(--radius-lg); }
+.chart-skeleton { position: absolute; inset: var(--space-4); display: grid; gap: var(--space-3); }
+.chart-wrapper[data-loading='false'] .chart-skeleton { display: none; }
+.tx-skeleton-row { display: grid; grid-template-columns: 44px 1fr 96px; gap: var(--space-3); align-items: center; padding: var(--space-3) 0; }

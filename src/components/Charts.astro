@@ -8,8 +8,11 @@ import Icon from './Icon.astro';
     <Icon name="icon_pie_chart" />
     Egresos por categoría
   </h2>
-  <div class="chart-wrapper">
-    <canvas id="chart-pie"></canvas>
+  <div class="chart-wrapper" data-loading="true" aria-busy="true">
+    <div class="chart-skeleton" aria-hidden="true">
+      <div class="skeleton" style="height:100%"></div>
+    </div>
+    <canvas id="chart-pie" aria-label="Gráfico de egresos por categoría" role="img"></canvas>
   </div>
 </div>
 
@@ -19,8 +22,11 @@ import Icon from './Icon.astro';
     <Icon name="icon_bar_chart" />
     Egresos
   </h2>
-  <div class="chart-wrapper">
-    <canvas id="chart-portfolio"></canvas>
+  <div class="chart-wrapper" data-loading="true" aria-busy="true">
+    <div class="chart-skeleton" aria-hidden="true">
+      <div class="skeleton" style="height:100%"></div>
+    </div>
+    <canvas id="chart-portfolio" aria-label="Egresos por mes y moneda" role="img"></canvas>
   </div>
 </div>
 
@@ -30,7 +36,10 @@ import Icon from './Icon.astro';
     <Icon name="icon_activity" />
     Flujo mensual — Ingresos vs Egresos
   </h2>
-  <div class="chart-wrapper chart-wrapper--tall">
-    <canvas id="chart-flow"></canvas>
+  <div class="chart-wrapper chart-wrapper--tall" data-loading="true" aria-busy="true">
+    <div class="chart-skeleton" aria-hidden="true">
+      <div class="skeleton" style="height:100%"></div>
+    </div>
+    <canvas id="chart-flow" aria-label="Flujo mensual de ingresos y egresos" role="img"></canvas>
   </div>
 </div>

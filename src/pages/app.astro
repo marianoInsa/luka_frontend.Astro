@@ -76,6 +76,7 @@ const whatsappLabel = user.whatsapp_id ? `+${user.whatsapp_id.slice(-4)}` : '+·
           hx-target="#stats-section"
           hx-swap="innerHTML"
           hx-trigger="change"
+          hx-indicator="#stats-loading"
           id="filter-form"
         >
           <div class="filter-group">
@@ -91,6 +92,9 @@ const whatsappLabel = user.whatsapp_id ? `+${user.whatsapp_id.slice(-4)}` : '+·
 
       <!-- ── Stats Cards ── -->
       <section id="stats-section">
+        <div id="stats-loading" class="stats-grid" aria-hidden="true">
+          {Array.from({ length: 4 }).map(() => <div class="skeleton skeleton-stat" />)}
+        </div>
         <Stats stats={stats} patrimonio={patrimonio} consumo={consumo} />
       </section>
 
@@ -232,6 +236,11 @@ const whatsappLabel = user.whatsapp_id ? `+${user.whatsapp_id.slice(-4)}` : '+·
 
       function moneyLabel(v) {
         return ` $${Number(v).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
+      }
+
+      function markChartLoaded(containerId) {
+        const wrapper = document.getElementById(containerId)?.querySelector('.chart-wrapper');
+        if (wrapper) { wrapper.dataset.loading = 'false'; wrapper.setAttribute('aria-busy', 'false'); }
       }
 
       // ── Manejo de estados vacíos para gráficos ───────────────────────────────────
@@ -389,11 +398,18 @@ const whatsappLabel = user.whatsapp_id ? `+${user.whatsapp_id.slice(-4)}` : '+·
             if (!handleEmptyChart('card-pie', !isCatEmpty)) buildPieChart(catData);
             if (!handleEmptyChart('card-portfolio', !isPortEmpty)) buildPortfolioChart(portData);
             if (!handleEmptyChart('card-flow', !isFlowEmpty)) buildFlowChart(flowData);
+
+            markChartLoaded('card-pie');
+            markChartLoaded('card-portfolio');
+            markChartLoaded('card-flow');
           } else {
             console.error("Error fetching chart data");
           }
         } catch (err) {
           console.error("Failed to load charts:", err);
+          for (const id of ['card-pie', 'card-portfolio', 'card-flow']) {
+            document.getElementById(id)?.querySelector('.chart-wrapper')?.setAttribute('aria-busy', 'false');
+          }
         }
       }
 
@@ -413,8 +429,12 @@ const whatsappLabel = user.whatsapp_id ? `+${user.whatsapp_id.slice(-4)}` : '+·
         await fetchAndBuildCharts(from, to);
 
         // Also refresh transactions
+        const txList = document.getElementById('transactions-list');
+        txList.setAttribute('aria-busy', 'true');
+        txList.innerHTML = '<div class="tx-skeleton-row"><div class="skeleton" style="height:44px;border-radius:999px"></div><div class="skeleton" style="height:16px"></div><div class="skeleton" style="height:16px"></div></div>'.repeat(5);
         const txRes = await fetch(`/partials/transactions?date_from=${from}&date_to=${to}`);
-        document.getElementById('transactions-list').innerHTML = await txRes.text();
+        txList.innerHTML = await txRes.text();
+        txList.setAttribute('aria-busy', 'false');
       });
 
       function exportCSV() {
