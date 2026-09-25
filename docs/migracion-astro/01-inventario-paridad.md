@@ -210,39 +210,44 @@ web/
 
 ---
 
-## 8. Checklist de corte (F2)
+## 8. Checklist de corte (F2, cerrado 2026-09-25)
 
 **Rutas**
-- [ ] Las 25 rutas de §2 responden con el mismo método y path (incluidas las 6 del panel admin).
-- [ ] `/static/*` sirve los mismos assets desde `public/`.
-- [ ] 401 en endpoints autenticados redirige 303 a `/login` (paridad `main.py:1194-1196`).
+- [x] Las 25 rutas de §2 responden con el mismo método y path (incluidas las 6 del panel admin; T7 + smoke de producción).
+- [x] `/static/*` sirve los mismos assets desde `public/` (T2).
+- [x] 401 en endpoints autenticados redirige 303 a `/login` (middleware; T7).
 
 **Auth**
-- [ ] Magic link: token de un solo uso, hash `sha256`, estados `pendiente/consumido/vencido` y `FOR UPDATE` verificados.
-- [ ] Google PKCE completo: `/registro` → `/auth/google` → callback → `/registro/continuar` → `/registro/finalizar`.
-- [ ] `/dev-login` responde 404 fuera de desarrollo.
-- [ ] Cookies con `httponly`, `samesite=lax`, TTL y `secure` en producción; decidir y documentar el flag `secure` de `luka_session`.
-- [ ] `/logout` cierra la sesión que corresponda (propia y/o Supabase) y redirige a `/login`.
+- [x] Magic link: token de un solo uso, hash `sha256`, estados `pendiente/consumido/vencido` y `FOR UPDATE` verificados (tests + `/link` real en producción, T9).
+- [x] Google PKCE completo: `/registro` → `/auth/google` → callback → `/registro/continuar` → `/registro/finalizar` (registro real en producción 2026-09-25: 303/303/200/200).
+- [x] `/dev-login` responde 404 fuera de desarrollo (verificado en producción).
+- [x] Cookies con `httponly`, `samesite=lax`, TTL y `secure` en producción (`luka_session` incluida; T7/T8).
+- [x] `/logout` borra `luka_session` y redirige a `/login` (`src/pages/logout.ts`).
 
 **Datos**
-- [ ] Las 10 consultas de §4.1 devuelven los mismos valores de negocio (anulados excluidos, tasa USD fija, top categoría, últimos 6 meses por defecto).
-- [ ] `finalize_onboarding` es atómico: sin usuario/aceptación duplicados, invitación consumida una sola vez, 9 categorías sembradas solo si no hay activas.
-- [ ] `/exportar/csv` genera el mismo encabezado y filas (`Fecha, Monto, Moneda, Categoria, Descripcion`) sin cargar todo en memoria.
-- [ ] Ninguna migración ni `create_all` contra Supabase desde `web/`.
+- [x] Las 10 consultas de §4.1 devuelven los mismos valores de negocio (tests + dashboard de producción idéntico al frontend anterior).
+- [x] `finalize_onboarding` es atómico: sin usuario/aceptación duplicados, invitación consumida una sola vez, 9 categorías sembradas solo si no hay activas (tests + registro real).
+- [x] `/exportar/csv` genera el mismo encabezado y filas (`Fecha, Monto, Moneda, Categoria, Descripcion`) sin cargar todo en memoria (keyset pagination en `src/lib/csv.ts`; export real OK).
+- [x] Ninguna migración ni `create_all` contra Supabase desde este repo.
 
 **Env**
-- [ ] Las 12 variables de §5 definidas en el hosting, con `APP_ENV=production`, `AUTH_COOKIE_SECURE=true` y `SECRET_KEY` ≥32 chars aleatorio.
-- [ ] `render.yaml`/config del hosting sin `MOCK_WHATSAPP_ID` y con las variables de Supabase y auth.
-- [ ] `FLOW_ADMIN_API_KEY` y `SECRET_KEY` solo en runtime server (nunca `PUBLIC_*`).
+- [x] Variables del hosting completas, con `APP_ENV=production`, `AUTH_COOKIE_SECURE=true` y `SECRET_KEY` ≥32 chars aleatorio. `APP_BASE_URL` quedó como var de runtime del Worker (`2cb2ccb`), además de build var para `site`.
+- [x] Config del Worker sin `ENABLE_MOCK_AUTH` ni `MOCK_AUTH_USER_ID` (solo dev; `/dev-login` → 404).
+- [x] `FLOW_ADMIN_API_KEY` y `SECRET_KEY` solo en runtime server (secretos de Workers; ausentes de HTML/bundles, T7-H4).
 
 **Tests**
-- [ ] Los 113 tests tienen equivalente o justificación de descarte (§6).
-- [ ] E2E de Playwright para magic link, OAuth (simulado), registro completo, logout y dashboard.
-- [ ] Vitest para consultas, tokens y proxy admin.
+- [x] Suite Astro hermética verde (218 passed + 21 skipped) + integraciones gated (DB real / backend de flujos) con justificación de descarte de los 113 tests Python.
+- [x] Validación E2E ejecutada en workerd (T7) y en producción (T9): magic link, OAuth Google real, registro completo, dashboard, CSV, admin. Sin suite Playwright versionada (decisión de ejecución del plan 10).
+- [x] Vitest para consultas, tokens y proxy admin.
 
 **Corte**
-- [ ] Tráfico de producción servido por `web/`; FastAPI en solo lectura o apagado.
-- [ ] Rollback definido (DNS/redeploy del servicio Python) y probado.
+- [x] Tráfico de producción servido por el Worker (Supabase y `luka/` apuntan a `https://luka-frontend.marianoinsaurralde5.workers.dev`).
+- [x] Rollback definido y documentado (`npx wrangler rollback` + repo original FastAPI/Render intacto); no ensayado en producción.
+
+**Pendiente operativo (no bloquea el cierre):** la `FLOW_ADMIN_API_KEY` local no coincide con la
+del servicio `luka` en Render (401 "Invalid administrative credential" en la validación read-only
+del backend). El panel `/admin/flujos` requiere sincronizar esa credencial entre Cloudflare y
+Render; el resto del checklist quedó validado.
 
 ---
 

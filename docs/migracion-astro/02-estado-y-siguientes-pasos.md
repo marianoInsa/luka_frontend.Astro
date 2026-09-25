@@ -2,9 +2,9 @@
 
 | Campo | Valor |
 |---|---|
-| **Fecha** | 2026-09-25 |
+| **Fecha** | 2026-09-25 (cierre) |
 | **Rama** | `migration` (merge ff-only a `main` por hito; branch de producción del Worker = `main`) |
-| **Fase** | Plan 10 ejecutado hasta **M3** (tareas 0–8). Pendientes: **T9** (cutover Supabase/`luka` + validación real) y **T10** (docs finales + M4) |
+| **Fase** | **Migración cerrada (M4)**: T9 validada en producción y T10 completada. Pendiente operativo: sincronizar `FLOW_ADMIN_API_KEY` con Render para el panel admin |
 | **Plan vigente** | `10-plan-cloudflare-workers.md` (incluye hallazgos de ejecución en T7/T8) |
 | **Contrato de paridad** | `01-inventario-paridad.md` (v1.1) |
 
@@ -15,14 +15,17 @@ vive en la **raíz** del repo y corre en **Cloudflare Workers**.
 
 ## 1. Resumen para retomar en 30 segundos
 
-- **T0–T8 completas y validadas; M0–M3 mergeados y pusheados.** `main` = `397625c`.
+- **T0–T8 completas y validadas; M0–M4 mergeados y pusheados.**
 - **Producción viva:** `https://luka-frontend.marianoinsaurralde5.workers.dev` — Worker
   `luka-frontend`, deployado por **Workers Builds desde `main`**, con secrets y Hyperdrive
-  configurados. Smoke + login real con token validados contra la DB real.
-- **Pendiente T9:** Supabase → Auth → Redirect URL (`/auth/callback`), Render `luka/` →
-  `ONBOARDING_REGISTRATION_URL`, y validación end-to-end real (registro Google/token, magic link,
-  dashboard/CSV/admin, cleanup). Ver §6.
-- **Pendiente T10:** README/AGENTS finales, actualizar `00`/`01`, review final del branch y M4.
+  configurados.
+- **T9 validada (2026-09-25):** Redirect URL de Supabase y `ONBOARDING_REGISTRATION_URL` de Render
+  apuntando al Worker; **registro Google real completo** (303/303/200/200), **magic link real del
+  bot** con `luka_session`, dashboard con datos reales (idéntico al frontend anterior) y **CSV**
+  exportado OK. Falta solo el panel admin: la `FLOW_ADMIN_API_KEY` local no coincide con la de
+  Render (401), hay que sincronizarla (ver §6).
+- **T10 completada:** README/AGENTS finales, `00` (F5), `01 §8` (checklist cerrado), `02` y este
+  estado; `.opencode/` y `opencode.json` quedan fuera de git.
 - El Worker duplicado `luka-frontend-astro` fue eliminado; su check fallido en GitHub fue un
   one-off (verificado con push trivial: no reincide).
 
@@ -38,18 +41,20 @@ vive en la **raíz** del repo y corre en **Cloudflare Workers**.
 | T6 Hyperdrive + `runtime.ts` | ✅ | `adcb635` |
 | T7 E2E local en workerd + **M2** | ✅ | `8560d21` (hallazgos H1–H5 abajo) |
 | T8 Hyperdrive remoto + secrets + deploy + **M3** | ✅ | `b9396b5`, `85bdf42`, `558cadc`; login real en prod OK |
-| T9 cutover Supabase/`luka` | ⏳ | pasos exactos en §6 |
-| T10 docs + **M4** | ⏳ | pasos exactos en §7 |
+| T9 cutover Supabase/`luka` | ✅ | registro/magic link/dashboard/CSV reales; pendiente operativo: credencial admin (§6) |
+| T10 docs + **M4** | ✅ | README/AGENTS, `00` F5, `01 §8`, §7 |
 
-Los commits de README del usuario (`d0a412b`, `397625c`) quedaron en `main` y `migration`.
+Los commits de README del usuario (`d0a412b`, `397625c`) y el hotfix de config
+(`2cb2ccb`, `APP_BASE_URL` de runtime) quedaron en `main` y `migration`.
 
 ## 3. Producción (Cloudflare)
 
 - **Worker:** `luka-frontend` → `https://luka-frontend.marianoinsaurralde5.workers.dev`
   (sin rutas custom; solo `workers.dev`).
 - **Config versionada:** `wrangler.jsonc` (sin secretos): `compatibility_date 2026-09-24`,
-  `nodejs_compat`, assets `ASSETS` desde `./dist`, observability, vars `APP_ENV=production` y
-  `AUTH_COOKIE_SECURE=true`, `hyperdrive` id `56a6dbc0d07640a5b8fe6d16bcb7c975`.
+  `nodejs_compat`, assets `ASSETS` desde `./dist`, observability, vars `APP_ENV=production`,
+  `AUTH_COOKIE_SECURE=true` y `APP_BASE_URL=https://luka-frontend.marianoinsaurralde5.workers.dev`
+  (runtime, además de build var para `site`), `hyperdrive` id `56a6dbc0d07640a5b8fe6d16bcb7c975`.
 - **Secrets cargados (solo nombres):** `SECRET_KEY`, `SUPABASE_URL`,
   `PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `LUKA_BACKEND_URL`, `FLOW_ADMIN_API_KEY`,
   `FLOW_ADMIN_AUTH_USER_IDS`. Los valores **no están en el repo** (se cargaron desde el `.env`
@@ -103,33 +108,43 @@ En `.superpowers/sdd/10-plan-cloudflare-workers/`:
 - Si se borra `.superpowers/`, estos scripts se pierden; regenerarlos a partir del plan 10 (T7) y
   de `src/lib/flow-admin.test.ts`.
 
-## 6. T9 — pasos exactos (pendiente)
+## 6. T9 — ejecutada (2026-09-25)
 
-1. **Supabase → Auth → URL Configuration:** agregar
-   `https://luka-frontend.marianoinsaurralde5.workers.dev/auth/callback`.
-2. **Render (`luka/`):** setear `ONBOARDING_REGISTRATION_URL=https://luka-frontend.marianoinsaurralde5.workers.dev/registro`.
-   Cambiar **solo** esa variable.
-3. **Validar:**
-   - Registro completo (Google real, manual) o smoke con invitación sembrada.
-   - Magic link: pedir `/link` en WhatsApp y verificar que aterriza en el Worker y crea
-     `luka_session` (o sembrar un token en `dashboard_login_link` y abrir `/login?token=`).
-   - Dashboard con datos reales, CSV y admin contra el backend `luka` real.
-   - (Opcional) `SELECT DISTINCT usename, application_name FROM pg_stat_activity WHERE application_name = 'Cloudflare Hyperdrive';`
-   - Cleanup de filas de prueba (`seed-test-data.mjs cleanup-*`).
-4. **Rollback:** reponer `ONBOARDING_REGISTRATION_URL` y borrar la Redirect URL nueva.
+1. ✅ **Supabase → Auth → URL Configuration:** `https://luka-frontend.marianoinsaurralde5.workers.dev/auth/callback`
+   agregada (hecho por el usuario).
+2. ✅ **Render (`luka/`):** `ONBOARDING_REGISTRATION_URL=https://luka-frontend.marianoinsaurralde5.workers.dev/registro`
+   (solo esa variable; hecho por el usuario). El bot deriva `/login` del mismo host.
+3. ✅ **Validado:**
+   - Registro Google real completo (`POST /auth/google` 303 → `/auth/callback` 303 →
+     `/registro/continuar` 200 → `/registro/finalizar` 200).
+   - Magic link real del bot (`/link` en WhatsApp) → `/login` 303 → `/app` 200 con `luka_session`.
+   - Dashboard con datos reales idéntico al frontend anterior; `/exportar/csv` OK.
+   - Hallazgo y fix: `APP_BASE_URL` faltaba como var de runtime del Worker (el build var no llega
+     al runtime) → `POST /auth/google` respondía 503. Corregido en `2cb2ccb` (`wrangler.jsonc`).
+4. ⏳ **Pendiente operativo — admin:** la validación read-only contra el backend real da 401
+   "Invalid administrative credential": la `FLOW_ADMIN_API_KEY` de `.dev.vars`/Cloudflare no
+   coincide con la del servicio `luka` en Render. Sincronizar el valor de Render en el Worker
+   (`npx wrangler secret put FLOW_ADMIN_API_KEY`) y en `.dev.vars`, y verificar
+   `https://luka-frontend.marianoinsaurralde5.workers.dev/admin/flujos` con sesión. Si el panel
+   responde 403, revisar además `FLOW_ADMIN_AUTH_USER_IDS`.
+5. **Rollback:** reponer `ONBOARDING_REGISTRATION_URL` y borrar la Redirect URL nueva; el Worker
+   se revierte con `npx wrangler rollback`.
 
-## 7. T10 — pasos exactos (pendiente)
+## 7. T10 — ejecutada (2026-09-25)
 
-- `README.md` (stack Astro, deploy Cloudflare, variables, cómo correr local), `AGENTS.md`
-  (comandos), actualizar `00` (F5 completado) y `01 §8` (checklist cerrado).
-- Review final del branch (whole-branch) y **M4**:
-  `git checkout main; git merge --ff-only migration; git push origin main; git checkout migration`.
-- Decidir si se versionan `opencode.json` y `.opencode/skills/` (setup de agentes Cloudflare; hoy
-  untracked).
+- ✅ `README.md` actualizado (stack Astro, deploy Cloudflare/Workers Builds, variables build vs
+  runtime, Hyperdrive, entorno local con `.dev.vars` + `wrangler dev`), `AGENTS.md` revisado,
+  `00` (F5 completada) y `01 §8` (checklist cerrado con el pendiente de admin anotado).
+- ✅ Review final del branch (diff de cierre: docs + `wrangler.jsonc` ya validado en producción) y
+  **M4**: `git checkout main; git merge --ff-only migration; git push origin main; git checkout migration`.
+- ✅ Decisión: **no se versionan** `opencode.json` ni `.opencode/` (setup local de agentes); se
+  agregaron a `.gitignore`.
 
 ## 8. Cosas que no hay que romper
 
 - **Sin DDL ni migraciones desde este repo**: el esquema pertenece al repo `luka/`.
+- **`APP_BASE_URL` es var de runtime del Worker** (además de build var para `site`): de ella sale
+  el `redirect_to` del OAuth (`src/lib/supabase.ts`). Si falta en runtime, `/auth/google` da 503.
 - `SECRET_KEY`, `DATABASE_URL`/Hyperdrive y `FLOW_ADMIN_API_KEY`: solo server-side, nunca `PUBLIC_`.
 - `luka_session` es la sesión durable; los vectores son byte-compatibles y están **congelados**
   (`src/lib/session.vectors.json`; el generador Python se eliminó junto con `tests/`).
@@ -138,10 +153,10 @@ En `.superpowers/sdd/10-plan-cloudflare-workers/`:
 - El `name` del Worker debe coincidir con el del dashboard (`luka-frontend`).
 - Nunca conectar a Supabase con `postgres` directo desde el Worker: siempre Hyperdrive (pooler IPv4).
 
-## 9. Estado de git (2026-09-25)
+## 9. Estado de git (cierre 2026-09-25)
 
-- `main` = `397625c` (incluye M0–M3 + commits de README del usuario); `migration` sincronizada y
-  con los docs de handoff commiteados.
-- `origin/main` va un commit adelante de `origin/migration` hasta el próximo merge (siempre
-  `--ff-only`; si `main` tuviera commits nuevos, hacer `git checkout migration; git merge main`).
-- Pendiente push de `migration` con los docs de handoff (no solicitado).
+- **M4 ejecutado**: `main` = `migration` (merge `--ff-only` + push); `git log main..migration` vacío.
+- El commit de cierre de T10 (docs + `.gitignore`) es el tope de ambas ramas y dispara el último
+  build de Workers Builds.
+- Historial relevante: `2cb2ccb` (fix `APP_BASE_URL` runtime), `2881aaf`/`39caf05` (handoff),
+  `397625c` (README/trigger), `d0a412b` (README).

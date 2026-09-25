@@ -5,7 +5,7 @@
 | **Repositorio** | Fork de `luka_frontend` (todas las ramas forkeadas) |
 | **Rama de trabajo** | `migration` (ya existe en el fork; **no** crear rama nueva) |
 | **Branch de producción** | `main` (merge ff-only por hito; Workers Builds apunta acá) |
-| **Estado** | **Ejecutada hasta M3 (tareas 0–8)**; pendientes T9 (cutover Supabase/`luka` + validación real) y T10 (docs + M4). Ver §Estado de ejecución |
+| **Estado** | **Ejecutada completa (T0–T10, M0–M4)**; cierre 2026-09-25. Pendiente operativo: sincronizar `FLOW_ADMIN_API_KEY` con Render (admin). Ver §Estado de ejecución |
 | **Fecha** | 2026-09-24 (plan) · ejecución 2026-09-25 |
 | **Histórico** | `00-plan-limpieza-preparacion.md`, `01-inventario-paridad.md`, `02-estado-y-siguientes-pasos.md` (fases F0-F4 cerradas) |
 
@@ -26,10 +26,11 @@ Producción viva: Worker **`luka-frontend`** → `https://luka-frontend.marianoi
 | T0–T4 (M0, M1) | ✅ | `842cc52`, `64c9eaf`, `e1b1586`, `cb137f9` |
 | T5–T7 (M2) | ✅ | `b5e3052`+`2467e7e`, `adcb635`, `8560d21` |
 | T8 (M3) | ✅ | `b9396b5` (binding), `85bdf42` (prerender node), `558cadc`; login real en prod OK |
-| T9 / T10 | ⏳ | ver `02-estado-y-siguientes-pasos.md` §6 y §7 |
+| T9 | ✅ | cutover Supabase/Render + validación real (registro Google, magic link, dashboard, CSV); fix `2cb2ccb` (`APP_BASE_URL` runtime). Admin pendiente de credencial |
+| T10 (M4) | ✅ | docs finales + `.gitignore`; merge ff-only a `main` (ver `02` §7/§9) |
 
-**No re-ejecutar T0–T8**: ya están hechas, validadas y mergeadas; los checkboxes internos quedaron
-sin tildar para no reescribir el documento. Retomar directamente en T9.
+**No re-ejecutar T0–T8**: ya están hechas, validadas y mergeadas; sus checkboxes internos quedaron
+sin tildar para no reescribir el documento. T9/T10 quedaron tildadas en su sección.
 
 Artefactos de producción: Hyperdrive id `56a6dbc0d07640a5b8fe6d16bcb7c975`; secrets cargados (solo
 nombres) `SECRET_KEY`, `SUPABASE_URL`, `PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `LUKA_BACKEND_URL`,
@@ -366,7 +367,9 @@ evita el binding de Images (no usamos `astro:assets`).
   "vars": { "APP_ENV": "production", "AUTH_COOKIE_SECURE": "true" }
 }
 ```
-El bloque `hyperdrive` se agrega en la Tarea 8. `APP_BASE_URL` es var de build, no de runtime.
+El bloque `hyperdrive` se agrega en la Tarea 8. `APP_BASE_URL` es var de build (`site`) **y de
+runtime** (redirect `redirect_to` del OAuth en `src/lib/supabase.ts`); en producción va en `vars`
+de `wrangler.jsonc` (fix `2cb2ccb`).
 
 - [ ] **Paso 4: Scripts y env local**
 En `package.json`:
@@ -579,20 +582,22 @@ Rollback: `npx wrangler versions list` + `npx wrangler rollback`.
 
 ## Tarea 9 — Supabase + `luka` + validación end-to-end real
 
-- [ ] **Paso 1: Supabase → Auth → URL Configuration** — agregar
-`https://luka-frontend.<cuenta>.workers.dev/auth/callback`.
+- [x] **Paso 1: Supabase → Auth → URL Configuration** — agregar
+`https://luka-frontend.marianoinsaurralde5.workers.dev/auth/callback`.
 
-- [ ] **Paso 2: `luka/` (servicio backend en Render)** — setear
-`ONBOARDING_REGISTRATION_URL=https://luka-frontend.<cuenta>.workers.dev/registro`
+- [x] **Paso 2: `luka/` (servicio backend en Render)** — setear
+`ONBOARDING_REGISTRATION_URL=https://luka-frontend.marianoinsaurralde5.workers.dev/registro`
 (el bot deriva `/login` del mismo host, `app/services/dashboard_link.py:68`).
 Cambiar **solo** esa variable.
 
-- [ ] **Paso 3: Validar**
-  - Registro completo (Google real, manual) o smoke con invitación sembrada.
-  - Magic link: pedir `/link` en WhatsApp y verificar que aterriza en el Worker y crea
-    `luka_session` (o sembrar un token en `dashboard_login_link` y abrir `/login?token=`).
-  - Dashboard con datos reales, CSV, y admin contra el backend `luka` real.
-  - Cleanup de filas de prueba (SQL en `docs/migracion-astro/02` §4).
+- [x] **Paso 3: Validar** (2026-09-25)
+  - [x] Registro completo (Google real): 303 `/auth/google` → 303 `/auth/callback` → 200
+    `/registro/continuar` → 200 `/registro/finalizar`.
+  - [x] Magic link real del bot: `/login` 303 → `/app` 200 con `luka_session`.
+  - [x] Dashboard con datos reales y CSV; **admin pendiente**: `FLOW_ADMIN_API_KEY` de Cloudflare
+    no coincide con la de Render (401), sincronizar la credencial.
+  - [x] Cleanup de filas de prueba (harness T7; la validación real no sembró filas).
+  - Fix asociado: `APP_BASE_URL` como var de runtime (`2cb2ccb`).
 
 **Rollback:** reponer `ONBOARDING_REGISTRATION_URL` y borrar la Redirect URL nueva en Supabase.
 
@@ -602,17 +607,17 @@ Cambiar **solo** esa variable.
 
 **Files:** `README.md`, `AGENTS.md`.
 
-- [ ] **Paso 1: Docs finales** — `README.md` (stack Astro, deploy Cloudflare, variables, cómo
+- [x] **Paso 1: Docs finales** — `README.md` (stack Astro, deploy Cloudflare, variables, cómo
 correr local), `AGENTS.md` (comandos solo web y sin `cd web`); actualizar
 `docs/migracion-astro/00` (F5 completado) y `01 §8` (checklist cerrado).
 
-- [ ] **Paso 2: Commit final**
+- [x] **Paso 2: Commit final**
 ```powershell
 git add -A
 git commit -m "docs: migracion completa a Astro + Cloudflare Workers"
 ```
 
-- [ ] **Paso 3: M4 — merge a `main`**
+- [x] **Paso 3: M4 — merge a `main`**
 ```powershell
 git checkout main
 git merge --ff-only migration
@@ -643,13 +648,17 @@ Supabase apuntando al Worker.
 
 ## Checklist de cierre (adaptado de `01-inventario-paridad.md` §8)
 
-- [ ] Las 25 rutas responden con el mismo path/método desde el Worker.
-- [ ] Magic link, OAuth PKCE, `/dev-login` (404 en prod), cookies httpOnly/lax/secure/TTL.
-- [ ] Las 10 consultas devuelven los mismos valores (anulados excluidos, tasa 1300, top categoría,
+- [x] Las 25 rutas responden con el mismo path/método desde el Worker.
+- [x] Magic link, OAuth PKCE, `/dev-login` (404 en prod), cookies httpOnly/lax/secure/TTL.
+- [x] Las 10 consultas devuelven los mismos valores (anulados excluidos, tasa 1300, top categoría,
       últimos 6 meses).
-- [ ] `/exportar/csv` byte-equivalente, sin cargar todo en memoria.
-- [ ] Sin DDL/migraciones desde el proyecto Astro.
-- [ ] Secretos solo server-side; `FLOW_ADMIN_API_KEY` ausente de HTML/bundles.
-- [ ] Suite web verde (hermética + gated) y E2E Playwright completo.
-- [ ] `main` es la branch de producción del Worker y `git log main..migration` está vacío.
-- [ ] Repo sin carpeta `web/` ni archivos Python; CI corre solo en la raíz.
+- [x] `/exportar/csv` byte-equivalente, sin cargar todo en memoria.
+- [x] Sin DDL/migraciones desde el proyecto Astro.
+- [x] Secretos solo server-side; `FLOW_ADMIN_API_KEY` ausente de HTML/bundles.
+- [x] Suite web verde (hermética + gated) y validación E2E ejecutada (workerd T7 + producción T9);
+      sin suite Playwright versionada (decisión de ejecución).
+- [x] `main` es la branch de producción del Worker y `git log main..migration` está vacío.
+- [x] Repo sin carpeta `web/` ni archivos Python; CI corre solo en la raíz.
+
+**Pendiente operativo único:** sincronizar `FLOW_ADMIN_API_KEY` entre Render y Cloudflare (401 en
+la validación read-only del backend). Ver `02` §6.

@@ -20,7 +20,12 @@ La migración se hace **por partes, con el servicio vivo**, siguiendo el patrón
 
 **Línea base verificada (2026-09-23):** `ruff check .` OK; `pytest` **141 passed** en el venv local. Esa es la referencia de paridad.
 
-**Estado de avance (2026-09-24):** F0-F4 tienen el código completo; F1-F3 están validados de punta a punta contra la base real de Supabase (F3 con parallel run local contra FastAPI) y F4 con E2E local contra un backend mock; commiteados en `migration`. Próxima etapa: **deploy de `web/` y cutover de F1-F4** (F5 al cerrar la ventana de rollback). El estado detallado por fase, cómo levantar el entorno local y el checklist de los próximos pasos viven en `02-estado-y-siguientes-pasos.md`.
+**Estado de avance (2026-09-25):** **F5 completada**: FastAPI eliminado del repo, Astro en la raíz
+y el cutover cerró sobre Cloudflare Workers (`https://luka-frontend.marianoinsaurralde5.workers.dev`).
+F1–F4 validadas contra la base real y en producción; registro Google real, magic link y dashboard
+verificados end-to-end (ver `02-estado-y-siguientes-pasos.md`). El plan original preveía `web/` y
+facade en Render; la ejecución final migró a **Cloudflare Workers** y está documentada en
+`10-plan-cloudflare-workers.md`.
 
 ---
 
@@ -316,14 +321,17 @@ Nota de seguridad: la reimplementación es código sensible (firma). Requiere co
 
 **Objetivo:** una sola implementación, sin código transitorio.
 
+**Estado: completada (2026-09-25).**
+
 **Tareas**
-1. Verificar que pasó la ventana de rollback de la última área y que FastAPI no recibe tráfico (métricas del servicio).
-2. Borrar, en PRs separados por área: templates, rutas, servicios y tests Python de cada área migrada.
-3. Borrar el facade (`app/proxy.py`) y apuntar el dominio al servicio Astro.
-4. Retirar el servicio FastAPI de Render; `render.yaml` pasa a Node.
-5. CI final: solo job de `web/`; retirar job y tests Python junto con el código.
-6. Actualizar `README.md`, `.env.example` raíz y docs de migración (marcar checklist de `01 §8`).
-7. Eliminar `python-jose` del requirements final (si no se hizo antes).
+1. [x] FastAPI no recibe tráfico (retirado del repo en la migración a Workers).
+2. [x] Templates, rutas, servicios y tests Python eliminados (`e1b1586`, 72 paths, +2/−10448).
+3. [x] Sin facade: un solo deploy Astro en Cloudflare Workers; Supabase y `luka/` apuntan al Worker.
+4. [ ] Servicio viejo de Render **no retirado a propósito**: el repo original (FastAPI) queda intacto
+   como rollback de producto (decisión de `10-plan-cloudflare-workers.md`).
+5. [x] CI final solo del proyecto Astro en la raíz (`npm run check` + `npm test` + build).
+6. [x] `README.md`, `AGENTS.md` y docs de migración actualizados (checklist `01 §8` cerrado).
+7. [x] Sin dependencias Python en el repo migrado.
 
 **Criterios de salida**
 - Checklist de paridad `01 §8` cerrado.
