@@ -5,7 +5,6 @@ export default defineConfig({
   site: process.env.APP_BASE_URL || 'http://localhost:4321',
   output: 'server',
   session: false,
-  imageService: 'passthrough',
-  adapter: cloudflare(),
+  adapter: cloudflare({ imageService: 'passthrough' }),
   server: { port: 4321 },
 });
