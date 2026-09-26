@@ -51,4 +51,58 @@ describe('landing v2', () => {
     expect(source).toContain('Todos los derechos reservados');
     expect(source).not.toContain('Escribinos por WhatsApp');
   });
+
+  it('el hero conserva las dos tarjetas y renombra el Dashboard', () => {
+    expect(source).toContain('Dashboard');
+    expect(source).not.toContain('Gastos de octubre');
+    expect(source).toContain('data-card="dashboard"');
+    expect(source).toContain('data-card="phone"');
+    expect(source).toContain('aria-pressed');
+  });
+
+  it('la secuencia del hero carga gastos e ingresos', () => {
+    for (const text of [
+      'Cobré 850000 de sueldo',
+      'Listo: sueldo,',
+      'Gasté 5000 en nafta',
+      'Pagué 12000 de internet',
+    ]) {
+      expect(source).toContain(text);
+    }
+    expect(source).toContain('data-seq');
+    expect(source).toContain('data-seg="typing"');
+  });
+
+  it('el chat respeta el formato de WhatsApp (sin íconos ni barras custom)', () => {
+    for (const banned of ['bubble__check', 'mini-balance', 'tabular money-in']) {
+      expect(source).not.toContain(banned);
+    }
+    expect(source).toContain('Cuenta comercial');
+    expect(source).toContain('bubble__ticks');
+    expect(source).toContain('Balance del mes:');
+  });
+
+  it('el logo del chat es el mismo de la página', () => {
+    expect(source.match(/logo-luka\.png/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
+  });
+
+  it('el Dashboard refleja los datos del chat y las categorías extra', () => {
+    for (const text of [
+      'mini-dash__menu',
+      'bar__fill--comida',
+      'bar__fill--servicios',
+      'bar__fill--ocio',
+      'bar__fill--transporte',
+      '$20.000',
+      '$12.000',
+      '$8.000',
+      '$5.000',
+      '$805.000',
+    ]) {
+      expect(source).toContain(text);
+    }
+    for (const banned of ['$833.000', '$17.000', 'dot--coral']) {
+      expect(source).not.toContain(banned);
+    }
+  });
 });

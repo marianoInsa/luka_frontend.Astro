@@ -12,6 +12,13 @@
 - Sub: `Escribile tus gastos como hablás y Luka los ordena: categorías, límites y balances cuando los pedís.`
 - CTA primario: `Empezá por WhatsApp`
 - CTA secundario: `Ver cómo funciona`
+- Tarjeta Dashboard: título `Dashboard` (antes `Gastos de octubre`)
+- Tarjeta teléfono (`aria-label` `Tarjeta WhatsApp`) y secuencia del mockup (una pasada por carga, 3 intercambios).
+  Formato WhatsApp real: solo texto con negrita (`*…*`), sin íconos ni barras custom; ticks azules
+  de leído en los mensajes del usuario; header `Cuenta comercial` y foto de perfil = logo LUKA.
+  - `Cobré 850000 de sueldo` → `Listo: sueldo, *+$850.000* en *Ingresos*.`
+  - `Gasté 5000 en nafta` → `Listo: nafta, *$5.000* en *Transporte*.`
+  - `Pagué 12000 de internet` → `Listo: internet, *$12.000* en *Servicios*.` + `Balance del mes: *$805.000*`
 
 ## Beneficios
 

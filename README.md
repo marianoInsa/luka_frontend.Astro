@@ -76,7 +76,8 @@ npx wrangler dev   # http://localhost:4321; carga .dev.vars
 ```
 
 - `astro dev`/`astro preview` **no** leen `.dev.vars` (usan las vars del build): para E2E local
-  con env real usar `wrangler dev`.
+  con env real usar `wrangler dev`. Además exigen el string local de Hyperdrive (igual que
+  `wrangler dev`) o no arrancan.
 - DB local desde workerd: el TLS de `cloudflare:sockets` contra Supavisor está roto
   (workerd#2712). Simular Hyperdrive:
   `$env:CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE="<POOLER_URL>"; npx wrangler dev`
@@ -91,8 +92,11 @@ npx wrangler dev   # http://localhost:4321; carga .dev.vars
 
 - `src/pages/`: `index.astro` es la landing pública v2 (prerenderizada; SEO en el head y JS mínimo
   para el revelado progresivo, anulado con `prefers-reduced-motion`): Nav glass, Hero con mockup de
-  teléfono, Beneficios (bento), Conflicto, Plan, FAQ y Cierre. `robots.txt.ts` y
-  `sitemap.xml.ts` son endpoints también prerenderizados.
+  teléfono, Beneficios (bento), Conflicto, Plan, FAQ y Cierre. El hero tiene dos tarjetas
+  («Dashboard» y el teléfono) que se traen al frente con click y una secuencia animada de carga de
+  gastos e ingresos en el chat (`src/scripts/hero-art.ts`; mockup adaptado del componente «Great UI
+  Mobile Mockup» de 21st.dev, MIT). `robots.txt.ts` y `sitemap.xml.ts` son endpoints también
+  prerenderizados.
 - `src/pages/registro.astro` y `src/pages/auth/google.ts` inician el onboarding (F2):
   validan el token de la invitación, emiten la cookie firmada `luka_onboarding` y arrancan
   el OAuth PKCE de Supabase. `src/pages/auth/callback.ts` intercambia el código y fija la
