@@ -89,8 +89,9 @@ npx wrangler dev   # http://localhost:4321; carga .dev.vars
 
 ## Estructura
 
-- `src/pages/`: `index.astro` es la landing pública (prerenderizada y sin JS; el SEO
-  —title, description, canonical y Open Graph— vive ahí). `robots.txt.ts` y
+- `src/pages/`: `index.astro` es la landing pública v2 (prerenderizada; SEO en el head y JS mínimo
+  para el revelado progresivo, anulado con `prefers-reduced-motion`): Nav glass, Hero con mockup de
+  teléfono, Beneficios (bento), Conflicto, Plan, FAQ y Cierre. `robots.txt.ts` y
   `sitemap.xml.ts` son endpoints también prerenderizados.
 - `src/pages/registro.astro` y `src/pages/auth/google.ts` inician el onboarding (F2):
   validan el token de la invitación, emiten la cookie firmada `luka_onboarding` y arrancan

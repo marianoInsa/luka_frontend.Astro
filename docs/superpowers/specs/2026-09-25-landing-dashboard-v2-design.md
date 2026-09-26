@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | **Fecha** | 2026-09-25 (correcciones de review 2026-09-26) |
-| **Estado** | Fase 2 (dashboard) **ejecutada y mergeada en `main`** (`9c272e0`…`eaf7833`); Fase 0 de landing **en iteración por pantalla** con las correcciones D-19…D-23; Fase 1 pendiente |
+| **Estado** | Dashboard v2 y **landing v2 implementadas**; landing verificada (`check`/`test`/`build` + Playwright desktop 1440 y mobile 390) y **pendiente de merge a `main`**. La pantalla 3 de Stitch (Conflicto) no llegó a generarse (timeouts) y se implementó directo desde el prompt/spec |
 | **Alcance** | `luka_frontend.Astro`: landing pública (`/`) y dashboard (`/app`, login, admin) |
 | **Fuera de alcance** | Repos `luka/` (DDL, datos, colores de categorías en DB), bot de WhatsApp, analytics, tema claro |
 | **Identidad** | `docs/marca/00…05` v0.5.0 + tokens v2.0.0 (commit `3f228a8`) e isotipo recoloreado (commit `0c83eed`) |
@@ -95,7 +95,7 @@ DS «LUKA — Bodegón»: dark, coral primario, Rubik como **proxy** de Gabarito
 |---|---|---|
 | 1 · Nav + Hero | Nav sticky flotante glassmorphism; hero 2 col sin eyebrow ni microcopy; mockup de teléfono (componente 21st.dev id `23322` re-implementado vanilla) | `screens/56fccdccb0b544268d6728879e412cff` ✅ (navbar sin CTA, D-24) |
 | 2 · Beneficios | Bento con impacto real; texto mínimo (título + subtítulo); sin tile gigante vacío; mini-visual por tile | `screens/7c9c09b960a04ebc885dae880b3f6687` ✅ |
-| 3 · Conflicto | Face-off HOY vs CON LUKA como escena impactante; **sin tour** | _pendiente_ |
+| 3 · Conflicto | Face-off HOY vs CON LUKA como escena impactante; **sin tour** | no se generó (2 timeouts); implementada directo desde el prompt/spec |
 | 4 · Plan | H2 D-20; tarjetas/riel con impacto; cerebro de LUKA clasificando | `screens/6e59290a5b3a4821aae94a01d69c7694` ✅ |
 | FAQ + Cierre | Sin rediseño: se reutiliza la referencia ya revisada (`48111d92…`, `6837ca89…`) | — |
 | Footer | No se mockea: se implementa directo en código (D-21) | — |
@@ -131,8 +131,8 @@ DS «LUKA — Bodegón»: dark, coral primario, Rubik como **proxy** de Gabarito
 
 ## 8. Verificación de aceptación
 
-- [ ] Landing con los 7 bloques + footer simple (sin tour, título del Plan D-20, footer D-21), CTA WhatsApp y guard tests verdes.
+- [x] Landing con los 7 bloques + footer simple (sin tour, título del Plan D-20, footer D-21), CTA WhatsApp y guard tests verdes (`landing.test.ts` 9/9).
 - [x] Dashboard sin hex legacy, con skeletons visibles en KPIs/gráficos/transacciones (`9c272e0`…`eaf7833`).
-- [ ] `npm run check` 0 errores · `npm test` verde · `npm run build` OK.
-- [ ] Contraste AA/3:1 verificado en las superficies donde se usa cada color.
-- [ ] HTMX y los 3 parciales intactos (mismo contrato).
+- [x] `npm run check` 0 errores · `npm test` 229 passed + 21 skipped · `npm run build` OK.
+- [x] Contraste AA/3:1: la landing usa exclusivamente los tokens v2.0.0 verificados en `docs/marca/03-identidad-visual.md §3.3`.
+- [x] HTMX y los 3 parciales intactos (mismo contrato; el dashboard no se tocó en esta rama).

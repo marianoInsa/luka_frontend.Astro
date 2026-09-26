@@ -75,7 +75,7 @@
 
 **Regla (D-23):** se genera UNA pantalla, se muestra al usuario (captura + link de Stitch), se itera con su feedback y sólo con su OK se pasa a la siguiente. Cada id aprobado se registra en el spec §5. **Ninguna tarea de código arranca sin las 4 pantallas aprobadas.**
 
-**Estado 2026-09-26:** 0.1 ✅ (`56fccdcc…`, navbar sin CTA), 0.2 ✅ (`7c9c09b9…`), 0.4 ✅ (`6e59290a…`); 0.3 (Conflicto) pendiente por timeouts de Stitch. El usuario pidió **no re-editar Stitch** por correcciones: las notas de implementación viven en el spec §5 («Notas de implementación»). FAQ/Cierre y footer van directo a código.
+**Estado 2026-09-26:** 0.1 ✅ (`56fccdcc…`, navbar sin CTA), 0.2 ✅ (`7c9c09b9…`), 0.4 ✅ (`6e59290a…`); 0.3 (Conflicto) **no se generó** (2 timeouts de Stitch) y se implementó directo desde el prompt/spec. El usuario pidió **no re-editar Stitch** por correcciones: las notas de implementación viven en el spec §5 («Notas de implementación»). FAQ/Cierre y footer van directo a código.
 
 **Constantes de todos los prompts:**
 
@@ -179,6 +179,8 @@ Cada momento: título + subtítulo de una línea y mini-viz rica. El riel y los 
 ---
 
 # FASE 1 — Landing (`landing-page`)
+
+**Estado:** ✅ **L1–L5 ejecutadas** (commits `888d0c5` copy deck, `89ff8f2` guard, `4af53d1` landing, `88c3f6f` validación, `01a242a` fix box-sizing). Verificación: `check` 0 errores · `test` 229 passed + 21 skipped · `build` OK · Playwright desktop 1440 y mobile 390 sin overflow, nav sticky a 16px, FAQ abre, consola limpia. Pendiente: merge a `main` + push (requiere OK del usuario).
 
 Rama: `git checkout landing-page` (ya apunta al handoff).
 
