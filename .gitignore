@@ -12,3 +12,4 @@ npm-debug.log*
 opencode.json
 .agents/
 .playwright-mcp/
+.superpowers/

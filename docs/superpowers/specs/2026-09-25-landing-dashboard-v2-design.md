@@ -28,7 +28,7 @@ Queda **aplicarla al código**: la landing actual es un hero mínimo sin narrati
 - **D-7**: Paridad intacta: HTMX y los 3 parciales 1:1; sin DDL; sin tocar `wrangler.jsonc`, `prerenderEnvironment: 'node'` ni el `name` del Worker.
 - **D-8**: Regla de color: egreso gris cálido, ingreso oliva, rojo solo error/exceso; el color nunca es la única señal.
 - **D-9**: Movimiento discreto y anulado bajo `prefers-reduced-motion`; sin parallax ni scrollytelling.
-- **D-10**: Nav **sticky flotante con glassmorphism** (blur + fondo translúcido + borde sutil); CTA WhatsApp siempre visible.
+- **D-10**: Nav **sticky flotante con glassmorphism** (blur + fondo translúcido + borde sutil). **Sin CTA en la navbar (D-24)**: el CTA WhatsApp vive en hero y cierre.
 - **D-11**: Hero **sin eyebrow** («ASISTENTE FINANCIERO POR WHATSAPP» se elimina) y **sin microcopy bajo los botones**. El teléfono del hero se adapta del componente «Great UI Mobile Mockup» de 21st.dev (id `23322`, MIT, React + framer-motion) **re-implementado en HTML/CSS vanilla con tokens** (sin dependencias nuevas).
 - **D-12**: **Sin marquee de categorías**: no aporta valor y agrega ruido.
 - **D-13**: Beneficios se rediseña como bento con jerarquía real y movimiento; prohibido el tile gigante y vacío («Categorías automáticas»).
@@ -42,6 +42,7 @@ Queda **aplicarla al código**: la landing actual es un hero mínimo sin narrati
 - **D-21** (review 2026-09-26): **Footer simple**: logo + `LUKA` + `© 2026 — Todos los derechos reservados`. Sin link de WhatsApp ni extras.
 - **D-22** (review 2026-09-26): Regla de secciones: **sin eyebrow; solo título y subtítulo**; sin emojis ni componentes genéricos en el chrome del sitio; íconos SVG lineales propios. El chat del mockup conserva el estilo real del bot.
 - **D-23** (review 2026-09-26): **Iteración pantalla por pantalla** en Stitch: se aprueba una pantalla a la vez (Nav+Hero → Beneficios → Conflicto → Plan) antes de pasar a la siguiente; cada id aprobado se registra en §5. FAQ y Cierre se reutilizan como referencia; el footer se define directo en código.
+- **D-24** (review 2026-09-26): **La navbar no lleva botón de WhatsApp**: queda solo logo + anclas (Cómo funciona / Beneficios / Dudas). El CTA de WhatsApp vive en el hero y en el cierre.
 
 ## 3. Landing (`/`)
 
@@ -49,7 +50,7 @@ Reescritura de `src/pages/index.astro` (prerender, CSS inline, JS mínimo). Secu
 
 | # | Bloque | Contenido |
 |---|---|---|
-| 1 | Nav sticky flotante | Glassmorphism (blur + fondo translúcido + borde sutil), logo + anclas (Cómo funciona / Beneficios / Dudas) + CTA WhatsApp persistente |
+| 1 | Nav sticky flotante | Glassmorphism (blur + fondo translúcido + borde sutil), logo + anclas (Cómo funciona / Beneficios / Dudas). **Sin CTA (D-24)** |
 | 2 | Hero | H1 «Hacete cargo de tu plata sin planillas ni culpa» + sub + CTA dual (WhatsApp coral + «Ver cómo funciona» ghost). **Sin eyebrow y sin microcopy bajo los botones.** Composición: mockup de teléfono con chat de WhatsApp adaptado del componente 21st.dev id `23322` (re-implementado vanilla) + mini-dashboard |
 | 3 | Beneficios (bento v2) | Rediseñar: bento con jerarquía real, tiles densos (mini-viz + copy corto) y movimiento discreto; prohibido el tile vacío gigante |
 | 4 | Conflicto | Rediseñar con impacto visual (face-off HOY vs CON LUKA como escena, no dos columnas planas) |
@@ -92,12 +93,22 @@ DS «LUKA — Bodegón»: dark, coral primario, Rubik como **proxy** de Gabarito
 
 | Pantalla | Prompt / requisitos | Id aprobado |
 |---|---|---|
-| 1 · Nav + Hero | Nav sticky flotante glassmorphism; hero 2 col sin eyebrow ni microcopy; mockup de teléfono (componente 21st.dev id `23322` re-implementado vanilla) | _pendiente_ |
-| 2 · Beneficios | Bento con impacto real; texto mínimo (título + subtítulo); sin tile gigante vacío; mini-visual por tile | _pendiente_ |
+| 1 · Nav + Hero | Nav sticky flotante glassmorphism; hero 2 col sin eyebrow ni microcopy; mockup de teléfono (componente 21st.dev id `23322` re-implementado vanilla) | `screens/56fccdccb0b544268d6728879e412cff` ✅ (navbar sin CTA, D-24) |
+| 2 · Beneficios | Bento con impacto real; texto mínimo (título + subtítulo); sin tile gigante vacío; mini-visual por tile | `screens/7c9c09b960a04ebc885dae880b3f6687` ✅ |
 | 3 · Conflicto | Face-off HOY vs CON LUKA como escena impactante; **sin tour** | _pendiente_ |
-| 4 · Plan | H2 D-20; tarjetas/riel con impacto; cerebro de LUKA clasificando | _pendiente_ |
+| 4 · Plan | H2 D-20; tarjetas/riel con impacto; cerebro de LUKA clasificando | `screens/6e59290a5b3a4821aae94a01d69c7694` ✅ |
 | FAQ + Cierre | Sin rediseño: se reutiliza la referencia ya revisada (`48111d92…`, `6837ca89…`) | — |
 | Footer | No se mockea: se implementa directo en código (D-21) | — |
+
+**Notas de implementación (correcciones a aplicar en código; Stitch no se re-edita):**
+
+- Nav: **sin CTA de WhatsApp** (D-24).
+- Logo: usar el isotipo real de `public/` (las pantallas de Stitch muestran un placeholder «LK»).
+- Hero: sin eyebrow/microcopy; el mockup de teléfono se re-implementa vanilla desde el componente 21st.dev `23322` (sin deps).
+- Beneficios: solo título + subtítulo por tile; mini-viz ricas; la onda de audio puede quedar estática o sutil (nunca un «pulse» genérico; anular con `prefers-reduced-motion`).
+- Plan: el **Monto** va con color neutro/tabular (no verde: verde/oliva es ingreso); **sin microcopy extra**: se omiten la franja inferior de claims («Sin apps adicionales…») y los rótulos «PASO N · X» / chips extra (D-22: solo título + subtítulo).
+- Categorías: usar el mapa canónico (`Transporte`, `Comida`, `Ocio`, …), no etiquetas de las pantallas («Comida & Súper», «Salidas & Ocio»).
+- FAQ y Cierre: referencia ya revisada; footer simple (D-21). Toda cifra en formato es-AR con `tabular-nums`.
 
 **v2 dashboard con DS Bodegón (generada 2026-09-25; referencia visual de Fase 2, D-18):**
 - Dashboard normal → `screens/6981d126bbf948dd8c5e803b22f62d71`

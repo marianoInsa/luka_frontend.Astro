@@ -25,6 +25,7 @@
 - **Sin Tour de producto (D-19):** la página tiene 7 bloques + footer.
 - **Plan (D-20):** H2 `Escribilo y olvidate. LUKA se acuerda por vos.`
 - **Footer simple (D-21):** logo + `LUKA` + `© 2026 — Todos los derechos reservados`. Sin link de WhatsApp.
+- **Nav sin CTA (D-24):** la navbar no lleva botón de WhatsApp; solo logo + anclas. El CTA vive en hero y cierre.
 - **Stitch pantalla por pantalla (D-23):** aprobar una antes de generar la siguiente; registrar cada id en el spec §5.
 - Commits sin trailer `Co-Authored-By`. **No push sin OK explícito del usuario** (esta sesión ya pusheó `landing-page` y `dashboard`; el resto, pedir).
 - WhatsApp CTA: placeholder `https://wa.me/15556378961?text=Hola%20Luka%21` (D-1).
@@ -74,6 +75,8 @@
 
 **Regla (D-23):** se genera UNA pantalla, se muestra al usuario (captura + link de Stitch), se itera con su feedback y sólo con su OK se pasa a la siguiente. Cada id aprobado se registra en el spec §5. **Ninguna tarea de código arranca sin las 4 pantallas aprobadas.**
 
+**Estado 2026-09-26:** 0.1 ✅ (`56fccdcc…`, navbar sin CTA), 0.2 ✅ (`7c9c09b9…`), 0.4 ✅ (`6e59290a…`); 0.3 (Conflicto) pendiente por timeouts de Stitch. El usuario pidió **no re-editar Stitch** por correcciones: las notas de implementación viven en el spec §5 («Notas de implementación»). FAQ/Cierre y footer van directo a código.
+
 **Constantes de todos los prompts:**
 
 - DS «LUKA — Bodegón» (`assets/1946592025752870069`), device DESKTOP, ancho 1440.
@@ -91,7 +94,7 @@
 ```
 Landing LUKA desktop 1440, fondo berenjena #1B1420 con aurora coral/durazno muy sutil al 10%. Identidad «Bodegón», WCAG AA. Es la primera impresión de la marca: debe verse única, cálida y con impacto, no una plantilla genérica.
 
-NAV STICKY FLOTANTE CON GLASSMORPHISM (diseño propio, no barra estándar): barra separada del borde superior (margin 16px) y del ancho del contenido (máximo 1200px), fondo translúcido rgba(39,28,46,0.55) con backdrop-blur 18px, borde 1px rgba(245,236,226,0.12), radio 999px, sombra cálida difusa. Contenido: logo LUKA (isotipo coral→durazno) a la izquierda; anclas "Cómo funciona / Beneficios / Dudas" en crema #F5ECE2 al centro; CTA coral #F0704C con texto espresso #2A0F07 "Empezá por WhatsApp" a la derecha.
+NAV STICKY FLOTANTE CON GLASSMORPHISM (diseño propio, no barra estándar): barra separada del borde superior (margin 16px) y del ancho del contenido (máximo 1200px), fondo translúcido rgba(39,28,46,0.55) con backdrop-blur 18px, borde 1px rgba(245,236,226,0.12), radio 999px, sombra cálida difusa. Contenido: logo LUKA (isotipo coral→durazno) a la izquierda y anclas "Cómo funciona / Beneficios / Dudas" en crema #F5ECE2 centradas. SIN botón de WhatsApp en la navbar (D-24: el CTA vive en el hero).
 
 HERO en 2 columnas, SIN eyebrow y SIN texto debajo de los botones:
 - Izquierda: titular Rubik 700 crema 56px "Hacete cargo de tu plata sin planillas ni culpa"; subtítulo "Escribile tus gastos como hablás y Luka los ordena: categorías, límites y balances cuando los pedís."; botón primario coral "Empezá por WhatsApp" + botón ghost con borde crema translúcido "Ver cómo funciona". Nada más de texto en esa columna: sin eyebrow, sin microcopy, sin badges.
@@ -318,7 +321,7 @@ describe('landing v2', () => {
 - [ ] **Step 1: Reescribir `index.astro`** con este contrato de bloques:
 
 1. **Head:** reemplazar Space Grotesk por Gabarito en el `<link>` de Google Fonts (`family=Gabarito:wght@500;700&family=Inter...`). Mantener title/description/canonical/OG (actualizar description si hace falta).
-2. **Nav glass sticky** (`position: sticky; top: var(--space-4)`) con `backdrop-filter: blur(18px)`, fondo `rgba(39,28,46,.55)`, borde `--border`, radio `--radius-full`; anclas a `#como-funciona`, `#beneficios`, `#faq`; CTA WhatsApp.
+2. **Nav glass sticky** (`position: sticky; top: var(--space-4)`) con `backdrop-filter: blur(18px)`, fondo `rgba(39,28,46,.55)`, borde `--border`, radio `--radius-full`; anclas a `#como-funciona`, `#beneficios`, `#faq`; sin CTA (D-24).
 3. **Hero** `id="hero"` 2 columnas: copy (H1 + sub + CTA dual) y composición. **Sin eyebrow, sin microcopy.**
 4. **Beneficios** `id="beneficios"`: bento denso de 5 tiles según la pantalla aprobada, tiles con `color-mix(in srgb, var(--cat-*) 10%, transparent)`.
 5. **Conflicto**: face-off HOY vs CON LUKA como escena según la pantalla aprobada. **Sin tour.**
@@ -544,7 +547,7 @@ txList.setAttribute('aria-busy', 'false');
 
 ## Self-Review (revisado 2026-09-26)
 
-- **Spec coverage:** D-10/D-11 → 0.1 + L3; D-12 → 0.1 (prompt) + L2 (guard) + L3; D-13 → 0.2 + L3; D-14 → 0.1–0.4 (prompts) + L2 (guard); D-15 → 0.3 + L3; D-16 → 0.4 + L1/L2; D-17 → 0.5 + L3; D-18 → Fase 2; **D-19 → 0.3 + L3 (sin tour); D-20 → L1/L2/L3; D-21 → L1/L2/L3; D-22 → constantes de Fase 0 + prompts + L2; D-23 → Fase 0 (gate por pantalla)**; dashboard §4 → D1–D4 ✅ ejecutado; Stitch §5 → Fase 0.
+- **Spec coverage:** D-10/D-11 → 0.1 + L3; D-12 → 0.1 (prompt) + L2 (guard) + L3; D-13 → 0.2 + L3; D-14 → 0.1–0.4 (prompts) + L2 (guard); D-15 → 0.3 + L3; D-16 → 0.4 + L1/L2; D-17 → 0.5 + L3; D-18 → Fase 2; **D-19 → 0.3 + L3 (sin tour); D-20 → L1/L2/L3; D-21 → L1/L2/L3; D-22 → constantes de Fase 0 + prompts + L2; D-23 → Fase 0 (gate por pantalla); D-24 → 0.1 + L3**; dashboard §4 → D1–D4 ✅ ejecutado; Stitch §5 → Fase 0.
 - **Placeholders:** los prompts de Stitch y los strings de copy son finales; no hay TBD.
 - **Consistencia:** ids `como-funciona/beneficios/faq/cierre` coinciden entre L2/L3; `#stats-loading`/`data-loading` coinciden entre D1/D3; `--cat-*`/`--money-*` existen en tokens v2.0.0. El guard L2 exige el H2 nuevo del Plan y el footer sin WhatsApp (D-20/D-21) y el rechazo de emojis no se testea (queda en el review visual).
 
