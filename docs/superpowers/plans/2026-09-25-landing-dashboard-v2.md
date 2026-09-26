@@ -2,13 +2,15 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Rediseñar en Stitch la landing según el review del usuario y luego aplicarla al código, más el retoque de marca del dashboard, sobre la identidad v2 «Bodegón».
+**Goal:** Iterar en Stitch la landing pantalla por pantalla según las correcciones del 2026-09-26 (D-19…D-23) y luego aplicarla al código sobre la identidad v2 «Bodegón». El retoque de marca del dashboard ya está ejecutado y mergeado.
 
-**Architecture:** Dos ramas desde `main` (`landing-page`, `dashboard`). Landing = reescritura de `src/pages/index.astro` (prerender, CSS inline, JS mínimo, cero dependencias). Dashboard = `tokens.css` como base del CSS legacy + re-mapeo de variables, skeletons CSS/HTMX y fixes de a11y, sin tocar contratos.
+**Architecture:** Rama `landing-page` (sincronizada con `main`). Landing = reescritura de `src/pages/index.astro` (prerender, CSS inline, JS mínimo, cero dependencias): Nav glass, Hero con mockup de teléfono, Beneficios bento, Conflicto face-off, Plan, FAQ, Cierre y footer simple. **Sin tour.** La Fase 2 del dashboard (tokens/skeletons/a11y) ya vive en `main` (`9c272e0`…`eaf7833`).
 
 **Tech Stack:** Astro 7.3.4, vanilla CSS, HTMX 2.0.3, Chart.js 4.4.6, Vitest 5, Cloudflare Workers (wrangler dev).
 
-**Spec:** `docs/superpowers/specs/2026-09-25-landing-dashboard-v2-design.md` (incluye las decisiones D-1…D-18 y el review del 2026-09-25)
+**Spec:** `docs/superpowers/specs/2026-09-25-landing-dashboard-v2-design.md` (decisiones D-1…D-23 y reviews del 2026-09-25 y 2026-09-26)
+
+**Revisión 2026-09-26:** la Fase 0 original (4 pantallas de una) quedó invalidada por el review; ahora es iteración **pantalla por pantalla** con gate individual. Se elimina el Tour (D-19), cambia el título del Plan (D-20), el footer se simplifica (D-21) y se prohíben emojis/componentes genéricos y el eyebrow (D-22).
 
 ## Global Constraints
 
@@ -18,21 +20,27 @@
 - **Cero dependencias nuevas.** Sin Tailwind. Sin React/framer-motion: el mockup de 21st.dev se re-implementa vanilla.
 - Regla de color: egreso `--money-out` (gris cálido), ingreso `--money-in` (oliva), rojo `--danger` solo error/exceso; el color nunca es la única señal.
 - Copy: voseo rioplatense; **sin precios ni costos**; sin afirmaciones no verificadas (nada de testimonios, cifras inventadas, cifrado).
-- **Prohibido** el marquee, el eyebrow del hero, el microcopy bajo los botones del hero y las tarjetas/puntos genéricos de «pulse effect» (D-11, D-12, D-14).
+- **Prohibido** el marquee, el eyebrow, el microcopy bajo los botones del hero, las tarjetas/puntos genéricos de «pulse effect» (D-11, D-12, D-14) y **los emojis en el chrome del sitio** (D-22).
+- **Regla de secciones (D-22):** sólo título y subtítulo; sin eyebrow; sin componentes genéricos; íconos SVG lineales propios. El chat del mockup conserva el estilo real del bot.
+- **Sin Tour de producto (D-19):** la página tiene 7 bloques + footer.
+- **Plan (D-20):** H2 `Escribilo y olvidate. LUKA se acuerda por vos.`
+- **Footer simple (D-21):** logo + `LUKA` + `© 2026 — Todos los derechos reservados`. Sin link de WhatsApp.
+- **Stitch pantalla por pantalla (D-23):** aprobar una antes de generar la siguiente; registrar cada id en el spec §5.
 - Commits sin trailer `Co-Authored-By`. **No push sin OK explícito del usuario** (esta sesión ya pusheó `landing-page` y `dashboard`; el resto, pedir).
 - WhatsApp CTA: placeholder `https://wa.me/15556378961?text=Hola%20Luka%21` (D-1).
 - Fuente display: **Gabarito** (Google Fonts) en el código; Stitch usa Rubik como proxy.
 
 ---
 
-## Estado de partida (handoff)
+## Estado de partida (handoff 2026-09-26)
 
 | Cosa | Estado |
 |---|---|
-| `main` local | Identidad v2 documentada y tokenizada (`3f228a8`), limpieza de docs viejos (`734f787`), isotipo recoloreado (`0c83eed`), spec (`af0aada`). **No pusheado.** |
-| `origin/landing-page`, `origin/dashboard` | Apuntan a `af0aada` (push de handoff 2026-09-25). |
-| Stitch | Proyecto `447579364756216071`; DS `assets/1946592025752870069` («LUKA — Bodegón»). v1 de landing revisada y **rechazada parcialmente** (ver Fase 0). Dashboard v1 aprobado como aceptable. |
-| Local server | `wrangler dev` en `:4321` sirviendo `dist/` con `.dev.vars` + Hyperdrive simulado. |
+| `main` | `bbfab77` (merge de `dashboard`), **pusheado**. Incluye Fase 2 completa (`9c272e0`…`eaf7833`) y las pantallas del dashboard registradas en el spec (`ff18d31`). |
+| `landing-page` local | **Sincronizada con `main`** (`git merge --ff-only main`); 7 commits por delante de `origin/landing-page` (docs). La landing sigue siendo la v1. |
+| Stitch | Proyecto `447579364756216071`; DS `assets/1946592025752870069` («LUKA — Bodegón»). Pantallas v2 de landing revisadas el 2026-09-26: **iteración obligatoria** (D-19…D-23). FAQ/Cierre aceptables como referencia (`48111d92…`, `6837ca89…`). Dashboard v1 aprobado. |
+| Harness local | `.superpowers/sdd/` ya no existe (scratch gitignored); regenerar solo si hace falta (el mock de charts/admin y `.dev.vars` siguen documentados en `02-estado-y-siguientes-pasos.md`). |
+| Local server | No hay server levantado; levantar con el patrón de los quirks si hace falta verificación visual. |
 
 **Quirks del entorno (leer antes de ejecutar):**
 
@@ -62,101 +70,108 @@
 
 ---
 
-# FASE 0 — Rediseño en Stitch (antes de tocar código)
+# FASE 0 — Stitch, pantalla por pantalla (gate humano)
 
-**Gate obligatorio:** presentar las pantallas nuevas al usuario y esperar aprobación antes de ejecutar la Fase 1. Ninguna tarea de código arranca sin ese OK.
+**Regla (D-23):** se genera UNA pantalla, se muestra al usuario (captura + link de Stitch), se itera con su feedback y sólo con su OK se pasa a la siguiente. Cada id aprobado se registra en el spec §5. **Ninguna tarea de código arranca sin las 4 pantallas aprobadas.**
 
-### Task 0.1: Rediseñar hero + nav
+**Constantes de todos los prompts:**
+
+- DS «LUKA — Bodegón» (`assets/1946592025752870069`), device DESKTOP, ancho 1440.
+- Fondo berenjena `#1B1420`; crema `#F5ECE2`; coral `#F0704C` (acción); durazno `#F2A48C`; oliva `#8FBF6F`; ámbar `#E8B44A`; gris cálido `#B3A3AC` (egreso); rojo `#F2555A` (solo error); texto espresso `#2A0F07` sobre coral.
+- Rubik 700 como proxy de Gabarito (el código usa Gabarito); Inter para UI y datos; cifras tabulares.
+- **Sin eyebrow, sin emojis, sin componentes genéricos, sin puntos parpadeantes/pulse, sin marquee, sin fotos.** Sólo título + subtítulo por sección. Íconos SVG lineales propios.
+- Debe verse único de LUKA, cálido y con impacto: minimalista pero nunca aburrido ni genérico. WCAG AA.
+
+### Task 0.1: Pantalla 1 — Nav + Hero
 
 **Files:** ninguno en el repo. Stitch: proyecto `447579364756216071`, design system `assets/1946592025752870069`, device DESKTOP.
 
 - [ ] **Step 1: Generar la pantalla con este prompt exacto**
 
 ```
-Landing LUKA desktop 1440, fondo berenjena #1B1420 con aurora coral/durazno al 10%.
+Landing LUKA desktop 1440, fondo berenjena #1B1420 con aurora coral/durazno muy sutil al 10%. Identidad «Bodegón», WCAG AA. Es la primera impresión de la marca: debe verse única, cálida y con impacto, no una plantilla genérica.
 
-NAV STICKY FLOTANTE CON GLASSMORPHISM: barra separada del borde superior (margin 16px), ancho máximo 1200px, fondo rgba(39,28,46,0.55) con backdrop-blur 18px, borde 1px rgba(245,236,226,0.12), radio 999px, sombra cálida difusa. Contenido: logo LUKA a la izquierda, anclas "Cómo funciona / Beneficios / Dudas" en crema #F5ECE2 al centro, botón coral #F0704C con texto espresso #2A0F07 "Empezá por WhatsApp" a la derecha.
+NAV STICKY FLOTANTE CON GLASSMORPHISM (diseño propio, no barra estándar): barra separada del borde superior (margin 16px) y del ancho del contenido (máximo 1200px), fondo translúcido rgba(39,28,46,0.55) con backdrop-blur 18px, borde 1px rgba(245,236,226,0.12), radio 999px, sombra cálida difusa. Contenido: logo LUKA (isotipo coral→durazno) a la izquierda; anclas "Cómo funciona / Beneficios / Dudas" en crema #F5ECE2 al centro; CTA coral #F0704C con texto espresso #2A0F07 "Empezá por WhatsApp" a la derecha.
 
 HERO en 2 columnas, SIN eyebrow y SIN texto debajo de los botones:
-- Izquierda: titular Rubik 700 crema 56px "Hacete cargo de tu plata sin planillas ni culpa" + subtítulo "Escribile tus gastos como hablás y Luka los ordena: categorías, límites y balances cuando los pedís." + botón primario coral "Empezá por WhatsApp" + botón ghost con borde "Ver cómo funciona". Nada más de texto en esa columna.
-- Derecha: mockup de teléfono realista (chasis oscuro con bordes redondeados, isla superior, barra de estado) mostrando un chat de WhatsApp: burbuja entrante del usuario en coral suave "Gasté 5000 en nafta", respuesta de LUKA en tarjeta #34263C "✅ Listo: nafta, $5.000 en Transporte." y una mini tarjeta de balance "$12.500 · Balance del mes" con barra coral. Detrás, flotando y parcialmente detrás del teléfono, una tarjeta de mini-dashboard con anillo categórico (lila #9B9BE0, agua #7FB5C9, mostaza #E0B84A, rosa #E87FA8, oliva #8FBF6F) y dos barras.
+- Izquierda: titular Rubik 700 crema 56px "Hacete cargo de tu plata sin planillas ni culpa"; subtítulo "Escribile tus gastos como hablás y Luka los ordena: categorías, límites y balances cuando los pedís."; botón primario coral "Empezá por WhatsApp" + botón ghost con borde crema translúcido "Ver cómo funciona". Nada más de texto en esa columna: sin eyebrow, sin microcopy, sin badges.
+- Derecha: mockup de teléfono realista (chasis oscuro con bordes redondeados, isla superior, barra de estado) mostrando un chat de WhatsApp: burbuja entrante del usuario en coral suave "Gasté 5000 en nafta", respuesta de LUKA en tarjeta #34263C "Listo: nafta, $5.000 en Transporte" y una mini tarjeta de balance "$12.500 · Balance del mes" con barra coral. Detrás, flotando y parcialmente detrás del teléfono, una tarjeta de mini-dashboard con anillo categórico (lila #9B9BE0, agua #7FB5C9, mostaza #E0B84A, rosa #E87FA8, oliva #8FBF6F) y dos barras.
 
-PROHIBIDO: marquee de categorías, puntos parpadeantes, badges de "pulse effect", texto de relleno. Sin fotos ni stock: todo UI construida. WCAG AA.
+PROHIBIDO: marquee, eyebrow, emojis, puntos parpadeantes, badges de "pulse effect", texto de relleno, fotos o stock. Todo UI construida. WCAG AA.
 ```
 
-- [ ] **Step 2: Descargar la screenshot y guardarla** en `.superpowers/sdd/brand/v2-stitch-01-hero.png` (gitignored).
-- [ ] **Step 3: Registrar el id** de la pantalla en el spec §5 (añadir a la lista v2).
+- [ ] **Step 2: Descargar la screenshot y guardarla** en `.superpowers/sdd/brand/v2-stitch-01-nav-hero.png` (gitignored).
+- [ ] **Step 3: Mostrarla al usuario y esperar feedback** (captura + link de Stitch). Iterar con `stitch_edit_screens` sobre el id hasta el OK explícito. **No generar la pantalla 2 sin este OK.**
+- [ ] **Step 4: Registrar el id aprobado** en el spec §5.
 
-### Task 0.2: Rediseñar beneficios (bento denso)
+### Task 0.2: Pantalla 2 — Beneficios (bento con impacto)
 
 - [ ] **Step 1: Generar con este prompt exacto**
 
 ```
-Sección de beneficios LUKA desktop 1440, continuación de la landing, fondo berenjena #1B1420, aurora sutil lila y agua.
+Sección de beneficios LUKA desktop 1440, continuación de la landing, fondo berenjena #1B1420, aurora sutil lila y agua. Debe VENDER, no aburrir: impacto visual alto sin ruido.
 
-Titular Rubik 700 crema "Diseñado para darte claridad, no trabajo" + subtítulo corto en gris cálido. NO usar eyebrow ni badges con punto pulsante.
+Titular Rubik 700 crema "Diseñado para darte claridad, no trabajo" + subtítulo corto "Menos fricción, más control." Sin eyebrow, sin badges, sin emojis.
 
-BENTO DENSO de 5 tiles con jerarquía real (grid-template-areas, gap 20px, cards #271C2E radio 24px borde rgba(245,236,226,0.10)):
-1. Tile grande protagonista: "Categorías automáticas" — a la izquierda una burbuja de chat "Gasté 5000 en nafta"; a la derecha una flecha/riel que conecta con 3 chips de categoría (Transporte #7FB5C9, Comida #F0704C, Servicios #9B9BE0) y un badge oliva "✅ Clasificado". Nada de espacio vacío: la mini-viz ocupa el tile.
-2. Tile mediano: "Registrás en segundos" con onda de audio en durazno y transcripción corta.
-3. Tile mediano: "Límites que avisan" con barra ámbar al 80% y texto tabular "80% · $80.000 de $100.000".
-4. Tile bajo y ancho: "Balances claros" con sparkline oliva y cifra tabular "$12.500".
-5. Tile cuadrado: "Sin planillas" con un ícono lineal grande y una grilla de celdas que se ordena (sin animación de pulso).
+BENTO con jerarquía real e impacto (grid-template-areas, gap 20px, cards #271C2E radio 24px borde rgba(245,236,226,0.10), sombra cálida):
+1. Tile protagonista "Categorías automáticas": mini-viz grande y rica (burbuja "Gasté 5000 en nafta" → riel → 3 chips de categoría con íconos lineales + badge oliva "Clasificado"), ancho de 2 columnas x 1 fila — PROHIBIDO que sea un tile gigante semivacío o de doble alto.
+2. Tile "Registrás en segundos": onda de audio en durazno + transcripción corta.
+3. Tile "Límites que avisan": barra ámbar al 80% con texto tabular "80% · $80.000 de $100.000".
+4. Tile "Balances claros": sparkline oliva + cifra tabular "$12.500".
+5. Tile "Sin planillas": grilla de celdas que se ordena + ícono lineal grande.
 
-Cada tile con fondo color-mix de su categórico al 10%, icono lineal 24px, copy de una línea. Prohibido: tarjetas genéricas, puntos parpadeantes, tiles vacíos. WCAG AA.
+Cada tile: título corto + subtítulo de una línea (nada más de texto); fondo color-mix de su categórico al 10%; ícono SVG lineal propio. Sin tarjetas genéricas, sin puntos parpadeantes, sin tiles vacíos. WCAG AA.
 ```
 
 - [ ] **Step 2: Descargar la screenshot** a `.superpowers/sdd/brand/v2-stitch-02-bento.png`.
-- [ ] **Step 3: Registrar el id** en el spec §5.
+- [ ] **Step 3: Mostrarla y esperar OK** (iterar si hace falta). Recién entonces generar la pantalla 3.
+- [ ] **Step 4: Registrar el id aprobado** en el spec §5.
 
-### Task 0.3: Rediseñar conflicto + tour con impacto
-
-- [ ] **Step 1: Generar con este prompt exacto**
-
-```
-Sección conflicto + tour LUKA desktop 1440, fondo berenjena #1B1420. Impacto visual, sin dos columnas planas.
-
-CONFLICTO como escena de contraste, no como tarjetas gemelas: a la izquierda, una escena "HOY" monocroma en gris cálido #B3A3AC que se va desarmando (papeles, tickets y notificaciones desordenados, en capas superpuestas con rotaciones leves y desenfoque); a la derecha, la misma información ordenada en una escena "CON LUKA" con chips categóricos y un balance claro. Titular Rubik 700 crema "El problema no sos vos. Son las herramientas." Los subtítulos "La plata se va y no sabés bien adónde" y "Todo queda ordenado sin que hagas nada extra". Nada de badges con punto pulsante.
-
-TOUR DE PRODUCTO como una sola escena grande (no tabs planos): un panel con perspectiva leve (rotateY suave) que muestra tres capas apiladas — al frente "Gastos" (lista de 4 movimientos con chips tintados, montos tabulares gris cálido para egresos y oliva para el ingreso), detrás "Límites" (barra ámbar al 80% con "80% · $80.000 de $100.000") y detrás "Balances" (gráfico de área con relleno 12% y cifra "$12.500"). Tres pestañas coral/ghost arriba, la activa en coral.
-
-PROHIBIDO: marquee, puntos parpadeantes, pulse effect, fotos. Todo UI construida, WCAG AA.
-```
-
-- [ ] **Step 2: Descargar la screenshot** a `.superpowers/sdd/brand/v2-stitch-03-conflicto-tour.png`.
-- [ ] **Step 3: Registrar el id** en el spec §5.
-
-### Task 0.4: Rediseñar plan de 3 pasos (sin pricing) + FAQ simple
+### Task 0.3: Pantalla 3 — Conflicto (sin Tour)
 
 - [ ] **Step 1: Generar con este prompt exacto**
 
 ```
-Sección "cómo funciona" + FAQ, LUKA desktop 1440, fondo berenjena #1B1420.
+Sección conflicto LUKA desktop 1440, fondo berenjena #1B1420. Face-off impactante, no dos columnas planas. Sin tour de producto: esta pantalla y la página no llevan tour.
 
-PLAN: titular Rubik 700 crema "Así ordena LUKA lo que le escribís" (PROHIBIDO mencionar precios, costos, café o comparaciones). Representación visual del cerebro de LUKA clasificando, en 3 momentos conectados por un riel luminoso coral:
+AFICHE DE CONTRASTE partido por una grieta luminosa coral, con dos escenas:
+- Izquierda "HOY": escena monocroma en gris cálido #B3A3AC que se desarma —papeles, tickets y notificaciones en capas superpuestas con rotaciones leves, desenfoque y textura de estática—; se siente caos, pero elegante y controlado (nada de clipart).
+- Derecha "CON LUKA": la misma información ordenada en una escena limpia con chips categóricos, un balance claro y un trazo coral continuo que atraviesa la escena.
+
+Titular Rubik 700 crema "El problema no sos vos. Son las herramientas." Subtítulos: "La plata se va y no sabés bien adónde" (lado HOY) y "Todo queda ordenado sin que hagas nada extra" (lado CON LUKA).
+
+Sólo título y subtítulos: sin eyebrow, sin emojis, sin badges con punto pulsante, sin tarjetas genéricas. Debe ser la pieza más impactante de la página. WCAG AA.
+```
+
+- [ ] **Step 2: Descargar la screenshot** a `.superpowers/sdd/brand/v2-stitch-03-conflicto.png`.
+- [ ] **Step 3: Mostrarla y esperar OK** (iterar si hace falta). Recién entonces generar la pantalla 4.
+- [ ] **Step 4: Registrar el id aprobado** en el spec §5.
+
+### Task 0.4: Pantalla 4 — Plan (título nuevo, con impacto)
+
+- [ ] **Step 1: Generar con este prompt exacto**
+
+```
+Sección "cómo funciona" LUKA desktop 1440, fondo berenjena #1B1420. Debe verse única y con impacto, no tres columnas simples.
+
+Titular Rubik 700 crema "Escribilo y olvidate. LUKA se acuerda por vos." + subtítulo corto "Tres pasos, cero planillas." Sin eyebrow ni emojis. PROHIBIDO mencionar precios, costos, café o comparaciones.
+
+RIEL VIVO de 3 momentos con tarjetas de alto impacto visual (no cards planas): un trazo luminoso coral→durazno conecta los tres momentos, con nodos y profundidad:
 1. "Escribís como hablás" — burbuja "Gasté 5000 en nafta" con onda de audio.
-2. "El cerebro de LUKA lo entiende" — diagrama central: el mensaje entra a un núcleo (circuito/red de nodos) y salen tres etiquetas: "Monto $5.000", "Categoría Transporte", "Fecha hoy". Los nodos usan los categóricos.
+2. "El cerebro de LUKA lo entiende" — diagrama central del núcleo (red de nodos/circuito): el mensaje entra y salen tres etiquetas "Monto $5.000", "Categoría Transporte", "Fecha hoy"; los nodos usan los colores categóricos.
 3. "Ves todo ordenado" — tarjeta con el movimiento clasificado y el balance actualizado.
-El riel y los nodos se muestran estáticos con un degradado, sin puntos parpadeantes.
-
-FAQ: titular "Las dudas de siempre" a la izquierda y a la derecha 5 filas details/summary con borde sutil, icono + que rota al abrir. Sin decoración extra, sin badges ni puntos. Preguntas y respuestas:
-- "¿Necesito instalar algo?" → "No. Usás el WhatsApp que ya tenés."
-- "¿Cuánto tarda en registrar un gasto?" → "Segundos. Luka lo anota, lo clasifica y te lo confirma al instante."
-- "¿Puedo anotar gastos en efectivo?" → "Sí, también ingresos. Por texto o audio, como te salga."
-- "¿Qué puedo consultarle?" → "Balances, límites y gráficos por WhatsApp, o en detalle desde el dashboard."
-- "¿Y si mi mensaje es ambiguo?" → "Luka te repregunta de forma simple en vez de cargar algo mal."
-
-El cierre (banda con gradiente coral→durazno y CTA) ya está aprobado: incluilo tal cual al final, sin cambios.
+Cada momento: título + subtítulo de una línea y mini-viz rica. El riel y los nodos con degradado, estáticos (sin puntos parpadeantes). WCAG AA.
 ```
 
-- [ ] **Step 2: Descargar la screenshot** a `.superpowers/sdd/brand/v2-stitch-04-plan-faq.png`.
-- [ ] **Step 3: Registrar el id** en el spec §5.
+- [ ] **Step 2: Descargar la screenshot** a `.superpowers/sdd/brand/v2-stitch-04-plan.png`.
+- [ ] **Step 3: Mostrarla y esperar OK** (iterar si hace falta).
+- [ ] **Step 4: Registrar el id aprobado** en el spec §5.
 
-### Task 0.5: Gate de diseño
+### Task 0.5: Referencias de FAQ/Cierre y gate final
 
-- [ ] **Step 1:** Mostrar las 4 pantallas nuevas al usuario (rutas locales + link del proyecto Stitch).
-- [ ] **Step 2:** Esperar aprobación explícita. Si hay cambios, iterar en Stitch (`stitch_edit_screens` con el id) y volver a mostrar. **No avanzar a Fase 1 sin OK.**
-- [ ] **Step 3:** (Opcional, solo si el usuario lo pide) reintentar una vez las pantallas de dashboard con el DS Bodegón.
+- [ ] **Step 1:** FAQ y Cierre no se rediseñan: reutilizar la pantalla ya revisada como referencia (`48111d92…` o `6837ca89…`, la que el usuario señale) al implementar.
+- [ ] **Step 2:** Footer no se mockea: se implementa directo en código (D-21: logo + `LUKA` + `© 2026 — Todos los derechos reservados`).
+- [ ] **Step 3:** Con las 4 pantallas aprobadas y registradas en el spec §5, recién ahí arranca la Fase 1.
 
 ---
 
@@ -177,7 +192,7 @@ Rama: `git checkout landing-page` (ya apunta al handoff).
 ```markdown
 # Copy deck · Landing LUKA v2
 
-> Strings aprobados. Sin eyebrow, sin microcopy en el hero, sin marquee, sin pricing.
+> Strings aprobados. Sin eyebrow, sin microcopy en el hero, sin marquee, sin tour, sin pricing.
 
 ## Nav
 - CTA: `Empezá por WhatsApp`
@@ -198,11 +213,8 @@ Rama: `git checkout landing-page` (ya apunta al handoff).
 - HOY: `La plata se va y no sabés bien adónde`
 - CON LUKA: `Todo queda ordenado sin que hagas nada extra`
 
-## Tour
-- Tabs: `Gastos` · `Límites` · `Balances`
-
 ## Plan
-- H2: `Así ordena LUKA lo que le escribís`
+- H2: `Escribilo y olvidate. LUKA se acuerda por vos.`
 - 1: `Escribís como hablás` — `Un mensaje o un audio: «Gasté 5000 en nafta».`
 - 2: `El cerebro de LUKA lo entiende` — `Detecta monto, categoría y fecha.`
 - 3: `Ves todo ordenado` — `Balances, límites y gráficos cuando los pedís.`
@@ -217,7 +229,7 @@ Rama: `git checkout landing-page` (ya apunta al handoff).
 - CTA: `Empezá por WhatsApp`
 
 ## Footer
-- `LUKA © {año} · Escribinos por WhatsApp`
+- `LUKA © {año} — Todos los derechos reservados` (sin link de WhatsApp, D-21)
 ```
 
 - [ ] **Step 2:** `git add docs/landing/01-copy-deck.md && git commit -m "docs(landing): copy deck v2 sin eyebrow, marquee ni pricing"`
@@ -253,7 +265,7 @@ describe('landing v2', () => {
 
   it('incluye el H1 y el plan aprobados', () => {
     expect(source).toContain('Hacete cargo de tu plata sin planillas ni culpa');
-    expect(source).toContain('Así ordena LUKA lo que le escribís');
+    expect(source).toContain('Escribilo y olvidate. LUKA se acuerda por vos.');
   });
 
   it('no menciona precios ni costos', () => {
@@ -282,10 +294,15 @@ describe('landing v2', () => {
   it('el FAQ usa details/summary nativo', () => {
     expect((source.match(/<details/g) ?? []).length).toBeGreaterThanOrEqual(5);
   });
+
+  it('el footer es simple y sin link de WhatsApp', () => {
+    expect(source).toContain('Todos los derechos reservados');
+    expect(source).not.toContain('Escribinos por WhatsApp');
+  });
 });
 ```
 
-- [ ] **Step 2:** `npx vitest run src/pages/landing.test.ts` → Expected: **FAIL** (el `index.astro` actual no tiene `como-funciona` ni el H1 nuevo… el H1 sí existe; falla por `como-funciona`).
+- [ ] **Step 2:** `npx vitest run src/pages/landing.test.ts` → Expected: **FAIL** (el `index.astro` actual no tiene `como-funciona` ni el título nuevo del plan… el H1 sí existe; falla por `como-funciona`).
 - [ ] **Step 3:** Commit: `test(landing): guard de estructura, copy y prohibiciones v2`
 
 ### Task L3: Reescribir la landing
@@ -304,12 +321,11 @@ describe('landing v2', () => {
 2. **Nav glass sticky** (`position: sticky; top: var(--space-4)`) con `backdrop-filter: blur(18px)`, fondo `rgba(39,28,46,.55)`, borde `--border`, radio `--radius-full`; anclas a `#como-funciona`, `#beneficios`, `#faq`; CTA WhatsApp.
 3. **Hero** `id="hero"` 2 columnas: copy (H1 + sub + CTA dual) y composición. **Sin eyebrow, sin microcopy.**
 4. **Beneficios** `id="beneficios"`: bento denso de 5 tiles según la pantalla aprobada, tiles con `color-mix(in srgb, var(--cat-*) 10%, transparent)`.
-5. **Conflicto**: escena HOY vs CON LUKA según pantalla aprobada.
-6. **Tour**: escena con pestañas CSS (`input[type=radio]:checked` + `:has()` o `~`) sin JS.
-7. **Plan** `id="como-funciona"`: riel de 3 momentos + diagrama del núcleo (nodos con `--cat-*`), copy del deck.
-8. **FAQ** `id="faq"`: 5 `<details><summary>`; sin decoraciones genéricas.
-9. **Cierre** `id="cierre"`: banda `--gradient-brand`, H2/sub/CTA del deck.
-10. **Footer**: logo + © + link WhatsApp.
+5. **Conflicto**: face-off HOY vs CON LUKA como escena según la pantalla aprobada. **Sin tour.**
+6. **Plan** `id="como-funciona"`: riel de 3 momentos + diagrama del núcleo (nodos con `--cat-*`), H2 y copy del deck (D-20).
+7. **FAQ** `id="faq"`: 5 `<details><summary>`; sin decoraciones genéricas.
+8. **Cierre** `id="cierre"`: banda `--gradient-brand`, H2/sub/CTA del deck.
+9. **Footer**: logo + `LUKA` + `© {año} — Todos los derechos reservados`. Sin WhatsApp (D-21).
 
 **Mockup del teléfono (adaptación del componente 21st.dev id 23322):**
 
@@ -323,7 +339,7 @@ describe('landing v2', () => {
   </div>
   <div class="phone-chat">
     <div class="bubble bubble--user">Gasté 5000 en nafta</div>
-    <div class="bubble bubble--luka">✅ Listo: nafta, $5.000 en Transporte.</div>
+    <div class="bubble bubble--luka">Listo: nafta, $5.000 en Transporte.</div>
     <div class="mini-balance">
       <span class="mini-balance__label">Balance del mes</span>
       <span class="mini-balance__value tabular">$12.500</span>
@@ -350,15 +366,15 @@ CSS mínimo esperado (usar tokens): `.phone { width: 300px; border-radius: 40px;
 
 ### Task L5: Verificación visual y cierre de rama
 
-- [ ] **Step 1:** Con el server local levantado (ver quirks), navegar la landing con Playwright, capturar desktop y mobile (390 px) y revisar: nav glass al scrollear, hero sin textos extra, bento sin huecos, conflicto/tour con impacto, FAQ abriendo, cierre.
+- [ ] **Step 1:** Con el server local levantado (ver quirks), navegar la landing con Playwright, capturar desktop y mobile (390 px) y revisar: nav glass al scrollear, hero sin textos extra, bento sin huecos, conflicto con impacto (sin tour), plan con impacto, FAQ abriendo, cierre y footer simple.
 - [ ] **Step 2:** `npm run check; npm test; npm run build` (con el server **detenido**) → todo verde.
 - [ ] **Step 3:** Push y PR **solo con OK del usuario**: `git push -u origin landing-page` + `gh pr create --base main --head landing-page`.
 
 ---
 
-# FASE 2 — Dashboard (`dashboard`)
+# FASE 2 — Dashboard (`dashboard`) — ✅ EJECUTADA
 
-Rama: `git checkout dashboard`. v1 aprobada: retoque conservador, sin cambio de layout.
+Rama `dashboard` (mergeada a `main` en `bbfab77`): tokens Bodegón (`9c272e0`), guard anti-hex (`a8f87f0`), skeletons (`6e76096`), a11y (`eaf7833`). v1 aprobada: retoque conservador, sin cambio de layout. Las tareas D1–D4 quedan abajo como registro histórico.
 
 ### Task D1: Tokens de marca en el CSS del dashboard
 
@@ -526,11 +542,11 @@ txList.setAttribute('aria-busy', 'false');
 
 ---
 
-## Self-Review
+## Self-Review (revisado 2026-09-26)
 
-- **Spec coverage:** D-10/D-11 → 0.1 + L3; D-12 → 0.1 (prompt) + L2 (guard) + L3; D-13 → 0.2 + L3; D-14 → 0.1–0.4 (prompts) + L2 (guard); D-15 → 0.3 + L3; D-16 → 0.4 + L1/L2; D-17 → 0.4; D-18 → Fase 2; dashboard §4 → D1–D4; Stitch §5 → Fase 0.
+- **Spec coverage:** D-10/D-11 → 0.1 + L3; D-12 → 0.1 (prompt) + L2 (guard) + L3; D-13 → 0.2 + L3; D-14 → 0.1–0.4 (prompts) + L2 (guard); D-15 → 0.3 + L3; D-16 → 0.4 + L1/L2; D-17 → 0.5 + L3; D-18 → Fase 2; **D-19 → 0.3 + L3 (sin tour); D-20 → L1/L2/L3; D-21 → L1/L2/L3; D-22 → constantes de Fase 0 + prompts + L2; D-23 → Fase 0 (gate por pantalla)**; dashboard §4 → D1–D4 ✅ ejecutado; Stitch §5 → Fase 0.
 - **Placeholders:** los prompts de Stitch y los strings de copy son finales; no hay TBD.
-- **Consistencia:** ids `como-funciona/beneficios/faq/cierre` coinciden entre L2/L3; `#stats-loading`/`data-loading` coinciden entre D1/D3; `--cat-*`/`--money-*` existen en tokens v2.0.0.
+- **Consistencia:** ids `como-funciona/beneficios/faq/cierre` coinciden entre L2/L3; `#stats-loading`/`data-loading` coinciden entre D1/D3; `--cat-*`/`--money-*` existen en tokens v2.0.0. El guard L2 exige el H2 nuevo del Plan y el footer sin WhatsApp (D-20/D-21) y el rechazo de emojis no se testea (queda en el review visual).
 
 ---
 
@@ -546,3 +562,22 @@ txList.setAttribute('aria-busy', 'false');
 - **FAQ:** bien, pero incluye una tarjeta genérica de «pulse effect»; debe ser simple y sencilla.
 - **CIERRE:** gusta.
 - **DASHBOARD:** en general bien, aceptable para la primera versión.
+
+---
+
+## Apéndice · Feedback de review del usuario (2026-09-26, verbatim)
+
+> si revise las pantallas y tengo las siguientes correcciones:
+> - NAVBAR: Quiero un diseño diferente. Que sea sticky y con diseño glassmorphism.
+> - REGLA GENERAL PARA TODAS LAS SECCIONES: Sin eyebrow. Sólo título y subtítulo. No utilices componentes ni emojis genéricos.
+> - HERO: Elimina el mensaje debajo de los botones de "Sin instalaciones. Configuracion en 30 segundos". A la derecha, para mostrar una demo breve, debe ocuparse y adaptarse el siguiente componente: https://21st.dev/@saurabh-2607/components/great-ui-mobile-mockup
+> - MARQUEE: Eliminalo. No aporta valor y solo aporta ruido visual.
+> - BENTO DE BENEFICIOS: Limpia el texto, solo quiero titulo y subtitulo. A los bentos les falta mayor impacto visual, son muy simples y sencillos. Además, el bento de "Categorías automáticas" es muy grande al pedo. Esta sección debe comprar al usuario, actualmente solo aburre al usuario.
+> - CONFLICTO Y TOUR DE PRODUCTO: Esta sección debe tener mayor impacto to visual, el face-off debe ser impactante. El tour de producto es una sección que sobra, quitala.
+> - PLAN DE 3 PASOS: Cambia el título por "Escribilo y olvidate. LUKA se acuerda por vos.". Y las tarjetas deben tener mayor impacto visual tambien, lucen muy simples y sencillas.
+> - FAQ y Cierre: las únicas secciones aceptables que no requieren grandes modificaciones por ahora.
+> - FOOTER: Debe ser simple. Logo + "LUKA" + derechos y año (2026). Nada más.
+>
+> Conclusión: EL diseño es muy simple, sencillo y sobre todo ABURRIDO. Esta bien que debe ser algo minimalista y evitar el ruido visual, pero hay que balancear para que no luzca tan aburrido y simple. Otra cuestión de suma relevancia que va de la mano con que sea aburrido, es que el sitio es demasiado genérico. No se esforzó ni si quiera un poco en innovar para resaltar con detalles ni componentes que resalten.
+>
+> Debemos iterar pantalla por pantalla para ir encontrando diseños únicos que adopten la identidad de LUKA y logren impacto visual a los usuarios.

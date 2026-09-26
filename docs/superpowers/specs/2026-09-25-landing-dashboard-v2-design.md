@@ -2,8 +2,8 @@
 
 | Campo | Valor |
 |---|---|
-| **Fecha** | 2026-09-25 |
-| **Estado** | Diseño aprobado en sesión; pendiente de review del spec antes del plan |
+| **Fecha** | 2026-09-25 (correcciones de review 2026-09-26) |
+| **Estado** | Fase 2 (dashboard) **ejecutada y mergeada en `main`** (`9c272e0`…`eaf7833`); Fase 0 de landing **en iteración por pantalla** con las correcciones D-19…D-23; Fase 1 pendiente |
 | **Alcance** | `luka_frontend.Astro`: landing pública (`/`) y dashboard (`/app`, login, admin) |
 | **Fuera de alcance** | Repos `luka/` (DDL, datos, colores de categorías en DB), bot de WhatsApp, analytics, tema claro |
 | **Identidad** | `docs/marca/00…05` v0.5.0 + tokens v2.0.0 (commit `3f228a8`) e isotipo recoloreado (commit `0c83eed`) |
@@ -33,10 +33,15 @@ Queda **aplicarla al código**: la landing actual es un hero mínimo sin narrati
 - **D-12**: **Sin marquee de categorías**: no aporta valor y agrega ruido.
 - **D-13**: Beneficios se rediseña como bento con jerarquía real y movimiento; prohibido el tile gigante y vacío («Categorías automáticas»).
 - **D-14**: **Prohibidas las tarjetas genéricas de «pulse effect» / punto parpadeante** en toda la landing.
-- **D-15**: Conflicto y tour de producto requieren **mayor impacto visual** (no dos columnas planas).
+- **D-15**: Conflicto requiere **mayor impacto visual** (face-off HOY vs CON LUKA como escena, no dos columnas planas). El tour de producto se elimina (D-19).
 - **D-16**: Plan de 3 pasos **sin menciones de precio ni costo** (el producto no es comprable aún) y con representación visual de cómo LUKA clasifica; más impacto.
 - **D-17**: FAQ simple, sin adornos; Cierre aprobado tal cual.
 - **D-18**: Dashboard v1 **aprobado como aceptable**: se implementa el retoque conservador de §4 sin rediseño de layout.
+- **D-19** (review 2026-09-26): **Se elimina el Tour de producto.** La landing queda con 7 bloques: Nav, Hero, Beneficios, Conflicto, Plan, FAQ, Cierre + Footer. El tour no aportaba y alargaba la página.
+- **D-20** (review 2026-09-26): Plan con H2 nuevo `Escribilo y olvidate. LUKA se acuerda por vos.`; tarjetas/riel con impacto visual real (no simples).
+- **D-21** (review 2026-09-26): **Footer simple**: logo + `LUKA` + `© 2026 — Todos los derechos reservados`. Sin link de WhatsApp ni extras.
+- **D-22** (review 2026-09-26): Regla de secciones: **sin eyebrow; solo título y subtítulo**; sin emojis ni componentes genéricos en el chrome del sitio; íconos SVG lineales propios. El chat del mockup conserva el estilo real del bot.
+- **D-23** (review 2026-09-26): **Iteración pantalla por pantalla** en Stitch: se aprueba una pantalla a la vez (Nav+Hero → Beneficios → Conflicto → Plan) antes de pasar a la siguiente; cada id aprobado se registra en §5. FAQ y Cierre se reutilizan como referencia; el footer se define directo en código.
 
 ## 3. Landing (`/`)
 
@@ -47,23 +52,22 @@ Reescritura de `src/pages/index.astro` (prerender, CSS inline, JS mínimo). Secu
 | 1 | Nav sticky flotante | Glassmorphism (blur + fondo translúcido + borde sutil), logo + anclas (Cómo funciona / Beneficios / Dudas) + CTA WhatsApp persistente |
 | 2 | Hero | H1 «Hacete cargo de tu plata sin planillas ni culpa» + sub + CTA dual (WhatsApp coral + «Ver cómo funciona» ghost). **Sin eyebrow y sin microcopy bajo los botones.** Composición: mockup de teléfono con chat de WhatsApp adaptado del componente 21st.dev id `23322` (re-implementado vanilla) + mini-dashboard |
 | 3 | Beneficios (bento v2) | Rediseñar: bento con jerarquía real, tiles densos (mini-viz + copy corto) y movimiento discreto; prohibido el tile vacío gigante |
-| 4 | Conflicto | Rediseñar con impacto visual (contraste narrativo HOY vs CON LUKA, no dos columnas planas) |
-| 5 | Tour | Rediseñar con impacto (Gastos / Límites / Balances sobre la misma escena, no tabs planos) |
-| 6 | Plan | 3 pasos **sin pricing** + visual del «cerebro» de LUKA clasificando el gasto; más impacto |
-| 7 | FAQ | Simple y sencilla, sin adornos ni tarjetas genéricas |
-| 8 | Cierre | Aprobado tal cual: banda `--gradient-brand` + CTA final |
-| — | Footer | Logo + © + link de contacto WhatsApp |
+| 4 | Conflicto | Rediseñar con impacto visual (face-off HOY vs CON LUKA como escena, no dos columnas planas) |
+| 5 | Plan | H2 `Escribilo y olvidate. LUKA se acuerda por vos.` 3 pasos **sin pricing** + visual del «cerebro» de LUKA clasificando el gasto; tarjetas con impacto |
+| 6 | FAQ | Simple y sencilla, sin adornos ni tarjetas genéricas |
+| 7 | Cierre | Aprobado tal cual: banda `--gradient-brand` + CTA final |
+| — | Footer | Simple: logo + `LUKA` + `© 2026 — Todos los derechos reservados` |
 
-- **Eliminado respecto de la revisión v1:** marquee de categorías (D-12), eyebrow del hero (D-11), microcopy del hero (D-11), tarjetas/puntos «pulse» (D-14).
+- **Eliminado respecto de la revisión v1:** marquee de categorías (D-12), eyebrow del hero (D-11), microcopy del hero (D-11), tarjetas/puntos «pulse» (D-14), **tour de producto (D-19)**.
 
-- **A11y**: `alt` en imágenes, `aria-labelledby` por sección, foco visible, contraste AA, marquee duplicado `aria-hidden`, revelado progresivo que nunca oculta contenido sin JS.
+- **A11y**: `alt` en imágenes, `aria-labelledby` por sección, foco visible, contraste AA, revelado progresivo que nunca oculta contenido sin JS.
 - **SEO**: `title`/`description`/OG actualizados al H1; canonical sin cambios.
 - **Guard test** (`src/pages/landing.test.ts`): CTA, secciones (`como-funciona`, `beneficios`, `faq`, `cierre`), H1, `alt` y `details`.
 - **Copy**: strings aprobados en la sección 2 del diseño (voseo, sin jerga, sin afirmaciones no verificadas).
 
 ## 4. Dashboard (`/app`, login, admin)
 
-Retoque conservador, **sin cambiar layout ni contratos HTMX**:
+**✅ Ejecutado** (rama `dashboard`, mergeado a `main`: `9c272e0` tokens, `a8f87f0` guard, `6e76096` skeletons, `eaf7833` a11y). Retoque conservador, **sin cambiar layout ni contratos HTMX**:
 
 - **Tokens**: `style.css` importa `tokens.css` y re-mapea legacy → marca; `admin_flows.css`, `Stats/Transactions/Charts/Sidebar/Icon`, `app.astro` y `AdminLayout/login` sin hex hardcodeados.
 - **Skeletons**: KPIs (`#stats-loading` + `hx-indicator`), gráficos hasta que Chart.js dibuja (`data-loading` + `aria-busy`), filas shimmer en transacciones al re-fetch; sin shimmer animado con `prefers-reduced-motion`.
@@ -82,7 +86,18 @@ DS «LUKA — Bodegón»: dark, coral primario, Rubik como **proxy** de Gabarito
 - Conflicto + tour → `screens/426c589d2ff44b0d929c164d8427642c`
 - Plan + FAQ + cierre → `screens/48111d9223124a35b558db2d35ac5e3e`
 
-**Rediseño obligatorio antes de tocar código** (Fase 0 del plan): hero+nav sin eyebrow/microcopy y con nav glass flotante, beneficios bento denso, conflicto+tour con impacto, plan sin pricing y con el cerebro de LUKA clasificando. FAQ se regenera simple y cierre se aprueba tal cual.
+**Rediseño obligatorio antes de tocar código** (Fase 0 original, **superada por la iteración v2 de abajo**): ~~conflicto+tour con impacto~~ (el tour se elimina, D-19), hero+nav sin eyebrow/microcopy y con nav glass flotante, beneficios bento denso, plan sin pricing y con el cerebro de LUKA clasificando. FAQ simple y cierre tal cual.
+
+**v2 landing — iteración por pantalla (2026-09-26, D-19…D-23):** el usuario revisó las pantallas v2 y pidió correcciones; se aprueba una pantalla a la vez y se registra acá:
+
+| Pantalla | Prompt / requisitos | Id aprobado |
+|---|---|---|
+| 1 · Nav + Hero | Nav sticky flotante glassmorphism; hero 2 col sin eyebrow ni microcopy; mockup de teléfono (componente 21st.dev id `23322` re-implementado vanilla) | _pendiente_ |
+| 2 · Beneficios | Bento con impacto real; texto mínimo (título + subtítulo); sin tile gigante vacío; mini-visual por tile | _pendiente_ |
+| 3 · Conflicto | Face-off HOY vs CON LUKA como escena impactante; **sin tour** | _pendiente_ |
+| 4 · Plan | H2 D-20; tarjetas/riel con impacto; cerebro de LUKA clasificando | _pendiente_ |
+| FAQ + Cierre | Sin rediseño: se reutiliza la referencia ya revisada (`48111d92…`, `6837ca89…`) | — |
+| Footer | No se mockea: se implementa directo en código (D-21) | — |
 
 **v2 dashboard con DS Bodegón (generada 2026-09-25; referencia visual de Fase 2, D-18):**
 - Dashboard normal → `screens/6981d126bbf948dd8c5e803b22f62d71`
@@ -90,11 +105,11 @@ DS «LUKA — Bodegón»: dark, coral primario, Rubik como **proxy** de Gabarito
 
 ## 6. Ejecución
 
-1. **Stitch** (arriba) → review visual del usuario.
-2. Rama `landing-page`: reescribir `index.astro` + `landing.test.ts` + docs de validación (`docs/landing/03-validacion.md`: checklist CLEAR y guion del test de 5 s).
-3. Rama `dashboard`: tokens + skeletons + a11y + guard test.
-4. Verificación por rama: `npm run check`, `npm test`, `npm run build`; revisión visual con Playwright sobre `wrangler dev` (landing + login + dashboard con `/dev-login`).
-5. Cierre: PR por rama **solo si el usuario pide push**.
+1. **Stitch** por pantalla (D-23) → aprobación del usuario pantalla a pantalla → ids en §5.
+2. Rama `landing-page` (sincronizada con `main`): copy deck (`docs/landing/01-copy-deck.md`) → guard test `src/pages/landing.test.ts` (TDD) → reescribir `index.astro` → validación (`docs/landing/02-validacion.md`: checklist CLEAR y guion del test de 5 s).
+3. ~~Rama `dashboard`: tokens + skeletons + a11y + guard test.~~ ✅ Ejecutada y mergeada (`9c272e0`…`eaf7833`).
+4. Verificación: `npm run check`, `npm test`, `npm run build`; revisión visual con Playwright sobre `wrangler dev` (landing desktop 1440 + mobile 390; dashboard con `/dev-login`).
+5. Cierre: merge `--ff-only` a `main` + push **solo con OK del usuario** (Workers Builds deploya desde `main`).
 
 ## 7. Riesgos
 
@@ -105,8 +120,8 @@ DS «LUKA — Bodegón»: dark, coral primario, Rubik como **proxy** de Gabarito
 
 ## 8. Verificación de aceptación
 
-- [ ] Landing con los 8 bloques, CTA WhatsApp y guard tests verdes.
-- [ ] Dashboard sin hex legacy, con skeletons visibles en KPIs/gráficos/transacciones.
+- [ ] Landing con los 7 bloques + footer simple (sin tour, título del Plan D-20, footer D-21), CTA WhatsApp y guard tests verdes.
+- [x] Dashboard sin hex legacy, con skeletons visibles en KPIs/gráficos/transacciones (`9c272e0`…`eaf7833`).
 - [ ] `npm run check` 0 errores · `npm test` verde · `npm run build` OK.
 - [ ] Contraste AA/3:1 verificado en las superficies donde se usa cada color.
 - [ ] HTMX y los 3 parciales intactos (mismo contrato).
