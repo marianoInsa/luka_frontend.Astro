@@ -1,54 +1,7 @@
-/**
- * Port 1:1 de `static/js/admin_flows.js` (editor de flujos del panel admin).
- * El JS original sigue en `static/` para FastAPI hasta F5.
- */
-
-export interface EventPolicy {
-  event_key: string;
-  variables: string[];
-  actions: string[];
-  terminal_only: boolean;
-}
-
-export interface Contract {
-  events: EventPolicy[];
-  node_types: string[];
-}
-
-export interface FlowOption {
-  id: string;
-  title: string;
-  action?: string;
-  next_node?: string;
-  description?: string;
-}
-
-export interface FlowNode {
-  id: string;
-  type: string;
-  body: string;
-  terminal: boolean;
-  header?: string;
-  footer?: string;
-  button?: string;
-  options?: FlowOption[];
-  sections?: { title?: string; options: FlowOption[] }[];
-}
-
-export interface FlowDefinition {
-  start_node: string;
-  nodes: FlowNode[];
-}
-
-export interface FlowRecord {
-  id: string;
-  slug: string;
-  name: string;
-  event_key: string;
-  status: string;
-  draft?: { version_number: number; definition: FlowDefinition } | null;
-  published?: { version_number: number; definition: FlowDefinition } | null;
-}
+/** Administrador de flujos: edición del contrato del backend y proyección visual. */
+import { LukaFlowGraph } from './admin-flow-graph';
+import type { EventPolicy, Contract, FlowOption, FlowNode, FlowDefinition, FlowRecord } from '../lib/flow-contract';
+export type { EventPolicy, Contract, FlowOption, FlowNode, FlowDefinition, FlowRecord } from '../lib/flow-contract';
 
 interface ValidationError {
   path: string;
@@ -85,7 +38,7 @@ export function slugify(value: string): string {
 }
 
 export function nodeKindLabel(type: string): string {
-  const labels: Record<string, string> = { text: 'Texto', reply_button: 'Botones', list: 'Lista' };
+  const labels: Record<string, string> = { text: 'Texto', reply_button: 'Botones de respuesta', list: 'Lista', url_button: 'Botón de enlace' };
   return labels[type] ?? type;
 }
 
@@ -97,13 +50,14 @@ export function defaultDefinition(): FlowDefinition {
 }
 
 export function uniqueNodeId(nodes: FlowNode[], type: string): string {
-  const prefix = type === 'text' ? 'mensaje' : type === 'list' ? 'lista' : 'opciones';
+  const prefix = type === 'text' ? 'mensaje' : type === 'list' ? 'lista' : type === 'url_button' ? 'enlace' : 'opciones';
   let counter = nodes.length + 1;
   while (nodes.some((node) => node.id === `${prefix}-${counter}`)) counter += 1;
   return `${prefix}-${counter}`;
 }
 
-export function defaultOption(policy: EventPolicy, nodes: FlowNode[], index = 1): FlowOption {
+export function defaultOption(policy: EventPolicy, nodes: FlowNode[], index = 1, journeyNode?: FlowNode): FlowOption {
+  if (journeyNode && policy.actions.length) return { id: `${journeyNode.id}-opcion-${index}`, title: `Opción ${index}`, action: policy.actions[0] };
   if (nodes.length > 1) {
     return { id: `opcion-${index}`, title: `Opción ${index}`, next_node: nodes[0].id };
   }
@@ -162,6 +116,25 @@ function init(): void {
   const initialDefinition = flow?.draft?.definition ?? flow?.published?.definition ?? defaultDefinition();
   let definition: FlowDefinition = structuredClone(initialDefinition);
   let slugTouched = Boolean(flow);
+  const graphSource = byId<HTMLElement>('flow-map-source');
+  const initialGraphSource = graphSource.textContent;
+  const graph = new LukaFlowGraph(byId<HTMLElement>('flow-map'), (index, responseId, externalEvent) => {
+    if (externalEvent) { window.location.assign(`/admin/flujos/evento/${encodeURIComponent(externalEvent)}`); return; }
+    const target = nodesRoot.children[index] as HTMLElement | undefined;
+    if (!target) return;
+    nodesRoot.querySelectorAll('.flow-node-selected').forEach((node) => node.classList.remove('flow-node-selected'));
+    target.classList.add('flow-node-selected');
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    (responseId ? Array.from(target.querySelectorAll<HTMLInputElement>('[data-response-id]')).find((input) => input.dataset.responseId === responseId) : target.querySelector<HTMLTextAreaElement>('textarea'))?.focus({ preventScroll: true });
+  });
+  let graphFrame: number;
+  function updateGraph(): void {
+    cancelAnimationFrame(graphFrame);
+    graphFrame = requestAnimationFrame(() => {
+      graph.update(definition, currentPolicy());
+      graphSource.textContent = JSON.stringify(definition) === JSON.stringify(initialDefinition) ? initialGraphSource : 'Cambios locales · guardá el borrador';
+    });
+  }
 
   function element<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, text?: string): HTMLElementTagNameMap[K] {
     const node = document.createElement(tag);
@@ -186,7 +159,7 @@ function init(): void {
     control.value = value || '';
     control.maxLength = maxLength;
     control.placeholder = placeholder;
-    control.addEventListener('input', () => onInput(control.value));
+    control.addEventListener('input', () => { onInput(control.value); updateGraph(); });
     return control;
   }
 
@@ -194,7 +167,7 @@ function init(): void {
     const control = document.createElement('textarea');
     control.value = value || '';
     control.maxLength = maxLength;
-    control.addEventListener('input', () => onInput(control.value));
+    control.addEventListener('input', () => { onInput(control.value); updateGraph(); });
     return control;
   }
 
@@ -207,12 +180,23 @@ function init(): void {
       control.append(option);
     });
     control.value = value || items[0]?.value || '';
-    control.addEventListener('change', () => onChange(control.value));
+    control.addEventListener('change', () => { onChange(control.value); updateGraph(); });
     return control;
   }
 
   function currentPolicy(): EventPolicy {
     return events.get(eventSelect.value) ?? { event_key: '', variables: [], actions: [], terminal_only: false };
+  }
+
+  const eventFor = (node?: FlowNode): string => Object.entries(definition.event_nodes || {}).find(([, id]) => id === node?.id)?.[0] || '';
+  const policyFor = (node?: FlowNode): EventPolicy => events.get(eventFor(node)) || currentPolicy();
+  const allowedNodeTypes = (node?: FlowNode): string[] => contract.node_types.filter((type) =>
+    ['text', 'reply_button', 'list', 'url_button'].includes(type) && (!policyFor(node).terminal_only || ['text', 'url_button'].includes(type)));
+  const optionFor = (node?: FlowNode, index = 1): FlowOption => defaultOption(policyFor(node), definition.nodes, index, definition.event_nodes ? node : undefined);
+  function defaultURLButton(node?: FlowNode): Pick<FlowNode, 'url' | 'url_button_label'> {
+    const policy = policyFor(node);
+    const variable = policy.url_button?.url_variable || policy.url_variables?.[0];
+    return { url_button_label: policy.url_button?.default_label || 'Abrir enlace', url: variable ? `{${variable}}` : '' };
   }
 
   function showNotice(kind: 'success' | 'error', message: string, errors: ValidationError[] = []): void {
@@ -238,15 +222,16 @@ function init(): void {
     contract.events.forEach((event) => {
       const option = document.createElement('option');
       option.value = event.event_key;
-      option.textContent = event.event_key;
+      option.textContent = event.label || event.event_key;
       eventSelect.append(option);
     });
-    eventSelect.value = flow?.event_key || contract.events[0]?.event_key || '';
+    const requestedEvent = new URLSearchParams(window.location.search).get('event');
+    eventSelect.value = flow?.event_key || (requestedEvent && events.has(requestedEvent) ? requestedEvent : contract.events[0]?.event_key) || '';
+    if (!flow && currentPolicy().default_definition) definition = structuredClone(currentPolicy().default_definition!);
     eventSelect.addEventListener('change', () => {
       const policy = currentPolicy();
-      if (policy.terminal_only) {
-        definition = defaultDefinition();
-      }
+      if (policy.default_definition) definition = structuredClone(policy.default_definition);
+      else if (definition.event_nodes || policy.terminal_only) definition = defaultDefinition();
       render();
     });
   }
@@ -257,24 +242,30 @@ function init(): void {
       ? `Variables: ${policy.variables.map((value) => `{${value}}`).join(', ')}.`
       : 'Este evento no expone variables.';
     eventHelp.textContent = policy.terminal_only
-      ? `${variables} Respuesta terminal: no deja opciones pendientes.`
+      ? `${variables} Un único mensaje: elegí su presentación en el campo Tipo.`
       : `${variables} Acciones disponibles: ${policy.actions.join(', ') || 'ninguna'}.`;
+    if (policy.used_by) eventHelp.textContent = `Subflujo compartido por: ${policy.used_by.join(' y ')}. Al terminar, continúa la operación que lo llamó.`;
+    if (policy.stages) eventHelp.textContent = 'Un solo recorrido: mensajes, respuestas del usuario y resultados. Se guarda y publica completo.';
+    startSelect.closest('label')!.hidden = Boolean(policy.stages);
+    addNodeActions.hidden = policy.terminal_only || Boolean(policy.stages);
     addNodeActions.querySelectorAll<HTMLButtonElement>('[data-add-node]').forEach((button) => {
-      button.disabled = policy.terminal_only && button.dataset.addNode !== 'text';
+      button.disabled = policy.terminal_only || !allowedNodeTypes().includes(button.dataset.addNode || '');
     });
   }
 
   function addNode(type: string): void {
-    if (currentPolicy().terminal_only && type !== 'text') return;
+    if (currentPolicy().terminal_only || definition.event_nodes || !allowedNodeTypes().includes(type)) return;
     const id = uniqueNodeId(definition.nodes, type);
     if (type === 'text') {
       definition.nodes.push({ id, type, body: '', terminal: true });
+    } else if (type === 'url_button') {
+      definition.nodes.push({ id, type, body: '', terminal: true, ...defaultURLButton() });
     } else if (type === 'reply_button') {
-      definition.nodes.push({ id, type, body: '', terminal: false, options: [defaultOption(currentPolicy(), definition.nodes)] });
+      definition.nodes.push({ id, type, body: '', terminal: false, options: [optionFor()] });
     } else {
       definition.nodes.push({
         id, type, body: '', button: 'Ver opciones', terminal: false,
-        sections: [{ title: 'Opciones', options: [defaultOption(currentPolicy(), definition.nodes)] }],
+        sections: [{ title: 'Opciones', options: [optionFor()] }],
       });
     }
     render();
@@ -295,6 +286,9 @@ function init(): void {
     const previousId = node.id;
     node.id = nextId;
     if (definition.start_node === previousId) definition.start_node = nextId;
+    Object.keys(definition.event_nodes || {}).forEach((event) => {
+      if (definition.event_nodes![event] === previousId) definition.event_nodes![event] = nextId;
+    });
     definition.nodes.forEach((candidate) => {
       const options = candidate.type === 'reply_button'
         ? candidate.options ?? []
@@ -309,14 +303,17 @@ function init(): void {
   }
 
   function changeNodeType(index: number, type: string): void {
+    if (!allowedNodeTypes(definition.nodes[index]).includes(type)) return;
     const old = definition.nodes[index];
     const base = { id: old.id, type, body: old.body || '' };
     if (type === 'text') definition.nodes[index] = { ...base, terminal: true };
-    if (type === 'reply_button') definition.nodes[index] = { ...base, terminal: false, options: [defaultOption(currentPolicy(), definition.nodes)] };
+    if (type === 'url_button') definition.nodes[index] = { ...base, terminal: true, ...defaultURLButton(old), ...(old.url_button_label ? { url_button_label: old.url_button_label } : {}) };
+    if (type === 'text' && policyFor(old).url_button && old.url_button_label) definition.nodes[index].url_button_label = old.url_button_label;
+    if (type === 'reply_button') definition.nodes[index] = { ...base, terminal: false, options: [optionFor(old)] };
     if (type === 'list') {
       definition.nodes[index] = {
         ...base, button: 'Ver opciones', terminal: false,
-        sections: [{ title: 'Opciones', options: [defaultOption(currentPolicy(), definition.nodes)] }],
+        sections: [{ title: 'Opciones', options: [optionFor(old)] }],
       };
     }
     render();
@@ -333,8 +330,8 @@ function init(): void {
     startSelect.value = definition.start_node;
   }
 
-  function renderVariables(container: HTMLElement): void {
-    const variables = currentPolicy().variables;
+  function renderVariables(container: HTMLElement, node: FlowNode): void {
+    const variables = policyFor(node).variables;
     const help = element('div', 'flow-variable-help');
     help.textContent = variables.length
       ? `Podés insertar: ${variables.map((value) => `{${value}}`).join(' · ')}`
@@ -342,7 +339,7 @@ function init(): void {
     container.append(help);
   }
 
-  function renderOption(option: FlowOption, onRemove: () => void, allowDescription = false): HTMLDivElement {
+  function renderOption(option: FlowOption, onRemove: () => void, allowDescription = false, node?: FlowNode): HTMLDivElement {
     const wrapper = element('div', 'flow-option');
     const grid = element('div', 'flow-option-grid');
     grid.append(
@@ -350,8 +347,8 @@ function init(): void {
       field('Texto visible', input(option.title, allowDescription ? 24 : 20, (value) => { option.title = value; })),
     );
 
-    const policy = currentPolicy();
-    const targetModes: SelectItem[] = [{ value: 'next', label: 'Siguiente mensaje' }];
+    const policy = policyFor(node);
+    const targetModes: SelectItem[] = definition.event_nodes ? [] : [{ value: 'next', label: 'Siguiente mensaje' }];
     if (policy.actions.length) targetModes.push({ value: 'action', label: 'Acción permitida' });
     const mode = option.action ? 'action' : 'next';
     const modeSelect = select(targetModes, mode, (value) => {
@@ -397,7 +394,7 @@ function init(): void {
     add.type = 'button';
     add.disabled = nodeOptions.length >= 3;
     add.addEventListener('click', () => {
-      nodeOptions.push(defaultOption(currentPolicy(), definition.nodes, nodeOptions.length + 1));
+      nodeOptions.push(optionFor(node, nodeOptions.length + 1));
       render();
     });
     header.append(add);
@@ -406,7 +403,7 @@ function init(): void {
       options.append(renderOption(option, () => {
         nodeOptions.splice(index, 1);
         render();
-      }));
+      }, false, node));
     });
     container.append(options);
   }
@@ -421,7 +418,7 @@ function init(): void {
     addSection.type = 'button';
     addSection.disabled = sections.length >= 10;
     addSection.addEventListener('click', () => {
-      sections.push({ title: `Sección ${sections.length + 1}`, options: [defaultOption(currentPolicy(), definition.nodes)] });
+      sections.push({ title: `Sección ${sections.length + 1}`, options: [optionFor(node)] });
       render();
     });
     header.append(addSection);
@@ -440,7 +437,7 @@ function init(): void {
       const rowCount = sections.reduce((count, current) => count + current.options.length, 0);
       addRow.disabled = rowCount >= 10;
       addRow.addEventListener('click', () => {
-        section.options.push(defaultOption(currentPolicy(), definition.nodes, rowCount + 1));
+        section.options.push(optionFor(node, rowCount + 1));
         render();
       });
       const removeSection = element('button', 'flow-icon-button', 'Eliminar sección');
@@ -456,7 +453,7 @@ function init(): void {
         sectionRoot.append(renderOption(option, () => {
           section.options.splice(optionIndex, 1);
           render();
-        }, true));
+        }, true, node));
       });
       options.append(sectionRoot);
     });
@@ -469,27 +466,40 @@ function init(): void {
     const title = element('div', 'flow-node-title');
     title.append(
       element('span', 'flow-node-kind', nodeKindLabel(node.type)),
-      element('strong', '', node.id || 'Mensaje sin ID'),
+      element('strong', '', currentPolicy().stages?.[eventFor(node)] || node.id || 'Mensaje sin ID'),
     );
     const remove = element('button', 'flow-icon-button', 'Eliminar mensaje');
     remove.type = 'button';
     remove.addEventListener('click', () => removeNode(index));
-    header.append(title, remove);
+    header.append(title);
+    if (!definition.event_nodes) header.append(remove);
 
     const content = element('div', 'flow-node-content');
-    const allowedNodeTypes = currentPolicy().terminal_only ? ['text'] : contract.node_types;
+    const policy = policyFor(node);
+    const hasURLButton = node.type === 'url_button' || (node.type === 'text' && policy.url_button);
     content.append(
       field('ID del mensaje', input(node.id, 100, (value) => { changeNodeId(node, value); })),
       field('Tipo', select(
-        allowedNodeTypes.map((type) => ({ value: type, label: nodeKindLabel(type) })),
+        allowedNodeTypes(node).map((type) => ({ value: type, label: nodeKindLabel(type) })),
         node.type,
         (value) => { changeNodeType(index, value); },
       )),
-      field('Contenido', textarea(node.body, node.type === 'text' ? 4096 : 1024, (value) => { node.body = value; }), 'flow-field-body'),
+      field('Contenido', textarea(node.body, node.type === 'text' && !hasURLButton ? 4096 : 1024, (value) => { node.body = value; }), 'flow-field-body'),
     );
-    renderVariables(content);
+    renderVariables(content, node);
 
-    if (node.type !== 'text') {
+    if (hasURLButton) {
+      content.append(field('Texto del botón', input(node.url_button_label ?? policy.url_button?.default_label ?? '', 20, (value) => { node.url_button_label = value; }, 'Completar registro')));
+      const fixedVariable = policy.url_button?.url_variable;
+      const destination = input(fixedVariable ? `{${fixedVariable}}` : node.url, 2048, (value) => { node.url = value; }, 'https://ejemplo.com');
+      destination.readOnly = Boolean(fixedVariable);
+      content.append(field('Enlace del botón', destination));
+      const variables = (policy.url_variables || []).map((value) => `{${value}}`).join(', ');
+      content.append(element('div', 'flow-variable-help', fixedVariable
+        ? 'El destino se genera automáticamente. Escribí el contenido sin la variable del enlace para mostrarlo sólo en el botón.'
+        : `Usá una URL completa con http:// o https://${variables ? `, o una variable: ${variables}` : ''}. Quitá el enlace del contenido para mostrarlo sólo en el botón. Al tocarlo se abre la página; no envía una respuesta al chat.`));
+    }
+    if (['reply_button', 'list'].includes(node.type)) {
       content.append(
         field('Encabezado opcional', input(node.header || '', 60, (value) => {
           if (value) node.header = value;
@@ -506,6 +516,23 @@ function init(): void {
       content.append(field('Texto del botón', input(node.button, 20, (value) => { node.button = value; })));
       renderListSections(node, content);
     }
+    const responses = currentPolicy().text_responses?.[eventFor(node)] || [];
+    if (responses.length) {
+      const section = element('div', 'flow-user-responses');
+      section.append(element('h3', '', 'Respuestas posibles del usuario'));
+      section.append(element('p', 'flow-variable-help', 'Los ejemplos ayudan a visualizar la conversación. Luka interpreta el texto; no exige que coincida literalmente.'));
+      responses.forEach((response) => {
+        const control = input(definition.response_examples?.[response.id] || response.example, 240, (value) => {
+          definition.response_examples ||= {};
+          if (value.trim()) definition.response_examples[response.id] = value;
+          else delete definition.response_examples[response.id];
+        });
+        control.dataset.responseId = response.id;
+        section.append(field(response.label, control));
+        section.append(element('p', 'flow-response-outcomes', response.outcomes.map((o) => `${o.label} → ${currentPolicy().stages?.[o.event] || currentPolicy().subflows?.[o.event]?.label || o.event}`).join(' · ')));
+      });
+      content.append(section);
+    }
     root.append(header, content);
     return root;
   }
@@ -514,6 +541,7 @@ function init(): void {
     updateEventHelp();
     renderStartOptions();
     nodesRoot.replaceChildren(...definition.nodes.map((node, index) => renderNode(node, index)));
+    updateGraph();
   }
 
   function payload(): { name: string; definition: FlowDefinition } {
@@ -592,7 +620,7 @@ function init(): void {
     if (!slugTouched) slugInput.value = slugify(nameInput.value);
   });
   slugInput.addEventListener('input', () => { slugTouched = true; });
-  startSelect.addEventListener('change', () => { definition.start_node = startSelect.value; });
+  startSelect.addEventListener('change', () => { definition.start_node = startSelect.value; updateGraph(); });
   addNodeActions.addEventListener('click', (event) => {
     const type = event.target instanceof HTMLElement ? event.target.dataset.addNode : undefined;
     if (type) addNode(type);

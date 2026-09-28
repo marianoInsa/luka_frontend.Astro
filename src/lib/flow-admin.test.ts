@@ -124,7 +124,7 @@ describe('flowAdminClient (espejo de ConversationFlowAdminClient)', () => {
       const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
       expect(url).toBe(`${BASE}${call.path}`);
       expect(init.method).toBe(call.method);
-      expect(init.headers).toEqual({ Authorization: 'Bearer test-key', Accept: 'application/json' });
+      expect(init.headers).toEqual({ Authorization: 'Bearer test-key', Accept: 'application/json', ...(call.body === undefined ? {} : { 'Content-Type': 'application/json' }) });
       expect(init.body).toBe(call.body);
       expect(init.signal).toBeInstanceOf(AbortSignal);
     }

@@ -46,7 +46,7 @@ describe('slugify', () => {
 describe('nodeKindLabel', () => {
   it('traduce los tipos conocidos', () => {
     expect(nodeKindLabel('text')).toBe('Texto');
-    expect(nodeKindLabel('reply_button')).toBe('Botones');
+    expect(nodeKindLabel('reply_button')).toBe('Botones de respuesta');
     expect(nodeKindLabel('list')).toBe('Lista');
   });
 

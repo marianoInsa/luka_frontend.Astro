@@ -93,7 +93,7 @@ describe('proxies', () => {
     expect(url).toBe(`${BASE}/admin/conversation-flows/validate`);
     expect(init.method).toBe('POST');
     expect(init.body).toBe(JSON.stringify(payload));
-    expect(init.headers).toEqual({ Authorization: `Bearer ${API_KEY}`, Accept: 'application/json' });
+    expect(init.headers).toEqual({ Authorization: `Bearer ${API_KEY}`, Accept: 'application/json', 'Content-Type': 'application/json' });
   });
 
   it('crear responde 201 aunque el backend devuelva 200 y no filtra el secreto', async () => {
@@ -211,5 +211,46 @@ describe('proxies', () => {
       expect(await response.json()).toEqual({ detail: 'JSON inválido.' });
     }
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('abrir subflujo por evento', () => {
+  async function openEvent(authUserId = ADMIN_ID) {
+    const { GET } = await import('../pages/admin/flujos/evento/[event_key]');
+    const ctx = context(new Request('http://localhost/admin/flujos/evento/category.confirmation_required'), authUserId);
+    ctx.params = { event_key: 'category.confirmation_required' };
+    ctx.redirect = (location, status = 302) => new Response(null, { status, headers: { Location: location } });
+    return GET(ctx);
+  }
+
+  it('abre el editor compartido existente y omite recursos retirados', async () => {
+    fetchMock.mockResolvedValue(jsonResponse([
+      { id: 'retirado', event_key: 'category.confirmation_required', status: 'archived' },
+      { id: FLOW_ID, event_key: 'category.confirmation_required', status: 'active' },
+    ]));
+    const response = await openEvent();
+    expect(response.status).toBe(303);
+    expect(response.headers.get('Location')).toBe(`/admin/flujos/${FLOW_ID}`);
+  });
+
+  it('si falta el recurso, preselecciona el evento sin crear ni publicar nada', async () => {
+    fetchMock.mockResolvedValue(jsonResponse([]));
+    const response = await openEvent();
+    expect(response.headers.get('Location')).toBe('/admin/flujos/nuevo?event=category.confirmation_required');
+    expect(fetchMock.mock.calls[0][1].method).toBe('GET');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('exige acceso administrativo antes de consultar al backend', async () => {
+    const response = await openEvent('otro-usuario');
+    expect(response.status).toBe(403);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('propaga un error del backend sin revelar la credencial', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ detail: 'No disponible' }, 503));
+    const response = await openEvent();
+    expect(response.status).toBe(503);
+    expect(await response.text()).not.toContain(API_KEY);
   });
 });

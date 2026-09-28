@@ -1,4 +1,5 @@
 import { envValue } from './env';
+import type { EventPolicy, Contract, FlowDefinition } from './flow-contract';
 
 // Espejo de app/services/conversation_flow_admin.py:is_flow_admin (CSV,
 // case-insensitive). El panel completo se porta en F4.
@@ -18,17 +19,8 @@ export interface FlowAdminValidationError {
   message: string;
 }
 
-export interface FlowAdminEventPolicy {
-  event_key: string;
-  variables: string[];
-  actions: string[];
-  terminal_only: boolean;
-}
-
-export interface FlowAdminContract {
-  events: FlowAdminEventPolicy[];
-  node_types: string[];
-}
+export type FlowAdminEventPolicy = EventPolicy;
+export type FlowAdminContract = Contract;
 
 export interface FlowAdminVersion {
   version_number: number;
@@ -45,8 +37,8 @@ export interface FlowSummary {
 }
 
 export interface FlowRecord extends FlowSummary {
-  draft?: (FlowAdminVersion & { definition?: unknown }) | null;
-  published?: (FlowAdminVersion & { definition?: unknown }) | null;
+  draft?: (FlowAdminVersion & { definition?: FlowDefinition }) | null;
+  published?: (FlowAdminVersion & { definition?: FlowDefinition }) | null;
 }
 
 export class FlowAdminConfigError extends Error {
@@ -96,6 +88,7 @@ async function request<T>(
       headers: {
         Authorization: `Bearer ${apiKey}`,
         Accept: 'application/json',
+        ...(payload === undefined ? {} : { 'Content-Type': 'application/json' }),
       },
       body: payload === undefined ? undefined : JSON.stringify(payload),
       signal: AbortSignal.timeout(10_000),

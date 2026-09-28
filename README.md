@@ -114,7 +114,11 @@ npx wrangler dev   # http://localhost:4321; carga .dev.vars
   `luka` (`src/lib/flow-admin.ts`). El editor vive en `src/scripts/admin-flows.ts` (port de
   `static/js/admin_flows.js`) y el shell en `src/layouts/AdminLayout.astro` +
   `src/components/Admin{FlowsList,FlowEditor}.astro`; el gate 403 por allowlist y el secreto
-  server-side se validan en sus tests.
+  server-side se validan en sus tests. El listado permite buscar y filtrar por estado.
+  El editor incluye botones de enlace, un mapa de cajas independientes y flechas, el
+  recorrido completo de límites con ejemplos de respuestas y acceso al subflujo compartido
+  de categorías (`/admin/flujos/evento/[event_key]`). La proyección del mapa vive en
+  `src/scripts/admin-flow-graph.ts`; los tipos del contrato en `src/lib/flow-contract.ts`.
 - `src/components/Sidebar.astro`: chrome compartido del área privada (dashboard + admin).
 - `src/middleware.ts`: exige `luka_session` en las áreas privadas (`/app`, `/dashboard`,
   `/partials`, `/api/graficos`, `/exportar`, `/admin`) y redirige 303 a `/login`.
