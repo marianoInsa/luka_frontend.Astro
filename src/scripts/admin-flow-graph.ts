@@ -50,7 +50,11 @@ export function projectJourney(definition: FlowDefinition, policy: EventPolicy):
   const stageLevels: Record<string, number> = { "limit.listed": 0, "limit.started": 2,
     "limit.missing_data": 4, "limit.year_confirmation": 4,
     "limit.created": 6,
-    "limit.updated": 6, "limit.cancelled": 6 };
+    "limit.updated": 6, "limit.cancelled": 6,
+    "chart.period_required": 0, "chart.distribution_choice": 2,
+    "chart.currency_choice": 4, "chart.category_choice": 4,
+    "chart.invalid_filters": 4, "chart.completed": 6,
+    "chart.no_data": 6, "chart.failed": 6, "chart.cancelled": 6 };
   const targetFor = (event: string): string => (definition.event_nodes || {})[event] || `subflow-${event}`;
   definition.nodes.forEach((node, index) => {
     const event = Object.keys(definition.event_nodes || {}).find((key) => (definition.event_nodes || {})[key] === node.id) || '';

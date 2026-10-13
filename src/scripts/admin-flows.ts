@@ -191,7 +191,8 @@ function init(): void {
   const eventFor = (node?: FlowNode): string => Object.entries(definition.event_nodes || {}).find(([, id]) => id === node?.id)?.[0] || '';
   const policyFor = (node?: FlowNode): EventPolicy => events.get(eventFor(node)) || currentPolicy();
   const allowedNodeTypes = (node?: FlowNode): string[] => contract.node_types.filter((type) =>
-    ['text', 'reply_button', 'list', 'url_button'].includes(type) && (!policyFor(node).terminal_only || ['text', 'url_button'].includes(type)));
+    ['text', 'reply_button', 'list', 'url_button'].includes(type) && (policyFor(node).stage_only
+      ? type === 'text' : !policyFor(node).terminal_only || ['text', 'url_button'].includes(type)));
   const optionFor = (node?: FlowNode, index = 1): FlowOption => defaultOption(policyFor(node), definition.nodes, index, definition.event_nodes ? node : undefined);
   function defaultURLButton(node?: FlowNode): Pick<FlowNode, 'url' | 'url_button_label'> {
     const policy = policyFor(node);
@@ -220,13 +221,16 @@ function init(): void {
 
   function configureEventSelect(): void {
     contract.events.forEach((event) => {
+      if (event.stage_only) return;
       const option = document.createElement('option');
       option.value = event.event_key;
       option.textContent = event.label || event.event_key;
       eventSelect.append(option);
     });
     const requestedEvent = new URLSearchParams(window.location.search).get('event');
-    eventSelect.value = flow?.event_key || (requestedEvent && events.has(requestedEvent) ? requestedEvent : contract.events[0]?.event_key) || '';
+    const selectable = contract.events.filter((event) => !event.stage_only);
+    eventSelect.value = flow?.event_key || (requestedEvent && selectable.some((event) => event.event_key === requestedEvent)
+      ? requestedEvent : selectable[0]?.event_key) || '';
     if (!flow && currentPolicy().default_definition) definition = structuredClone(currentPolicy().default_definition!);
     eventSelect.addEventListener('change', () => {
       const policy = currentPolicy();

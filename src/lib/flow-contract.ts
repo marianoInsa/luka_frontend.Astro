@@ -3,6 +3,7 @@ export interface EventPolicy {
   variables: string[];
   actions: string[];
   terminal_only: boolean;
+  stage_only?: boolean;
   label?: string;
   url_variables?: string[];
   url_button?: { default_label: string; url_variable: string; max_label_length: number; max_body_length: number };

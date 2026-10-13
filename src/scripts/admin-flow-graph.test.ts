@@ -71,3 +71,41 @@ describe('mapa del recorrido de límites', () => {
     expect(uniqueNodeId([], 'url_button')).toBe('enlace-1');
   });
 });
+
+describe('mapa del recorrido de gráficos', () => {
+  it('muestra la aclaración, la elección y el resultado en un solo recorrido editable', () => {
+    const chartDefinition: FlowDefinition = {
+      start_node: 'period_required',
+      event_nodes: {
+        'chart.period_required': 'period_required',
+        'chart.distribution_choice': 'distribution_choice',
+        'chart.completed': 'completed',
+      },
+      nodes: [
+        { id: 'period_required', type: 'text', body: '{question}', terminal: true },
+        { id: 'distribution_choice', type: 'text', body: 'Elegí:\n{options}', terminal: true },
+        { id: 'completed', type: 'text', body: '{caption}', terminal: true },
+      ],
+    };
+    const chartPolicy: EventPolicy = {
+      event_key: 'chart.journey', variables: [], actions: [], terminal_only: false,
+      stages: {
+        'chart.period_required': 'Aclarar período',
+        'chart.distribution_choice': 'Elegir barras o pastel',
+        'chart.completed': 'Gráfico enviado',
+      },
+      text_responses: {
+        'chart.distribution_choice': [{
+          id: 'chart-distribution', label: 'Elige una opción',
+          example: '2. Pastel de Oct 2026',
+          outcomes: [{ event: 'chart.completed', label: 'Gráfico generado' }],
+        }],
+      },
+    };
+    const graph = projectJourney(chartDefinition, chartPolicy);
+    expect(graph.nodes.find((node) => node.id === 'period_required')?._level).toBe(0);
+    expect(graph.nodes.find((node) => node.id === 'distribution_choice')?._level).toBe(2);
+    expect(graph.nodes.find((node) => node.id === 'completed')?._level).toBe(6);
+    expect(graph.nodes.find((node) => node._responseId === 'chart-distribution')?.options?.[0].next_node).toBe('completed');
+  });
+});
