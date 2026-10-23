@@ -111,25 +111,27 @@ const consumoOver = consumo.over === true;
     <div class="stat-body stat-body--full">
       <p class="stat-label">Cotizaciones</p>
       {
-        quoteRows.length === 0 ? (
-          <p class="stat-hint">Cotizaciones no disponibles; no se convierte.</p>
-        ) : (
-          <>
-            <table class="quotes-table">
-              <thead>
-                <tr>
-                  <th scope="col">Casa</th>
-                  <th scope="col">Compra</th>
-                  <th scope="col">Venta</th>
-                </tr>
-              </thead>
-              <tbody>
-                {quoteRows.map(({ tipo, quote }) => (
+        <>
+          {quoteRows.length === 0 && (
+            <p class="stat-hint">Cotizaciones no disponibles; no se convierte.</p>
+          )}
+          <table class="quotes-table">
+            <thead>
+              <tr>
+                <th scope="col">Casa</th>
+                <th scope="col">Compra</th>
+                <th scope="col">Venta</th>
+              </tr>
+            </thead>
+            <tbody>
+              {TIPOS.map((tipo) => {
+                const quote = patrimonio.quotes[tipo];
+                return (
                   <tr>
                     <th scope="row">
                       <span class="quotes-house">
                         {TIPO_LABELS[tipo]}
-                        {quote.stale && (
+                        {quote?.stale && (
                           <span
                             class="stat-badge stat-badge--warning"
                             title={staleTitle(quote.fetched_at)}
@@ -139,19 +141,19 @@ const consumoOver = consumo.over === true;
                         )}
                       </span>
                     </th>
-                    <td>{quote.compra == null ? '—' : `$${formatDecimals(quote.compra)}`}</td>
-                    <td>{quote.venta == null ? '—' : `$${formatDecimals(quote.venta)}`}</td>
+                    <td>{quote?.compra == null ? '—' : `$${formatDecimals(quote.compra)}`}</td>
+                    <td>{quote?.venta == null ? '—' : `$${formatDecimals(quote.venta)}`}</td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-            {patrimonio.usd_total === 0 && <p class="quotes-note">Sin saldos en USD.</p>}
-            {asOf && <p class="quotes-asof">Actualizada {asOf}</p>}
-            <p class="quotes-footnote">
-              DolarAPI{consultedAt ? ` · consultado ${consultedAt}` : ''}. Valuado a compra.
-            </p>
-          </>
-        )
+                );
+              })}
+            </tbody>
+          </table>
+          {patrimonio.usd_total === 0 && <p class="quotes-note">Sin saldos en USD.</p>}
+          {asOf && <p class="quotes-asof">Actualizada {asOf}</p>}
+          <p class="quotes-footnote">
+            DolarAPI{consultedAt ? ` · consultado ${consultedAt}` : ''}. Valuado a compra.
+          </p>
+        </>
       }
     </div>
   </div>

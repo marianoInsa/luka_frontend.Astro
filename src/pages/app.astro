@@ -236,8 +236,8 @@ const whatsappLabel = user.whatsapp_id ? `+${user.whatsapp_id.slice(-4)}` : '+·
         }
       };
 
-      function moneyLabel(v) {
-        return ` $${Number(v).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
+      function moneyLabel(v, prefix = '$') {
+        return ` ${prefix}${Number(v).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
       }
 
       function markChartLoaded(containerId) {
@@ -335,7 +335,7 @@ const whatsappLabel = user.whatsapp_id ? `+${user.whatsapp_id.slice(-4)}` : '+·
             plugins: {
               ...CHART_DEFAULTS.plugins,
               legend: { ...CHART_DEFAULTS.plugins.legend, position: 'top' },
-              tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${moneyLabel(ctx.parsed.y)}` } }
+              tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${moneyLabel(ctx.parsed.y, ctx.dataset.label === 'USD' ? 'u$s' : '$')}` } }
             },
             scales: { ...CHART_DEFAULTS.scales }
           }

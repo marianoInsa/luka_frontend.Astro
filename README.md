@@ -170,14 +170,14 @@ config), `push` a `main`, cron diario (`17 6 * * *`) y `workflow_dispatch`. No r
 `DATABASE_URL` es el puerto local estándar y el guard de `vitest.setup.ts` lo acepta.
 
 El workflow falla por diseño si el guard detecta una URL no local, y no corre toda la suite:
-solo `dashboard`, `login` y `onboarding` (19 tests).
+solo `dashboard`, `login` y `onboarding` (37 tests).
 
 **Estado del pre-flight (sin verificar en GitHub):** las Actions están habilitadas en el repo
 (confirmado por el usuario), pero el primer run **aún no se ejecutó en GitHub**: esta tarea no
 pushea y el `workflow_dispatch`/verificación del run quedan para el próximo push/PR. Evidencia
-local: la suite de integración corrió verde contra el stack local (`3 files / 19 tests / 0
-failed / 0 skipped`). El checkout de `blob1618/luka@main` es intencional: la rama de feature del
-backend no está pusheada y estos tests de integración no dependen de la migración de Fase 0.
+local: la suite de integración quedó en `3 files / 37 tests`. El checkout de
+`blob1618/luka@main` es intencional: la rama de feature del backend no está pusheada y estos
+tests de integración no dependen de la migración de Fase 0.
 
 - **Dónde caen los PRs (pre-flight):** este workflow vive en el fork `marianoInsa/luka_frontend.Astro`,
   que es donde caen los PRs hoy, así que los gatea. Si un PR se abre contra el padre
