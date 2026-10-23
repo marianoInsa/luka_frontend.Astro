@@ -15,6 +15,7 @@ import {
   getUserByAuthId,
 } from './dashboard';
 import { closeDb, getDb, type Sql } from './db';
+import { EMPTY_QUOTES, type Quote, type Quotes } from './quotes';
 
 // Guarded integration test: hits the real Postgres. Skipped unless explicitly
 // opted in, so `npm test` (and CI) stays hermetic.
@@ -26,6 +27,23 @@ const ANULADO_AT = new Date('2026-05-25T00:00:00Z');
 function createdAt(offsetMinutes: number): Date {
   return new Date(CREATED_BASE.getTime() + offsetMinutes * 60_000);
 }
+
+function quote(compra: number): Quote {
+  return {
+    compra,
+    venta: compra + 50,
+    fuente: 'test',
+    as_of: '2026-10-23T13:00:00-03:00',
+    fetched_at: '2026-10-23T16:05:00+00:00',
+    stale: false,
+  };
+}
+
+const QUOTES: Quotes = {
+  oficial: quote(1300),
+  mep: quote(1200),
+  blue: quote(1500),
+};
 
 interface SeedMovement {
   id: string;
@@ -512,15 +530,35 @@ describe.skipIf(!RUN)('dashboard data layer (Postgres integration)', () => {
     expect(mayByCategory['Educación']).toMatchObject({ spent: 0, remaining: 3000, pct: 0, over: false });
   });
 
-  it('getPatrimonioNeto convierte USD con la tasa fija y excluye anulados', async () => {
-    await expect(getPatrimonioNeto(db(), userId)).resolves.toEqual({
-      total_ars: 15800,
-      usd_rate: 1300,
-      is_positive: true,
+  it('getPatrimonioNeto devuelve capital por moneda y un total por cotización', async () => {
+    await expect(getPatrimonioNeto(db(), userId, QUOTES)).resolves.toEqual({
+      ars_total: 5400,
+      usd_total: 8,
+      totals: { oficial: 15800, mep: 15000, blue: 17400 },
+      quotes: QUOTES,
     });
+  });
 
-    const may = await getPatrimonioNeto(db(), userId, '2026-05-01', '2026-05-31');
-    expect(may.total_ars).toBe(12000 + 13000 - 1500 - 2600);
+  it('getPatrimonioNeto sin cotizaciones deja los totales en null', async () => {
+    const result = await getPatrimonioNeto(db(), userId, EMPTY_QUOTES);
+    expect(result.ars_total).toBe(5400);
+    expect(result.usd_total).toBe(8);
+    expect(result.totals).toEqual({ oficial: null, mep: null, blue: null });
+  });
+
+  it('getPatrimonioNeto con compra null deja ese total en null', async () => {
+    const quotes: Quotes = { ...QUOTES, oficial: { ...quote(1300), compra: null } };
+    const result = await getPatrimonioNeto(db(), userId, quotes);
+    expect(result.totals.oficial).toBeNull();
+    expect(result.totals.mep).toBe(15000);
+    expect(result.totals.blue).toBe(17400);
+  });
+
+  it('getPatrimonioNeto excluye movimientos anulados y USD de otra moneda', async () => {
+    // 5400 = 12500 de ingresos ARS - 7100 de egresos ARS; los anulados no cuentan.
+    const result = await getPatrimonioNeto(db(), userId, QUOTES);
+    expect(result.ars_total).toBe(12500 - 7100);
+    expect(result.usd_total).toBe(10 - 2);
   });
 
   it('getConsumoPresupuesto suma límites y egresos de esas categorías', async () => {
@@ -558,19 +596,19 @@ describe.skipIf(!RUN)('dashboard data layer (Postgres integration)', () => {
     ]);
   });
 
-  it('getPortfolioByCurrency separa ARS/USD, convierte y recorta a 6 sin fechas', async () => {
+  it('getPortfolioByCurrency separa ARS/USD en unidades y recorta a 6 sin fechas', async () => {
     await expect(getPortfolioByCurrency(db(), userId)).resolves.toEqual([
       { month: 'Nov 2025', ARS: 100, USD: 0 },
       { month: 'Dic 2025', ARS: 200, USD: 0 },
       { month: 'Ene 2026', ARS: 300, USD: 0 },
       { month: 'Mar 2026', ARS: 1000, USD: 0 },
       { month: 'Abr 2026', ARS: 4000, USD: 0 },
-      { month: 'May 2026', ARS: 1500, USD: 2600 },
+      { month: 'May 2026', ARS: 1500, USD: 2 },
     ]);
 
     await expect(
       getPortfolioByCurrency(db(), userId, '2026-05-01', '2026-05-31'),
-    ).resolves.toEqual([{ month: 'May 2026', ARS: 1500, USD: 2600 }]);
+    ).resolves.toEqual([{ month: 'May 2026', ARS: 1500, USD: 2 }]);
   });
 
   it('el CSV reproduce el formato de Python y pagina por keyset', async () => {
@@ -664,22 +702,27 @@ describe.skipIf(!RUN)('dashboard data layer (Postgres integration)', () => {
 
   it('getPortfolioByCurrency aísla A y B', async () => {
     await expect(getPortfolioByCurrency(db(), otherUserId)).resolves.toEqual([
-      { month: 'May 2026', ARS: 781977.77, USD: 1155544 },
+      { month: 'May 2026', ARS: 781977.77, USD: 888.88 },
     ]);
 
     const a = await getPortfolioByCurrency(db(), userId);
-    expect(a).not.toContainEqual({ month: 'May 2026', ARS: 781977.77, USD: 1155544 });
+    expect(a).not.toContainEqual({ month: 'May 2026', ARS: 781977.77, USD: 888.88 });
   });
 
   it('getPatrimonioNeto aísla A y B', async () => {
-    const a = await getPatrimonioNeto(db(), userId);
-    expect(a.total_ars).toBe(15800);
+    const a = await getPatrimonioNeto(db(), userId, QUOTES);
+    expect(a.ars_total).toBe(5400);
+    expect(a.usd_total).toBe(8);
 
-    await expect(getPatrimonioNeto(db(), otherUserId)).resolves.toEqual({
-      total_ars: -1937521.77,
-      usd_rate: 1300,
-      is_positive: false,
+    const b = await getPatrimonioNeto(db(), otherUserId, QUOTES);
+    expect(b.ars_total).toBe(-781977.77);
+    expect(b.usd_total).toBe(-888.88);
+    expect(b.totals).toEqual({
+      oficial: -1937521.77,
+      mep: -1848633.77,
+      blue: -2115297.77,
     });
+    expect(b.totals.oficial).not.toBe(a.totals.oficial);
   });
 
   it('el CSV de A no incluye B-CANARY y el de B no incluye A-CANARY', async () => {

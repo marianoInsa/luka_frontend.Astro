@@ -1,6 +1,7 @@
 ---
 import type { ConsumoPresupuesto, PatrimonioNeto, SummaryStats } from '../lib/dashboard';
 import { formatDecimals, formatInt } from '../lib/format';
+import type { Quote, QuoteType } from '../lib/quotes';
 import Icon from './Icon.astro';
 
 interface Props {
@@ -12,7 +13,9 @@ interface Props {
 const { stats, patrimonio, consumo } = Astro.props;
 
 const hasData = stats.transaction_count > 0;
-const patrimonioColor = !hasData ? 'var(--money-out)' : patrimonio.is_positive ? 'var(--success)' : 'var(--danger)';
+const quoteEntries = Object.entries(patrimonio.quotes).filter(
+  (entry): entry is [QuoteType, Quote] => entry[1] !== undefined,
+);
 const consumoColor = !hasData
   ? 'var(--money-out)'
   : consumo.over
@@ -25,32 +28,41 @@ const consumoOver = consumo.over === true;
 
 <div class="stats-grid">
 
-  <!-- KPI 1: Patrimonio Neto -->
+  <!-- KPI 1: Patrimonio Neto (render mínimo; UI final en Task 6) -->
   <div class="stat-card stat-card--highlight" id="stat-patrimonio">
-    <div class="stat-icon" style={`--icon-color: ${patrimonioColor};`}>
+    <div class="stat-icon" style="--icon-color: var(--action);">
       <Icon name="icon_trend_up" />
     </div>
     <div class="stat-body">
       <p class="stat-label">Patrimonio Neto</p>
-      <p
-        class:list={[
-          'stat-value',
-          !hasData && 'stat-value--muted',
-        ]}
-      >
-        {hasData ? `${patrimonio.is_positive ? '+' : ''}$${formatInt(patrimonio.total_ars)}` : 'Sin datos'}
+      <p class:list={['stat-value', !hasData && 'stat-value--muted']}>
+        {hasData ? `$${formatInt(patrimonio.ars_total)} ARS` : 'Sin datos'}
       </p>
+      <p class="stat-hint">USD {formatDecimals(patrimonio.usd_total, 2)}</p>
     </div>
   </div>
 
-  <!-- KPI 2: Cotización USD -->
+  <!-- KPI 2: Cotizaciones (render mínimo; UI final en Task 6) -->
   <div class="stat-card" id="stat-cotizacion">
     <div class="stat-icon" style="--icon-color: var(--success);">
       <Icon name="icon_dollar" />
     </div>
-    <div class="stat-body">
-      <p class="stat-label">Cotización USD</p>
-      <p class="stat-value">${formatDecimals(patrimonio.usd_rate, 2)}</p>
+    <div class="stat-body stat-body--full">
+      <p class="stat-label">Cotizaciones</p>
+      {
+        quoteEntries.length === 0 ? (
+          <p class="stat-value stat-value--muted">Sin datos</p>
+        ) : (
+          quoteEntries.map(([tipo, quote]) => (
+            <p class="stat-hint">
+              {tipo}: {quote.compra == null ? 's/d' : formatDecimals(quote.compra, 2)}
+              {' / '}
+              {quote.venta == null ? 's/d' : formatDecimals(quote.venta, 2)}
+              {quote.stale ? ' (stale)' : ''}
+            </p>
+          ))
+        )
+      }
     </div>
   </div>
 

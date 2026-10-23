@@ -17,6 +17,7 @@ import { defaultDateRange } from '../lib/dates';
 import { getDb } from '../lib/db';
 import { isFlowAdmin } from '../lib/flow-admin';
 import { formatPlainInt } from '../lib/format';
+import { getCotizaciones } from '../lib/quotes';
 
 export const prerender = false;
 
@@ -32,7 +33,8 @@ const { from, to } = defaultDateRange(
 const stats = await getSummaryStats(sql, user.id, from, to);
 const transactions = await getRecentTransactions(sql, user.id, 15, from, to);
 const budgets = await getBudgetsWithUsage(sql, user.id, from, to);
-const patrimonio = await getPatrimonioNeto(sql, user.id, from, to);
+const quotes = await getCotizaciones();
+const patrimonio = await getPatrimonioNeto(sql, user.id, quotes);
 const consumo = await getConsumoPresupuesto(sql, user.id, from, to);
 
 const flowAdmin = isFlowAdmin(Astro.locals.authUserId);
