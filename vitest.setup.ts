@@ -1,10 +1,22 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-// Vitest no puebla process.env desde .dev.vars, así que el test de integración
-// gated no veía DATABASE_URL. Solo se copia esa variable: el resto de la suite
-// sigue hermética.
-if (!process.env.DATABASE_URL) {
+import { isLocalDatabaseUrl } from './src/lib/db-url';
+
+const isIntegration = process.env.RUN_DB_INTEGRATION === '1';
+
+if (isIntegration) {
+  // La integración exige una DB local explícita: nunca copiar DATABASE_URL de
+  // .dev.vars (que apunta al pooler de producción).
+  if (!process.env.DATABASE_URL || !isLocalDatabaseUrl(process.env.DATABASE_URL)) {
+    throw new Error(
+      'DB integration requires an explicit localhost DATABASE_URL; refusing to use .dev.vars',
+    );
+  }
+} else if (!process.env.DATABASE_URL) {
+  // Fuera de integración, Vitest no puebla process.env desde .dev.vars; solo se
+  // copia DATABASE_URL para el resto de la suite (que sigue hermética), sin pisar
+  // una variable ya definida.
   try {
     const envPath = fileURLToPath(new URL('.dev.vars', import.meta.url));
     for (const line of readFileSync(envPath, 'utf8').split(/\r?\n/)) {

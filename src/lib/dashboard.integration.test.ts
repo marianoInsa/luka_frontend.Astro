@@ -30,6 +30,7 @@ function createdAt(offsetMinutes: number): Date {
 interface SeedMovement {
   id: string;
   usuarioId: string;
+  billeteraId: string;
   tipo: string;
   cantidad: string;
   moneda: string;
@@ -49,6 +50,12 @@ describe.skipIf(!RUN)('dashboard data layer (Postgres integration)', () => {
 
   const otherUserId = randomUUID();
   const otherEmail = `dash-int-other-${suffix}@example.com`;
+  const otherAuthUserId = randomUUID();
+
+  const walletArsId = randomUUID();
+  const walletUsdId = randomUUID();
+  const otherWalletArsId = randomUUID();
+  const otherWalletUsdId = randomUUID();
 
   const catFoodId = randomUUID();
   const catEduId = randomUUID();
@@ -90,8 +97,31 @@ describe.skipIf(!RUN)('dashboard data layer (Postgres integration)', () => {
       VALUES (${userId}::uuid, 'Dashboard Int', ${email}, ${authUserId}::uuid, ${whatsappId}, ${now}, ${now})
     `;
     await db()`
+      INSERT INTO auth.users (id, email, created_at, updated_at)
+      VALUES (${otherAuthUserId}::uuid, ${otherEmail}, ${now}, ${now})
+    `;
+    await db()`
       INSERT INTO usuario (id, nombre, email, auth_user_id, whatsapp_id, creado_en, actualizado_en)
-      VALUES (${otherUserId}::uuid, 'Otro Usuario', ${otherEmail}, NULL, NULL, ${now}, ${now})
+      VALUES (${otherUserId}::uuid, 'Otro Usuario', ${otherEmail}, ${otherAuthUserId}::uuid, NULL, ${now}, ${now})
+    `;
+
+    // billetera antes que los movimientos: billetera_id es NOT NULL y la FK
+    // compuesta (id, usuario_id, moneda) exige coincidencia con el movimiento.
+    await db()`
+      INSERT INTO billetera (id, usuario_id, nombre, moneda)
+      VALUES (${walletArsId}::uuid, ${userId}::uuid, 'ARS', 'ARS')
+    `;
+    await db()`
+      INSERT INTO billetera (id, usuario_id, nombre, moneda)
+      VALUES (${walletUsdId}::uuid, ${userId}::uuid, 'USD', 'USD')
+    `;
+    await db()`
+      INSERT INTO billetera (id, usuario_id, nombre, moneda)
+      VALUES (${otherWalletArsId}::uuid, ${otherUserId}::uuid, 'ARS', 'ARS')
+    `;
+    await db()`
+      INSERT INTO billetera (id, usuario_id, nombre, moneda)
+      VALUES (${otherWalletUsdId}::uuid, ${otherUserId}::uuid, 'USD', 'USD')
     `;
 
     await db()`
@@ -117,6 +147,7 @@ describe.skipIf(!RUN)('dashboard data layer (Postgres integration)', () => {
       {
         id: ids.activeFood,
         usuarioId: userId,
+        billeteraId: walletArsId,
         tipo: 'egreso',
         cantidad: '1500.00',
         moneda: 'ARS',
@@ -128,6 +159,7 @@ describe.skipIf(!RUN)('dashboard data layer (Postgres integration)', () => {
       {
         id: ids.activeIncome,
         usuarioId: userId,
+        billeteraId: walletArsId,
         tipo: 'ingreso',
         cantidad: '12000.00',
         moneda: 'ARS',
@@ -139,6 +171,7 @@ describe.skipIf(!RUN)('dashboard data layer (Postgres integration)', () => {
       {
         id: ids.annulledExpense,
         usuarioId: userId,
+        billeteraId: walletArsId,
         tipo: 'egreso',
         cantidad: '9999.00',
         moneda: 'ARS',
@@ -151,6 +184,7 @@ describe.skipIf(!RUN)('dashboard data layer (Postgres integration)', () => {
       {
         id: ids.annulledIncome,
         usuarioId: userId,
+        billeteraId: walletArsId,
         tipo: 'ingreso',
         cantidad: '7000.00',
         moneda: 'ARS',
@@ -163,6 +197,7 @@ describe.skipIf(!RUN)('dashboard data layer (Postgres integration)', () => {
       {
         id: ids.usdExpense,
         usuarioId: userId,
+        billeteraId: walletUsdId,
         tipo: 'egreso',
         cantidad: '2.00',
         moneda: 'USD',
@@ -174,6 +209,7 @@ describe.skipIf(!RUN)('dashboard data layer (Postgres integration)', () => {
       {
         id: ids.usdIncome,
         usuarioId: userId,
+        billeteraId: walletUsdId,
         tipo: 'ingreso',
         cantidad: '10.00',
         moneda: 'USD',
@@ -186,6 +222,7 @@ describe.skipIf(!RUN)('dashboard data layer (Postgres integration)', () => {
       {
         id: ids.aprilEdu,
         usuarioId: userId,
+        billeteraId: walletArsId,
         tipo: 'egreso',
         cantidad: '4000.00',
         moneda: 'ARS',
@@ -197,6 +234,7 @@ describe.skipIf(!RUN)('dashboard data layer (Postgres integration)', () => {
       {
         id: ids.marchFood,
         usuarioId: userId,
+        billeteraId: walletArsId,
         tipo: 'egreso',
         cantidad: '1000.00',
         moneda: 'ARS',
@@ -208,6 +246,7 @@ describe.skipIf(!RUN)('dashboard data layer (Postgres integration)', () => {
       {
         id: ids.febIncome,
         usuarioId: userId,
+        billeteraId: walletArsId,
         tipo: 'ingreso',
         cantidad: '500.00',
         moneda: 'ARS',
@@ -219,6 +258,7 @@ describe.skipIf(!RUN)('dashboard data layer (Postgres integration)', () => {
       {
         id: ids.janExpense,
         usuarioId: userId,
+        billeteraId: walletArsId,
         tipo: 'egreso',
         cantidad: '300.00',
         moneda: 'ARS',
@@ -230,6 +270,7 @@ describe.skipIf(!RUN)('dashboard data layer (Postgres integration)', () => {
       {
         id: ids.decExpense,
         usuarioId: userId,
+        billeteraId: walletArsId,
         tipo: 'egreso',
         cantidad: '200.00',
         moneda: 'ARS',
@@ -241,6 +282,7 @@ describe.skipIf(!RUN)('dashboard data layer (Postgres integration)', () => {
       {
         id: ids.novExpense,
         usuarioId: userId,
+        billeteraId: walletArsId,
         tipo: 'egreso',
         cantidad: '100.00',
         moneda: 'ARS',
@@ -253,6 +295,7 @@ describe.skipIf(!RUN)('dashboard data layer (Postgres integration)', () => {
       {
         id: ids.otherUser,
         usuarioId: otherUserId,
+        billeteraId: otherWalletArsId,
         tipo: 'egreso',
         cantidad: '4200.00',
         moneda: 'ARS',
@@ -266,10 +309,11 @@ describe.skipIf(!RUN)('dashboard data layer (Postgres integration)', () => {
     for (const movement of movements) {
       await db()`
         INSERT INTO movimientos_financieros
-          (id, usuario_id, categoria_id, tipo, cantidad, moneda, descripcion,
+          (id, usuario_id, billetera_id, categoria_id, tipo, cantidad, moneda, descripcion,
            fecha_movimiento, anulado_en, creado_en)
         VALUES
-          (${movement.id}::uuid, ${movement.usuarioId}::uuid, ${movement.categoriaId}::uuid,
+          (${movement.id}::uuid, ${movement.usuarioId}::uuid, ${movement.billeteraId}::uuid,
+           ${movement.categoriaId}::uuid,
            ${movement.tipo}, ${movement.cantidad}::numeric, ${movement.moneda},
            ${movement.descripcion}, ${movement.fecha}::date,
            ${movement.anulado ? ANULADO_AT : null}, ${createdAt(movement.creadoOffset)})
@@ -280,16 +324,23 @@ describe.skipIf(!RUN)('dashboard data layer (Postgres integration)', () => {
   afterAll(async () => {
     if (sql) {
       try {
+        // Orden por FKs: movimientos → límites → categorías → billetera →
+        // usuario → auth.users (A y B). Un error de cleanup falla el test.
         await sql`DELETE FROM movimientos_financieros WHERE usuario_id = ${userId}::uuid OR usuario_id = ${otherUserId}::uuid`;
-        await sql`DELETE FROM limite_categoria WHERE usuario_id = ${userId}::uuid`;
+        await sql`DELETE FROM limite_categoria WHERE usuario_id = ${userId}::uuid OR usuario_id = ${otherUserId}::uuid`;
         await sql`DELETE FROM categorias WHERE usuario_id = ${userId}::uuid OR usuario_id = ${otherUserId}::uuid`;
+        await sql`DELETE FROM billetera WHERE usuario_id = ${userId}::uuid OR usuario_id = ${otherUserId}::uuid`;
         await sql`DELETE FROM usuario WHERE id = ${userId}::uuid OR id = ${otherUserId}::uuid`;
-        await sql`DELETE FROM auth.users WHERE id = ${authUserId}::uuid`;
-      } catch {
-        // ponytail: best-effort cleanup; the post-run verification query is the real check
+        await sql`DELETE FROM auth.users WHERE id = ${authUserId}::uuid OR id = ${otherAuthUserId}::uuid`;
+      } catch (error) {
+        console.error('dashboard integration cleanup failed', error);
+        throw error;
+      } finally {
+        await closeDb();
       }
+    } else {
+      await closeDb();
     }
-    await closeDb();
   });
 
   async function readStream(stream: ReadableStream<Uint8Array>): Promise<string> {

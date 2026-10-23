@@ -21,6 +21,7 @@ describe.skipIf(!RUN)('finalizeOnboarding (Postgres integration)', () => {
 
   let sql: Sql | undefined;
   let agreementId = '';
+  let createdAgreementId: string | null = null;
 
   function db(): Sql {
     if (!sql) throw new Error('integration DB client not initialized');
@@ -33,8 +34,18 @@ describe.skipIf(!RUN)('finalizeOnboarding (Postgres integration)', () => {
     const agreements = await db()<{ id: string }[]>`
       SELECT id FROM acuerdo_version WHERE esta_vigente = true LIMIT 1
     `;
-    expect(agreements[0]).toBeDefined();
-    agreementId = agreements[0].id;
+    if (agreements[0]) {
+      agreementId = agreements[0].id;
+    } else {
+      // La versión es UNIQUE y hay un índice parcial de un solo esta_vigente=true;
+      // por eso no se usa una versión fija.
+      createdAgreementId = randomUUID();
+      await db()`
+        INSERT INTO acuerdo_version (id, version, contenido, esta_vigente, vigente_desde)
+        VALUES (${createdAgreementId}::uuid, ${'test-integration-' + randomUUID()}, 'Acuerdo de prueba', true, now())
+      `;
+      agreementId = createdAgreementId;
+    }
 
     const now = new Date();
     const expiresAt = new Date(now.getTime() + 60 * 60 * 1000);
@@ -64,15 +75,22 @@ describe.skipIf(!RUN)('finalizeOnboarding (Postgres integration)', () => {
     if (sql) {
       try {
         await sql`DELETE FROM acuerdo_aceptado WHERE usuario_id = ${userId}::uuid`;
+        if (createdAgreementId) {
+          await sql`DELETE FROM acuerdo_version WHERE id = ${createdAgreementId}::uuid`;
+        }
         await sql`DELETE FROM categorias WHERE usuario_id = ${userId}::uuid`;
         await sql`DELETE FROM onboarding_invitacion WHERE id = ${invitationId}::uuid`;
         await sql`DELETE FROM usuario WHERE id = ${userId}::uuid`;
         await sql`DELETE FROM auth.users WHERE id = ${authUserId}::uuid`;
-      } catch {
-        // ponytail: best-effort cleanup; the post-run verification query is the real check
+      } catch (error) {
+        console.error('onboarding integration cleanup failed', error);
+        throw error;
+      } finally {
+        await closeDb();
       }
+    } else {
+      await closeDb();
     }
-    await closeDb();
   });
 
   it('links the identity, records consent, seeds categories and consumes the invitation', async () => {

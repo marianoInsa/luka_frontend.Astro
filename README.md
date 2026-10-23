@@ -134,13 +134,21 @@ si no está definida.
 
 `npm test` corre la suite hermética (Vitest, sin red ni DB). Los tests de integración están
 desactivados por defecto y escriben y limpian filas de prueba en la DB real (incluida una fila
-temporal en `auth.users` por la FK de `usuario.auth_user_id`). `vitest.setup.ts` solo copia
-`DATABASE_URL` de `.dev.vars` (raíz):
+temporal en `auth.users` por la FK de `usuario.auth_user_id`).
+
+Para integración **usar Supabase local**, con un `DATABASE_URL` explícito en `localhost` y
+`?sslmode=disable`. `vitest.setup.ts` exige esa URL local cuando `RUN_DB_INTEGRATION=1` y
+**nunca** copia `DATABASE_URL` de `.dev.vars` en el camino de integración (ahí `.dev.vars`
+apunta al pooler de producción):
 
 ```bash
-RUN_DB_INTEGRATION=1 npx vitest run src/lib/onboarding.integration.test.ts
-RUN_DB_INTEGRATION=1 npx vitest run src/lib/dashboard.integration.test.ts src/lib/login.integration.test.ts
+RUN_DB_INTEGRATION=1 \
+DATABASE_URL='postgresql://postgres:postgres@127.0.0.1:54322/postgres?sslmode=disable' \
+npx vitest run src/lib/dashboard.integration.test.ts src/lib/login.integration.test.ts src/lib/onboarding.integration.test.ts
 ```
+
+Fuera de integración, `vitest.setup.ts` sigue copiando `DATABASE_URL` de `.dev.vars` (raíz) para
+el resto de la suite, sin pisar una variable ya definida.
 
 La integración del panel admin (`src/lib/flow-admin.integration.test.ts`) es **read-only** (nunca
 crea ni publica flujos) y se activa con `RUN_FLOW_BACKEND=1` más `LUKA_BACKEND_URL` y

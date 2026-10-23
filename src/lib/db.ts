@@ -3,6 +3,8 @@ import postgres from 'postgres';
 import { envValue } from './env';
 import { hyperdriveConnectionString } from './runtime';
 
+export { isLocalDatabaseUrl } from './db-url';
+
 export type Sql = ReturnType<typeof postgres>;
 
 let client: Sql | null = null;
