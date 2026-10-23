@@ -1,0 +1,67 @@
+name: DB integration
+
+on:
+  pull_request:
+    paths:
+      - 'src/lib/**'
+      - 'src/pages/**'
+      - 'src/components/**'
+      - 'vitest.setup.ts'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/db-integration.yml'
+  push:
+    branches: [main]
+  schedule:
+    - cron: '17 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db-integration-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  db-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+        with:
+          repository: blob1618/luka
+          path: backend
+          ref: main
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.117.0
+
+      - name: Start Supabase
+        working-directory: backend
+        run: supabase start --exclude gotrue,realtime,storage-api,imgproxy,kong,mailpit,postgrest,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
+
+      - name: Apply migrations
+        working-directory: backend
+        run: supabase db reset
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Run integration tests
+        env:
+          RUN_DB_INTEGRATION: '1'
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres?sslmode=disable
+        run: npx vitest run src/lib/dashboard.integration.test.ts src/lib/login.integration.test.ts src/lib/onboarding.integration.test.ts
+
+      - name: Stop Supabase
+        if: always()
+        working-directory: backend
+        run: supabase stop --no-backup

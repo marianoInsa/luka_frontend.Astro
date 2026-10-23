@@ -431,6 +431,101 @@ a { color: inherit; text-decoration: none; }
 .stat-badge--warning { background: color-mix(in srgb, var(--warning) 15%, transparent); color: var(--warning); }
 .stat-badge--danger  { background: color-mix(in srgb, var(--danger) 15%, transparent); color: var(--danger); }
 
+/* ── Capital consolidado y cotizaciones ─────────────────────────────────── */
+.stat-card--capital { align-items: flex-start; }
+/* La tabla de cotizaciones necesita dos columnas del grid para no cortar valores. */
+#stat-cotizacion { grid-column: span 2; }
+
+.capital-lines {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 14px;
+  font-variant-numeric: tabular-nums;
+}
+.capital-line {
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -.02em;
+  line-height: 1.2;
+}
+
+.capital-totals {
+  list-style: none;
+  margin: 8px 0 6px;
+  padding: 0;
+  display: grid;
+  gap: 3px;
+  font-variant-numeric: tabular-nums;
+}
+.capital-total {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: .78rem;
+  flex-wrap: wrap;
+}
+.capital-total__label {
+  color: var(--text-secondary);
+  min-width: 46px;
+}
+.capital-total__value {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.quotes-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+  font-size: .78rem;
+}
+.quotes-table th,
+.quotes-table td {
+  padding: 3px 0;
+  text-align: right;
+  white-space: nowrap;
+}
+.quotes-table th:first-child,
+.quotes-table td:first-child { text-align: left; }
+.quotes-table thead th {
+  color: var(--text-secondary);
+  font-size: .66rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  border-bottom: 1px solid var(--border);
+}
+.quotes-table tbody th {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.quotes-house {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.quotes-note,
+.quotes-asof,
+.quotes-footnote {
+  font-size: .7rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.quotes-footnote {
+  border-top: 1px solid var(--border);
+  padding-top: 6px;
+  margin-top: 8px;
+}
+
+@media (max-width: 768px) {
+  #stat-patrimonio,
+  #stat-cotizacion { grid-column: 1 / -1; }
+  .capital-line { font-size: 1.15rem; }
+  .quotes-table { font-size: .72rem; }
+}
+
 /* ── Chips ───────────────────────────────────────────────────────────────── */
 .chip {
   display: inline-flex;

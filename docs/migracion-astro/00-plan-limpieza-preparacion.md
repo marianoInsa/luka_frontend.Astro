@@ -66,7 +66,7 @@ Lo que exige cuidado (no por tamaño, sino por semántica):
 | `render.yaml` quedó alineado con `.env.example` (12 variables) y sin `MOCK_WHATSAPP_ID` | Cerrado; los valores reales se cargan en el dashboard de Render |
 | `python-jose[cryptography]` sin imports en `app/` | Se elimina en F5 (o antes si se toca `requirements.txt`) |
 | `get_dias_racha` retorna `0` (placeholder, `app/dashboard.py:531-536`) | No es deuda de migración; se conserva el placeholder |
-| `USD_TO_ARS_RATE = 1300.0` hardcodeada (`app/dashboard.py:34-36`) | F3 mantiene la constante por paridad; cotización real es ticket aparte |
+| Hallazgo histórico: `USD_TO_ARS_RATE = 1300.0` hardcodeada (`app/dashboard.py:34-36`) | Resuelto en STK-45: constante removida en el frontend; cotización vía backend (`/api/cotizaciones`) |
 | 141 tests pasando | Línea base de paridad; no se borra Python hasta cerrar cada área |
 
 ---
@@ -208,7 +208,7 @@ Nota de seguridad: la reimplementación es código sensible (firma). Requiere co
 | **Hosting de `web/`** | Fin de F1 (§9) | Cold start aceptable / costo / complejidad de Postgres. Recomendación por defecto: Render Web Service Node (misma plataforma); Cloudflare + Hyperdrive como alternativa si el cold start no es aceptable. |
 | **Dominio canónico** | Antes de F1 en producción | `APP_BASE_URL` definitivo (HTTPS) para canonical/OG y para `redirect_to` de OAuth. |
 | **Corte de `get_dias_racha`** | F3 | Se conserva placeholder `0` por paridad. |
-| **Cotización USD** | Post-F3 | Se conserva `1300.0`; ticket aparte. |
+| **Cotización USD** | Post-F3 | Resuelto en STK-45: cotización real vía backend (`/api/cotizaciones`). |
 
 ---
 
@@ -292,7 +292,7 @@ Nota de seguridad: la reimplementación es código sensible (firma). Requiere co
 8. Activar `ASTRO_MIGRATED_PATHS=/app,/login,/logout,/dev-login,/api/graficos/,/exportar/,/dashboard/,/partials/` → cutover.
 
 **Criterios de salida**
-- Parallel run sin diferencias de negocio (anulados excluidos, tasa 1300, últimos 6 meses, top categoría).
+- Parallel run sin diferencias de negocio (anulados excluidos, cotización vía backend, últimos 6 meses, top categoría).
 - Vectores de cookie en verde (Python ↔ Astro, ambas direcciones).
 - CSV byte-equivalente en encabezado y filas para el mismo dataset.
 - Rollback probado; sesiones en vuelo no se invalidan.

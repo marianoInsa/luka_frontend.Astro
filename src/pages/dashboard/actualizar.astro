@@ -8,6 +8,7 @@ import {
 } from '../../lib/dashboard';
 import { defaultDateRange } from '../../lib/dates';
 import { getDb } from '../../lib/db';
+import { getCotizaciones } from '../../lib/quotes';
 
 export const prerender = false;
 
@@ -23,7 +24,8 @@ const { from, to } = defaultDateRange(
 );
 
 const stats = await getSummaryStats(sql, user.id, from, to);
-const patrimonio = await getPatrimonioNeto(sql, user.id, from, to);
+const quotes = await getCotizaciones();
+const patrimonio = await getPatrimonioNeto(sql, user.id, quotes);
 const consumo = await getConsumoPresupuesto(sql, user.id, from, to);
 
 Astro.response.headers.set('HX-Trigger', 'actualizarGraficos');

@@ -1,12 +1,12 @@
 import { pythonRound } from './dashboard';
 
-// Espejos de los formatos de Jinja usados por los templates del dashboard:
-//   "{:,.0f}"  → formatInt        (agrupación de miles, half-even)
-//   "%.0f"     → formatPlainInt   (sin separadores, half-even)
-//   "{:,.2f}"  → formatDecimals   (agrupación de miles, 2 decimales)
+// Formato es-AR del dashboard:
+//   formatInt      → miles con `.`, sin decimales (half-even)
+//   formatPlainInt → sin separadores (half-even)
+//   formatDecimals → miles con `.`, decimales con `,`
 
 function groupThousands(text: string): string {
-  return text.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return text.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 }
 
 export function formatInt(value: number): string {
@@ -21,5 +21,6 @@ export function formatPlainInt(value: number): string {
 
 export function formatDecimals(value: number, digits = 2): string {
   const sign = value < 0 ? '-' : '';
-  return `${sign}${groupThousands(Math.abs(value).toFixed(digits))}`;
+  const [entero, decimales] = Math.abs(value).toFixed(digits).split('.');
+  return `${sign}${groupThousands(entero)}${decimales ? `,${decimales}` : ''}`;
 }

@@ -1,6 +1,7 @@
 import { todayLocal } from './dates';
 import type { Sql } from './db';
 import { parseUuid } from './onboarding';
+import type { Quotes, QuoteType } from './quotes';
 
 export interface DashboardUser {
   id: string;
@@ -44,9 +45,10 @@ export interface BudgetUsage {
 }
 
 export interface PatrimonioNeto {
-  total_ars: number;
-  usd_rate: number;
-  is_positive: boolean;
+  ars_total: number;
+  usd_total: number;
+  totals: Partial<Record<QuoteType, number | null>>;
+  quotes: Quotes;
 }
 
 export interface ConsumoPresupuesto {
@@ -80,9 +82,6 @@ export const CATEGORY_COLORS: Record<string, string> = {
   Ropa: '#f97316',
   Otro: '#64748b',
 };
-
-// TODO: Reemplazar con cotización cacheada real (paridad con app/dashboard.py).
-export const USD_TO_ARS_RATE = 1300.0;
 
 export const MONTH_NAMES_ES = [
   'Ene',
@@ -349,34 +348,63 @@ export async function getBudgetsWithUsage(
   });
 }
 
+// Capital actual por moneda y su equivalente en ARS con cada cotización. Sin
+// fechas: el patrimonio es el saldo de todos los movimientos no anulados.
 export async function getPatrimonioNeto(
   sql: Sql,
   userId: string,
-  dateFrom: string | null = null,
-  dateTo: string | null = null,
+  quotes: Quotes,
 ): Promise<PatrimonioNeto> {
-  // La conversión USD y la resta viven en Postgres (numeric exacto, como el
-  // Decimal de Python); se pasa a number una sola vez al final.
-  const rows = await sql<{ total_ars: string }[]>`
-    SELECT COALESCE(SUM(CASE WHEN convertido.tipo = 'ingreso' THEN convertido.amt ELSE -convertido.amt END), 0)::text AS total_ars
-    FROM (
-      SELECT m.tipo,
-             CASE
-               WHEN upper(coalesce(m.moneda, '')) = 'USD'
-                 THEN m.cantidad * ${USD_TO_ARS_RATE}::numeric
-               ELSE m.cantidad
-             END AS amt
+  const compra = (tipo: QuoteType): string | null => {
+    const value = quotes[tipo]?.compra;
+    return value == null ? null : value.toString();
+  };
+
+  const rows = await sql<
+    { ars_total: string; usd_total: string; tipo: QuoteType; total: string | null }[]
+  >`
+    WITH base AS (
+      SELECT
+        COALESCE(SUM(CASE WHEN m.tipo = 'ingreso' THEN m.cantidad ELSE -m.cantidad END)
+                 FILTER (WHERE upper(b.moneda) = 'ARS'), 0)::numeric AS ars_total,
+        COALESCE(SUM(CASE WHEN m.tipo = 'ingreso' THEN m.cantidad ELSE -m.cantidad END)
+                 FILTER (WHERE upper(b.moneda) = 'USD'), 0)::numeric AS usd_total
       FROM movimientos_financieros m
+      JOIN billetera b
+        ON b.id = m.billetera_id
+       AND b.usuario_id = m.usuario_id
+       AND b.moneda = m.moneda
       WHERE m.usuario_id = ${userId}::uuid
         AND m.anulado_en IS NULL
-        ${dateFilters(sql, dateFrom, dateTo)}
-    ) AS convertido
+    ),
+    tipos(tipo, compra) AS (
+      VALUES
+        ('oficial', ${compra('oficial')}::numeric),
+        ('mep', ${compra('mep')}::numeric),
+        ('blue', ${compra('blue')}::numeric)
+    )
+    SELECT
+      base.ars_total::text AS ars_total,
+      base.usd_total::text AS usd_total,
+      tipos.tipo,
+      CASE
+        WHEN base.usd_total = 0 THEN base.ars_total
+        WHEN tipos.compra IS NULL THEN NULL
+        ELSE base.ars_total + base.usd_total * tipos.compra
+      END::text AS total
+    FROM base CROSS JOIN tipos
   `;
-  const totalArs = Number(rows[0].total_ars);
+
+  const totals: Partial<Record<QuoteType, number | null>> = {};
+  for (const row of rows) {
+    totals[row.tipo] = row.total === null ? null : Number(row.total);
+  }
+
   return {
-    total_ars: totalArs,
-    usd_rate: USD_TO_ARS_RATE,
-    is_positive: totalArs >= 0,
+    ars_total: Number(rows[0].ars_total),
+    usd_total: Number(rows[0].usd_total),
+    totals,
+    quotes,
   };
 }
 
@@ -501,7 +529,8 @@ export async function getPortfolioByCurrency(
     const moneda = (row.moneda || 'ARS').toUpperCase();
     const amount = Number(row.total);
     if (moneda === 'USD') {
-      entry.USD += amount * USD_TO_ARS_RATE;
+      // USD en unidades: no se convierte a ARS.
+      entry.USD += amount;
     } else {
       entry.ARS += amount;
     }

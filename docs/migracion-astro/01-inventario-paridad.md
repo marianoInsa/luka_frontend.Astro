@@ -97,10 +97,10 @@ Todas en `app/dashboard.py`; reciben `db`, `user_id` y rango de fechas opcional,
 | `get_expenses_by_day` (`dashboard.py:165`) | `movimientos_financieros` | Serie diaria de egresos | **Sin uso**: no está importada en `main.py` (grep). Descartar o portar solo si se agrega el gráfico |
 | `get_recent_transactions` (`dashboard.py:194`) | `movimientos_financieros`, `categorias` | Últimos 15 movimientos (límite por defecto) | `ORDER BY creado_en DESC LIMIT 15` (`dashboard.py:216`); formatea fecha/hora en Python: mover formato a JS |
 | `get_budgets_with_usage` (`dashboard.py:239`) | `limite_categoria`, `categorias`, `movimientos_financieros` | Presupuesto por categoría con gasto y % | N+1: una consulta de suma por presupuesto (`dashboard.py:254-265`); portar a un solo `GROUP BY` |
-| `get_patrimonio_neto` (`dashboard.py:289`) | `movimientos_financieros` | Capital neto en ARS (USD × tasa fija) | `USD_TO_ARS_RATE = 1300.0` hardcodeado (`dashboard.py:36`); mantener la constante hasta integrar cotización |
+| `get_patrimonio_neto` (`dashboard.py:289`) | `movimientos_financieros`, `billetera` | Capital actual por moneda + total por cotización | `USD_TO_ARS_RATE` removida en STK-45; cotización vía backend (`/api/cotizaciones`) |
 | `get_consumo_presupuesto` (`dashboard.py:343`) | `limite_categoria`, `movimientos_financieros` | % global gastado sobre límite total | `IN (...)` con ids de categorías (`dashboard.py:363-369`) |
 | `get_monthly_flow` (`dashboard.py:386`) | `movimientos_financieros` | Ingresos vs egresos por mes | `extract('year'/'month')` + `GROUP BY` por alias: en SQL crudo usar `GROUP BY 1,2` o repetir expresión; por defecto últimos 6 meses (`dashboard.py:444-445`) |
-| `get_portfolio_by_currency` (`dashboard.py:457`) | `movimientos_financieros` | Cartera ARS/USD por mes (solo egresos) | Misma consideración de `GROUP BY`; convierte USD a ARS con la tasa fija (`dashboard.py:498-501`) |
+| `get_portfolio_by_currency` (`dashboard.py:457`) | `movimientos_financieros` | Cartera ARS/USD por mes (solo egresos) | Misma consideración de `GROUP BY`; USD se devuelve en unidades (sin conversión) desde STK-45 |
 | `get_dias_racha` (`dashboard.py:531`) | — | Placeholder, retorna `0` | **TODO sin implementar** (`dashboard.py:533-536`): no es deuda de la migración |
 
 Además, `exportar_csv` consulta inline `movimientos_financieros` + `categorias` con LEFT JOIN y `yield_per(100)` (`main.py:1003-1049`): en `postgres.js` usar cursor/streaming o paginado por keyset.
@@ -262,7 +262,7 @@ Resueltas en `00` v2.0; se listan acá porque afectan la lectura de este inventa
 | 3 | HTMX vs islas | **Se mantiene HTMX 2.0.3** y los parciales 23-25 con el mismo contrato (`HX-Trigger`) | §6.1; paridad 1:1 |
 | 4 | Params `date_from`/`date_to` | **Se conservan** (`YYYY-MM-DD`), incluida la propagación desde `/login` | §6.1 |
 | 5 | `get_dias_racha` placeholder | **Se conserva el placeholder** `0` | §6.2 |
-| 6 | Tasa USD hardcodeada | **Se conserva `1300.0`**; cotización real es ticket aparte (post-F3) | §6.2 |
+| 6 | Tasa USD hardcodeada | **Resuelto en STK-45**: se removió `USD_TO_ARS_RATE`; cotización real vía backend (`/api/cotizaciones`) | §6.2 |
 | 7 | Admin en el mismo deploy | **Sí**, mismo deploy de Astro, fase F4 | §6.1, §7-F4 |
 | 8 | Backend `luka` y proxy admin | **Se reimplementa el proxy** en Astro con `FLOW_ADMIN_API_KEY` server-side; `luka/` no se toca | §6.1, §7-F4 |
 | 9 | Pooler Supabase | **Puerto 6543 (transaction pooler) con `prepare: false`** | §6.1 (verificado en README de postgres.js) |

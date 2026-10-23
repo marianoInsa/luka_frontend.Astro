@@ -35,6 +35,23 @@ describe.skipIf(!RUN)('consumeDashboardLoginToken (Postgres integration)', () =>
   const unlinkedToken = `unlinked-${suffix}`;
   const otherToken = `other-${suffix}`;
 
+  // Dos links pendientes independientes: consumir A no debe tocar B.
+  const pairAAuthUserId = randomUUID();
+  const pairAUserId = randomUUID();
+  const pairAEmail = `login-int-pair-a-${suffix}@example.com`;
+  const pairAToken = `pair-a-${suffix}`;
+
+  const pairBAuthUserId = randomUUID();
+  const pairBUserId = randomUUID();
+  const pairBEmail = `login-int-pair-b-${suffix}@example.com`;
+  const pairBToken = `pair-b-${suffix}`;
+
+  // Consumo en paralelo del mismo token.
+  const parallelAuthUserId = randomUUID();
+  const parallelUserId = randomUUID();
+  const parallelEmail = `login-int-parallel-${suffix}@example.com`;
+  const parallelToken = `parallel-${suffix}`;
+
   let sql: Sql | undefined;
 
   function db(): Sql {
@@ -88,6 +105,31 @@ describe.skipIf(!RUN)('consumeDashboardLoginToken (Postgres integration)', () =>
       VALUES (${unlinkedUserId}::uuid, 'Login Int Sin Link', ${unlinkedEmail}, NULL, NULL, ${now}, ${now})
     `;
 
+    await db()`
+      INSERT INTO auth.users (id, email, created_at, updated_at)
+      VALUES (${pairAAuthUserId}::uuid, ${pairAEmail}, ${now}, ${now})
+    `;
+    await db()`
+      INSERT INTO auth.users (id, email, created_at, updated_at)
+      VALUES (${pairBAuthUserId}::uuid, ${pairBEmail}, ${now}, ${now})
+    `;
+    await db()`
+      INSERT INTO auth.users (id, email, created_at, updated_at)
+      VALUES (${parallelAuthUserId}::uuid, ${parallelEmail}, ${now}, ${now})
+    `;
+    await db()`
+      INSERT INTO usuario (id, nombre, email, auth_user_id, whatsapp_id, creado_en, actualizado_en)
+      VALUES (${pairAUserId}::uuid, 'Login Int Par A', ${pairAEmail}, ${pairAAuthUserId}::uuid, NULL, ${now}, ${now})
+    `;
+    await db()`
+      INSERT INTO usuario (id, nombre, email, auth_user_id, whatsapp_id, creado_en, actualizado_en)
+      VALUES (${pairBUserId}::uuid, 'Login Int Par B', ${pairBEmail}, ${pairBAuthUserId}::uuid, NULL, ${now}, ${now})
+    `;
+    await db()`
+      INSERT INTO usuario (id, nombre, email, auth_user_id, whatsapp_id, creado_en, actualizado_en)
+      VALUES (${parallelUserId}::uuid, 'Login Int Paralelo', ${parallelEmail}, ${parallelAuthUserId}::uuid, NULL, ${now}, ${now})
+    `;
+
     const insertLink = async (
       token: string,
       targetUserId: string,
@@ -112,19 +154,26 @@ describe.skipIf(!RUN)('consumeDashboardLoginToken (Postgres integration)', () =>
     await insertLink(consumedToken, userId, 'consumido', now, future, now);
     await insertLink(unlinkedToken, unlinkedUserId, 'pendiente', now, future, null);
     await insertLink(otherToken, otherUserId, 'pendiente', now, future, null);
+    await insertLink(pairAToken, pairAUserId, 'pendiente', now, future, null);
+    await insertLink(pairBToken, pairBUserId, 'pendiente', now, future, null);
+    await insertLink(parallelToken, parallelUserId, 'pendiente', now, future, null);
   });
 
   afterAll(async () => {
     if (sql) {
       try {
-        await sql`DELETE FROM dashboard_login_link WHERE usuario_id = ${userId}::uuid OR usuario_id = ${otherUserId}::uuid OR usuario_id = ${expiredUserId}::uuid OR usuario_id = ${unlinkedUserId}::uuid`;
-        await sql`DELETE FROM usuario WHERE id = ${userId}::uuid OR id = ${otherUserId}::uuid OR id = ${expiredUserId}::uuid OR id = ${unlinkedUserId}::uuid`;
-        await sql`DELETE FROM auth.users WHERE id = ${authUserId}::uuid OR id = ${otherAuthUserId}::uuid OR id = ${expiredAuthUserId}::uuid`;
-      } catch {
-        // ponytail: best-effort cleanup; the post-run verification query is the real check
+        await sql`DELETE FROM dashboard_login_link WHERE usuario_id = ${userId}::uuid OR usuario_id = ${otherUserId}::uuid OR usuario_id = ${expiredUserId}::uuid OR usuario_id = ${unlinkedUserId}::uuid OR usuario_id = ${pairAUserId}::uuid OR usuario_id = ${pairBUserId}::uuid OR usuario_id = ${parallelUserId}::uuid`;
+        await sql`DELETE FROM usuario WHERE id = ${userId}::uuid OR id = ${otherUserId}::uuid OR id = ${expiredUserId}::uuid OR id = ${unlinkedUserId}::uuid OR id = ${pairAUserId}::uuid OR id = ${pairBUserId}::uuid OR id = ${parallelUserId}::uuid`;
+        await sql`DELETE FROM auth.users WHERE id = ${authUserId}::uuid OR id = ${otherAuthUserId}::uuid OR id = ${expiredAuthUserId}::uuid OR id = ${pairAAuthUserId}::uuid OR id = ${pairBAuthUserId}::uuid OR id = ${parallelAuthUserId}::uuid`;
+      } catch (error) {
+        console.error('login integration cleanup failed', error);
+        throw error;
+      } finally {
+        await closeDb();
       }
+    } else {
+      await closeDb();
     }
-    await closeDb();
   });
 
   it('consume el token válido y marca la fila como consumida', async () => {
@@ -171,5 +220,29 @@ describe.skipIf(!RUN)('consumeDashboardLoginToken (Postgres integration)', () =>
     await expect(consumeDashboardLoginToken(db(), '')).resolves.toBeNull();
     await expect(consumeDashboardLoginToken(db(), 12345)).resolves.toBeNull();
     await expect(consumeDashboardLoginToken(db(), 'x'.repeat(4097))).resolves.toBeNull();
+  });
+
+  it('consumir A devuelve su auth_user_id y deja el link de B pendiente', async () => {
+    await expect(consumeDashboardLoginToken(db(), pairAToken)).resolves.toBe(pairAAuthUserId);
+
+    const bRows = await linkRows(pairBToken);
+    expect(bRows[0].estado).toBe('pendiente');
+    expect(bRows[0].consumido_en).toBeNull();
+
+    await expect(consumeDashboardLoginToken(db(), pairBToken)).resolves.toBe(pairBAuthUserId);
+  });
+
+  it('consumir el mismo token en paralelo da un éxito y un null, sin doble consumo', async () => {
+    const [first, second] = await Promise.all([
+      consumeDashboardLoginToken(db(), parallelToken),
+      consumeDashboardLoginToken(db(), parallelToken),
+    ]);
+
+    expect([first, second].filter((value) => value === parallelAuthUserId)).toHaveLength(1);
+    expect([first, second].filter((value) => value === null)).toHaveLength(1);
+
+    const rows = await linkRows(parallelToken);
+    expect(rows[0].estado).toBe('consumido');
+    expect(rows[0].consumido_en).not.toBeNull();
   });
 });

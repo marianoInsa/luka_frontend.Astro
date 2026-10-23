@@ -134,13 +134,21 @@ si no está definida.
 
 `npm test` corre la suite hermética (Vitest, sin red ni DB). Los tests de integración están
 desactivados por defecto y escriben y limpian filas de prueba en la DB real (incluida una fila
-temporal en `auth.users` por la FK de `usuario.auth_user_id`). `vitest.setup.ts` solo copia
-`DATABASE_URL` de `.dev.vars` (raíz):
+temporal en `auth.users` por la FK de `usuario.auth_user_id`).
+
+Para integración **usar Supabase local**, con un `DATABASE_URL` explícito en `localhost` y
+`?sslmode=disable`. `vitest.setup.ts` exige esa URL local cuando `RUN_DB_INTEGRATION=1` y
+**nunca** copia `DATABASE_URL` de `.dev.vars` en el camino de integración (ahí `.dev.vars`
+apunta al pooler de producción):
 
 ```bash
-RUN_DB_INTEGRATION=1 npx vitest run src/lib/onboarding.integration.test.ts
-RUN_DB_INTEGRATION=1 npx vitest run src/lib/dashboard.integration.test.ts src/lib/login.integration.test.ts
+RUN_DB_INTEGRATION=1 \
+DATABASE_URL='postgresql://postgres:postgres@127.0.0.1:54322/postgres?sslmode=disable' \
+npx vitest run src/lib/dashboard.integration.test.ts src/lib/login.integration.test.ts src/lib/onboarding.integration.test.ts
 ```
+
+Fuera de integración, `vitest.setup.ts` sigue copiando `DATABASE_URL` de `.dev.vars` (raíz) para
+el resto de la suite, sin pisar una variable ya definida.
 
 La integración del panel admin (`src/lib/flow-admin.integration.test.ts`) es **read-only** (nunca
 crea ni publica flujos) y se activa con `RUN_FLOW_BACKEND=1` más `LUKA_BACKEND_URL` y
@@ -152,6 +160,37 @@ $env:RUN_FLOW_BACKEND='1'; npx vitest run src/lib/flow-admin.integration.test.ts
 
 La compatibilidad de `luka_session` con `itsdangerous` (`src/lib/session.vectors.json`) se
 verifica en `src/lib/session.test.ts`.
+
+## CI de integración (DB)
+
+`.github/workflows/db-integration.yml` corre los 3 tests de integración contra una base
+Supabase local efímera que el propio workflow levanta (`supabase start` + `supabase db reset`
+desde un checkout de `blob1618/luka@main`). Disparadores: `pull_request` (paths de `src/` y
+config), `push` a `main`, cron diario (`17 6 * * *`) y `workflow_dispatch`. No requiere secrets:
+`DATABASE_URL` es el puerto local estándar y el guard de `vitest.setup.ts` lo acepta.
+
+El workflow falla por diseño si el guard detecta una URL no local, y no corre toda la suite:
+solo `dashboard`, `login` y `onboarding` (37 tests).
+
+**Estado del pre-flight (sin verificar en GitHub):** las Actions están habilitadas en el repo
+(confirmado por el usuario), pero el primer run **aún no se ejecutó en GitHub**: esta tarea no
+pushea y el `workflow_dispatch`/verificación del run quedan para el próximo push/PR. Evidencia
+local: la suite de integración quedó en `3 files / 37 tests`. El checkout de
+`blob1618/luka@main` es intencional: la rama de feature del backend no está pusheada y estos
+tests de integración no dependen de la migración de Fase 0.
+
+- **Dónde caen los PRs (pre-flight):** este workflow vive en el fork `marianoInsa/luka_frontend.Astro`,
+  que es donde caen los PRs hoy, así que los gatea. Si un PR se abre contra el padre
+  `blob1618/luka_frontend`, el workflow del fork **no** lo gatea: hay que agregar el mismo
+  workflow espejo en el padre.
+- **Cron:** tras el primer push, verificar que el run diario quede registrado (Actions →
+  workflow «DB integration» → runs programados).
+- **Contingencia:** si no se pueden habilitar Actions en el fork, mover el mismo job al repo
+  `blob1618/luka` (con checkout de `marianoInsa/luka_frontend.Astro`), trigger en
+  `supabase/migrations/**` + cron.
+
+Riesgo residual: un PR de migración del backend no dispara este workflow del frontend; el cron
+diario lo detecta en 24 h. Si se necesita hard gate, agregar el job espejo en el backend.
 
 ## Deuda conocida
 

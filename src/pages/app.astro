@@ -17,6 +17,7 @@ import { defaultDateRange } from '../lib/dates';
 import { getDb } from '../lib/db';
 import { isFlowAdmin } from '../lib/flow-admin';
 import { formatPlainInt } from '../lib/format';
+import { getCotizaciones } from '../lib/quotes';
 
 export const prerender = false;
 
@@ -32,7 +33,8 @@ const { from, to } = defaultDateRange(
 const stats = await getSummaryStats(sql, user.id, from, to);
 const transactions = await getRecentTransactions(sql, user.id, 15, from, to);
 const budgets = await getBudgetsWithUsage(sql, user.id, from, to);
-const patrimonio = await getPatrimonioNeto(sql, user.id, from, to);
+const quotes = await getCotizaciones();
+const patrimonio = await getPatrimonioNeto(sql, user.id, quotes);
 const consumo = await getConsumoPresupuesto(sql, user.id, from, to);
 
 const flowAdmin = isFlowAdmin(Astro.locals.authUserId);
@@ -234,8 +236,8 @@ const whatsappLabel = user.whatsapp_id ? `+${user.whatsapp_id.slice(-4)}` : '+·
         }
       };
 
-      function moneyLabel(v) {
-        return ` $${Number(v).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
+      function moneyLabel(v, prefix = '$') {
+        return ` ${prefix}${Number(v).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
       }
 
       function markChartLoaded(containerId) {
@@ -320,7 +322,7 @@ const whatsappLabel = user.whatsapp_id ? `+${user.whatsapp_id.slice(-4)}` : '+·
                 borderSkipped: false,
               },
               {
-                label: 'USD (en ARS)',
+                label: 'USD',
                 data: data.map(d => d.USD),
                 backgroundColor: cssVar('--cat-ingresos'),
                 borderRadius: 4,
@@ -333,7 +335,7 @@ const whatsappLabel = user.whatsapp_id ? `+${user.whatsapp_id.slice(-4)}` : '+·
             plugins: {
               ...CHART_DEFAULTS.plugins,
               legend: { ...CHART_DEFAULTS.plugins.legend, position: 'top' },
-              tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${moneyLabel(ctx.parsed.y)}` } }
+              tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${moneyLabel(ctx.parsed.y, ctx.dataset.label === 'USD' ? 'u$s' : '$')}` } }
             },
             scales: { ...CHART_DEFAULTS.scales }
           }

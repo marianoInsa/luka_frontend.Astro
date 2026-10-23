@@ -1,6 +1,7 @@
 ---
 import type { ConsumoPresupuesto, PatrimonioNeto, SummaryStats } from '../lib/dashboard';
 import { formatDecimals, formatInt } from '../lib/format';
+import { formatQuoteTime, type QuoteType } from '../lib/quotes';
 import Icon from './Icon.astro';
 
 interface Props {
@@ -11,9 +12,48 @@ interface Props {
 
 const { stats, patrimonio, consumo } = Astro.props;
 
-const hasData = stats.transaction_count > 0;
-const patrimonioColor = !hasData ? 'var(--money-out)' : patrimonio.is_positive ? 'var(--success)' : 'var(--danger)';
-const consumoColor = !hasData
+const TIPOS: QuoteType[] = ['oficial', 'mep', 'blue'];
+const TIPO_LABELS: Record<QuoteType, string> = { oficial: 'Oficial', mep: 'MEP', blue: 'Blue' };
+
+const hasTransactions = stats.transaction_count > 0;
+// Signo antes del prefijo de moneda: -$500, -u$s500,00.
+const money = (prefix: string, text: string): string =>
+  text.startsWith('-') ? `-${prefix}${text.slice(1)}` : `${prefix}${text}`;
+const capitalColor =
+  patrimonio.ars_total > 0 || patrimonio.usd_total > 0
+    ? 'var(--money-in)'
+    : patrimonio.ars_total < 0 && patrimonio.usd_total < 0
+      ? 'var(--money-out)'
+      : 'var(--text-primary)';
+
+const quoteRows = TIPOS.flatMap((tipo) => {
+  const quote = patrimonio.quotes[tipo];
+  return quote ? [{ tipo, quote }] : [];
+});
+
+// Evita romper el render si el backend manda una fecha que no parsea.
+const quoteTime = (iso: string | undefined): string | null => {
+  if (!iso || Number.isNaN(new Date(iso).getTime())) return null;
+  return formatQuoteTime(iso).replace(',', '');
+};
+const consultedAt = quoteTime(
+  quoteRows
+    .map(({ quote }) => quote.fetched_at)
+    .sort()
+    .at(-1),
+);
+const asOf = quoteTime(
+  quoteRows
+    .map(({ quote }) => quote.as_of)
+    .sort()
+    .at(-1),
+);
+const staleTitle = (iso: string): string => {
+  const time = quoteTime(iso);
+  return time ? `Cotización de ${time}` : 'Cotización desactualizada';
+};
+
+const consumoColor = !hasTransactions
   ? 'var(--money-out)'
   : consumo.over
     ? 'var(--danger)'
@@ -25,32 +65,96 @@ const consumoOver = consumo.over === true;
 
 <div class="stats-grid">
 
-  <!-- KPI 1: Patrimonio Neto -->
-  <div class="stat-card stat-card--highlight" id="stat-patrimonio">
-    <div class="stat-icon" style={`--icon-color: ${patrimonioColor};`}>
+  <!-- KPI 1: Capital consolidado -->
+  <div class="stat-card stat-card--highlight stat-card--capital" id="stat-patrimonio">
+    <div class="stat-icon" style="--icon-color: var(--action);">
       <Icon name="icon_trend_up" />
     </div>
-    <div class="stat-body">
-      <p class="stat-label">Patrimonio Neto</p>
-      <p
-        class:list={[
-          'stat-value',
-          !hasData && 'stat-value--muted',
-        ]}
-      >
-        {hasData ? `${patrimonio.is_positive ? '+' : ''}$${formatInt(patrimonio.total_ars)}` : 'Sin datos'}
-      </p>
+    <div class="stat-body stat-body--full">
+      <p class="stat-label">Capital consolidado</p>
+      <div class="capital-lines">
+        <span class="capital-line" style={`color: ${capitalColor};`}>
+          {money('$', formatInt(patrimonio.ars_total))}
+        </span>
+        <span class="capital-line" style={`color: ${capitalColor};`}>
+          {money('u$s', formatDecimals(patrimonio.usd_total, 2))}
+        </span>
+      </div>
+      <ul class="capital-totals">
+        {TIPOS.map((tipo) => {
+          const total = patrimonio.totals[tipo];
+          const quote = patrimonio.quotes[tipo];
+          return (
+            <li class="capital-total">
+              <span class="capital-total__label">{TIPO_LABELS[tipo]}</span>
+              <span class="capital-total__value" title={total == null ? 'No disponible' : undefined}>
+                {total == null ? '—' : money('$', formatInt(total))}
+              </span>
+              {quote?.stale && (
+                <span class="stat-badge stat-badge--warning" title={staleTitle(quote.fetched_at)}>
+                  Desactualizada
+                </span>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      <p class="stat-hint">Saldos originales, sin vender. Valuado a compra.</p>
     </div>
   </div>
 
-  <!-- KPI 2: Cotización USD -->
+  <!-- KPI 2: Cotizaciones -->
   <div class="stat-card" id="stat-cotizacion">
     <div class="stat-icon" style="--icon-color: var(--success);">
       <Icon name="icon_dollar" />
     </div>
-    <div class="stat-body">
-      <p class="stat-label">Cotización USD</p>
-      <p class="stat-value">${formatDecimals(patrimonio.usd_rate, 2)}</p>
+    <div class="stat-body stat-body--full">
+      <p class="stat-label">Cotizaciones</p>
+      {
+        <>
+          {quoteRows.length === 0 && (
+            <p class="stat-hint">Cotizaciones no disponibles; no se convierte.</p>
+          )}
+          <table class="quotes-table">
+            <thead>
+              <tr>
+                <th scope="col">Casa</th>
+                <th scope="col">Compra</th>
+                <th scope="col">Venta</th>
+              </tr>
+            </thead>
+            <tbody>
+              {TIPOS.map((tipo) => {
+                const quote = patrimonio.quotes[tipo];
+                return (
+                  <tr>
+                    <th scope="row">
+                      <span class="quotes-house">
+                        {TIPO_LABELS[tipo]}
+                        {quote?.stale && (
+                          <span
+                            class="stat-badge stat-badge--warning"
+                            title={staleTitle(quote.fetched_at)}
+                          >
+                            Desactualizada
+                          </span>
+                        )}
+                      </span>
+                    </th>
+                    <td>{quote?.compra == null ? '—' : `$${formatDecimals(quote.compra)}`}</td>
+                    <td>{quote?.venta == null ? '—' : `$${formatDecimals(quote.venta)}`}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          {patrimonio.usd_total === 0 && <p class="quotes-note">Sin saldos en USD.</p>}
+          {asOf && <p class="quotes-asof">Actualizada {asOf}</p>}
+          <p class="quotes-footnote">
+            DolarAPI{consultedAt ? ` · consultado ${consultedAt}` : ''}. Valuado a compra.
+          </p>
+        </>
+      }
     </div>
   </div>
 
@@ -62,20 +166,20 @@ const consumoOver = consumo.over === true;
     <div class="stat-body stat-body--full">
       <div class="stat-row">
         <p class="stat-label">Presupuesto</p>
-        <p class:list={['stat-value', !hasData && 'stat-value--muted']}>
-          {hasData ? `${consumo.pct}%` : 'Sin datos'}
+        <p class:list={['stat-value', !hasTransactions && 'stat-value--muted']}>
+          {hasTransactions ? `${consumo.pct}%` : 'Sin datos'}
         </p>
       </div>
       <div class="kpi-bar-bg">
         <div
           class:list={['kpi-bar-fill', consumoOver && 'kpi-bar--over', !consumoOver && consumo.pct > 80 && 'kpi-bar--warn']}
-          style={`width: ${hasData ? consumo.pct : 0}%`}
+          style={`width: ${hasTransactions ? consumo.pct : 0}%`}
         >
         </div>
       </div>
       <p class="stat-hint">
         {
-          hasData ? (
+          hasTransactions ? (
             <>
               ${formatInt(consumo.spent)} / ${formatInt(consumo.limit)}
               {consumo.limit === 0 && <span class="stat-badge stat-badge--soon">Próximamente</span>}
@@ -103,13 +207,13 @@ const consumoOver = consumo.over === true;
 
   <!-- KPI 6: Categoría Top -->
   <div class="stat-card" id="stat-category">
-    <div class="stat-icon" style={`--icon-color: ${hasData ? 'var(--cat-ocio)' : 'var(--money-out)'};`}>
+    <div class="stat-icon" style={`--icon-color: ${stats.top_category !== '—' ? 'var(--cat-ocio)' : 'var(--money-out)'};`}>
       <Icon name="icon_tag_stats" />
     </div>
     <div class="stat-body">
       <p class="stat-label">Categoría top</p>
-      <p class:list={['stat-value', !hasData && 'stat-value--muted']}>
-        {hasData && stats.top_category !== '—' ? stats.top_category : 'Sin datos'}
+      <p class:list={['stat-value', stats.top_category === '—' && 'stat-value--muted']}>
+        {stats.top_category !== '—' ? stats.top_category : 'Sin datos'}
       </p>
       <p class="stat-hint"><span class="stat-badge stat-badge--soon">Próximamente</span></p>
     </div>

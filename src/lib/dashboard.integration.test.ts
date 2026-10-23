@@ -15,6 +15,7 @@ import {
   getUserByAuthId,
 } from './dashboard';
 import { closeDb, getDb, type Sql } from './db';
+import { EMPTY_QUOTES, type Quote, type Quotes } from './quotes';
 
 // Guarded integration test: hits the real Postgres. Skipped unless explicitly
 // opted in, so `npm test` (and CI) stays hermetic.
@@ -27,9 +28,27 @@ function createdAt(offsetMinutes: number): Date {
   return new Date(CREATED_BASE.getTime() + offsetMinutes * 60_000);
 }
 
+function quote(compra: number): Quote {
+  return {
+    compra,
+    venta: compra + 50,
+    fuente: 'test',
+    as_of: '2026-10-23T13:00:00-03:00',
+    fetched_at: '2026-10-23T16:05:00+00:00',
+    stale: false,
+  };
+}
+
+const QUOTES: Quotes = {
+  oficial: quote(1300),
+  mep: quote(1200),
+  blue: quote(1500),
+};
+
 interface SeedMovement {
   id: string;
   usuarioId: string;
+  billeteraId: string;
   tipo: string;
   cantidad: string;
   moneda: string;
@@ -49,9 +68,16 @@ describe.skipIf(!RUN)('dashboard data layer (Postgres integration)', () => {
 
   const otherUserId = randomUUID();
   const otherEmail = `dash-int-other-${suffix}@example.com`;
+  const otherAuthUserId = randomUUID();
+
+  const walletArsId = randomUUID();
+  const walletUsdId = randomUUID();
+  const otherWalletArsId = randomUUID();
+  const otherWalletUsdId = randomUUID();
 
   const catFoodId = randomUUID();
   const catEduId = randomUUID();
+  const catBCanaryId = randomUUID();
 
   const ids = {
     activeFood: randomUUID(),
@@ -67,6 +93,8 @@ describe.skipIf(!RUN)('dashboard data layer (Postgres integration)', () => {
     decExpense: randomUUID(),
     novExpense: randomUUID(),
     otherUser: randomUUID(),
+    bCanary: randomUUID(),
+    bCanaryUsd: randomUUID(),
   };
 
   let sql: Sql | undefined;
@@ -90,8 +118,31 @@ describe.skipIf(!RUN)('dashboard data layer (Postgres integration)', () => {
       VALUES (${userId}::uuid, 'Dashboard Int', ${email}, ${authUserId}::uuid, ${whatsappId}, ${now}, ${now})
     `;
     await db()`
+      INSERT INTO auth.users (id, email, created_at, updated_at)
+      VALUES (${otherAuthUserId}::uuid, ${otherEmail}, ${now}, ${now})
+    `;
+    await db()`
       INSERT INTO usuario (id, nombre, email, auth_user_id, whatsapp_id, creado_en, actualizado_en)
-      VALUES (${otherUserId}::uuid, 'Otro Usuario', ${otherEmail}, NULL, NULL, ${now}, ${now})
+      VALUES (${otherUserId}::uuid, 'Otro Usuario', ${otherEmail}, ${otherAuthUserId}::uuid, NULL, ${now}, ${now})
+    `;
+
+    // billetera antes que los movimientos: billetera_id es NOT NULL y la FK
+    // compuesta (id, usuario_id, moneda) exige coincidencia con el movimiento.
+    await db()`
+      INSERT INTO billetera (id, usuario_id, nombre, moneda)
+      VALUES (${walletArsId}::uuid, ${userId}::uuid, 'ARS', 'ARS')
+    `;
+    await db()`
+      INSERT INTO billetera (id, usuario_id, nombre, moneda)
+      VALUES (${walletUsdId}::uuid, ${userId}::uuid, 'USD', 'USD')
+    `;
+    await db()`
+      INSERT INTO billetera (id, usuario_id, nombre, moneda)
+      VALUES (${otherWalletArsId}::uuid, ${otherUserId}::uuid, 'ARS', 'ARS')
+    `;
+    await db()`
+      INSERT INTO billetera (id, usuario_id, nombre, moneda)
+      VALUES (${otherWalletUsdId}::uuid, ${otherUserId}::uuid, 'USD', 'USD')
     `;
 
     await db()`
@@ -102,6 +153,10 @@ describe.skipIf(!RUN)('dashboard data layer (Postgres integration)', () => {
       INSERT INTO categorias (id, usuario_id, nombre, es_default, esta_eliminado)
       VALUES (${catEduId}::uuid, ${userId}::uuid, 'Educación', false, false)
     `;
+    await db()`
+      INSERT INTO categorias (id, usuario_id, nombre, es_default, esta_eliminado)
+      VALUES (${catBCanaryId}::uuid, ${otherUserId}::uuid, 'B-CANARY', false, false)
+    `;
 
     await db()`
       INSERT INTO limite_categoria (id, usuario_id, categoria_id, cantidad_max, inicio_periodo, fin_periodo)
@@ -111,12 +166,17 @@ describe.skipIf(!RUN)('dashboard data layer (Postgres integration)', () => {
       INSERT INTO limite_categoria (id, usuario_id, categoria_id, cantidad_max, inicio_periodo, fin_periodo)
       VALUES (${randomUUID()}::uuid, ${userId}::uuid, ${catEduId}::uuid, ${'3000.00'}::numeric, ${'2026-04-01'}::date, ${'2026-04-30'}::date)
     `;
+    await db()`
+      INSERT INTO limite_categoria (id, usuario_id, categoria_id, cantidad_max, inicio_periodo, fin_periodo)
+      VALUES (${randomUUID()}::uuid, ${otherUserId}::uuid, ${catBCanaryId}::uuid, ${'999999.00'}::numeric, ${'2026-05-01'}::date, ${'2026-05-31'}::date)
+    `;
 
     const movements: SeedMovement[] = [
       // Mayo 2026: activos, un anulado y un USD por cada tipo.
       {
         id: ids.activeFood,
         usuarioId: userId,
+        billeteraId: walletArsId,
         tipo: 'egreso',
         cantidad: '1500.00',
         moneda: 'ARS',
@@ -128,6 +188,7 @@ describe.skipIf(!RUN)('dashboard data layer (Postgres integration)', () => {
       {
         id: ids.activeIncome,
         usuarioId: userId,
+        billeteraId: walletArsId,
         tipo: 'ingreso',
         cantidad: '12000.00',
         moneda: 'ARS',
@@ -139,6 +200,7 @@ describe.skipIf(!RUN)('dashboard data layer (Postgres integration)', () => {
       {
         id: ids.annulledExpense,
         usuarioId: userId,
+        billeteraId: walletArsId,
         tipo: 'egreso',
         cantidad: '9999.00',
         moneda: 'ARS',
@@ -151,6 +213,7 @@ describe.skipIf(!RUN)('dashboard data layer (Postgres integration)', () => {
       {
         id: ids.annulledIncome,
         usuarioId: userId,
+        billeteraId: walletArsId,
         tipo: 'ingreso',
         cantidad: '7000.00',
         moneda: 'ARS',
@@ -163,6 +226,7 @@ describe.skipIf(!RUN)('dashboard data layer (Postgres integration)', () => {
       {
         id: ids.usdExpense,
         usuarioId: userId,
+        billeteraId: walletUsdId,
         tipo: 'egreso',
         cantidad: '2.00',
         moneda: 'USD',
@@ -174,6 +238,7 @@ describe.skipIf(!RUN)('dashboard data layer (Postgres integration)', () => {
       {
         id: ids.usdIncome,
         usuarioId: userId,
+        billeteraId: walletUsdId,
         tipo: 'ingreso',
         cantidad: '10.00',
         moneda: 'USD',
@@ -186,17 +251,19 @@ describe.skipIf(!RUN)('dashboard data layer (Postgres integration)', () => {
       {
         id: ids.aprilEdu,
         usuarioId: userId,
+        billeteraId: walletArsId,
         tipo: 'egreso',
         cantidad: '4000.00',
         moneda: 'ARS',
         fecha: '2026-04-15',
         categoriaId: catEduId,
-        descripcion: 'Curso',
+        descripcion: 'Curso A-CANARY',
         creadoOffset: 6,
       },
       {
         id: ids.marchFood,
         usuarioId: userId,
+        billeteraId: walletArsId,
         tipo: 'egreso',
         cantidad: '1000.00',
         moneda: 'ARS',
@@ -208,6 +275,7 @@ describe.skipIf(!RUN)('dashboard data layer (Postgres integration)', () => {
       {
         id: ids.febIncome,
         usuarioId: userId,
+        billeteraId: walletArsId,
         tipo: 'ingreso',
         cantidad: '500.00',
         moneda: 'ARS',
@@ -219,6 +287,7 @@ describe.skipIf(!RUN)('dashboard data layer (Postgres integration)', () => {
       {
         id: ids.janExpense,
         usuarioId: userId,
+        billeteraId: walletArsId,
         tipo: 'egreso',
         cantidad: '300.00',
         moneda: 'ARS',
@@ -230,6 +299,7 @@ describe.skipIf(!RUN)('dashboard data layer (Postgres integration)', () => {
       {
         id: ids.decExpense,
         usuarioId: userId,
+        billeteraId: walletArsId,
         tipo: 'egreso',
         cantidad: '200.00',
         moneda: 'ARS',
@@ -241,6 +311,7 @@ describe.skipIf(!RUN)('dashboard data layer (Postgres integration)', () => {
       {
         id: ids.novExpense,
         usuarioId: userId,
+        billeteraId: walletArsId,
         tipo: 'egreso',
         cantidad: '100.00',
         moneda: 'ARS',
@@ -253,6 +324,7 @@ describe.skipIf(!RUN)('dashboard data layer (Postgres integration)', () => {
       {
         id: ids.otherUser,
         usuarioId: otherUserId,
+        billeteraId: otherWalletArsId,
         tipo: 'egreso',
         cantidad: '4200.00',
         moneda: 'ARS',
@@ -261,15 +333,41 @@ describe.skipIf(!RUN)('dashboard data layer (Postgres integration)', () => {
         descripcion: 'Ajeno',
         creadoOffset: 12,
       },
+      // Canarios de B: no deben aparecer en ninguna consulta de A.
+      {
+        id: ids.bCanary,
+        usuarioId: otherUserId,
+        billeteraId: otherWalletArsId,
+        tipo: 'egreso',
+        cantidad: '777777.77',
+        moneda: 'ARS',
+        fecha: '2026-05-10',
+        categoriaId: catBCanaryId,
+        descripcion: 'B-CANARY',
+        creadoOffset: 13,
+      },
+      {
+        id: ids.bCanaryUsd,
+        usuarioId: otherUserId,
+        billeteraId: otherWalletUsdId,
+        tipo: 'egreso',
+        cantidad: '888.88',
+        moneda: 'USD',
+        fecha: '2026-05-10',
+        categoriaId: null,
+        descripcion: 'B-CANARY-USD',
+        creadoOffset: 14,
+      },
     ];
 
     for (const movement of movements) {
       await db()`
         INSERT INTO movimientos_financieros
-          (id, usuario_id, categoria_id, tipo, cantidad, moneda, descripcion,
+          (id, usuario_id, billetera_id, categoria_id, tipo, cantidad, moneda, descripcion,
            fecha_movimiento, anulado_en, creado_en)
         VALUES
-          (${movement.id}::uuid, ${movement.usuarioId}::uuid, ${movement.categoriaId}::uuid,
+          (${movement.id}::uuid, ${movement.usuarioId}::uuid, ${movement.billeteraId}::uuid,
+           ${movement.categoriaId}::uuid,
            ${movement.tipo}, ${movement.cantidad}::numeric, ${movement.moneda},
            ${movement.descripcion}, ${movement.fecha}::date,
            ${movement.anulado ? ANULADO_AT : null}, ${createdAt(movement.creadoOffset)})
@@ -280,16 +378,23 @@ describe.skipIf(!RUN)('dashboard data layer (Postgres integration)', () => {
   afterAll(async () => {
     if (sql) {
       try {
+        // Orden por FKs: movimientos → límites → categorías → billetera →
+        // usuario → auth.users (A y B). Un error de cleanup falla el test.
         await sql`DELETE FROM movimientos_financieros WHERE usuario_id = ${userId}::uuid OR usuario_id = ${otherUserId}::uuid`;
-        await sql`DELETE FROM limite_categoria WHERE usuario_id = ${userId}::uuid`;
+        await sql`DELETE FROM limite_categoria WHERE usuario_id = ${userId}::uuid OR usuario_id = ${otherUserId}::uuid`;
         await sql`DELETE FROM categorias WHERE usuario_id = ${userId}::uuid OR usuario_id = ${otherUserId}::uuid`;
+        await sql`DELETE FROM billetera WHERE usuario_id = ${userId}::uuid OR usuario_id = ${otherUserId}::uuid`;
         await sql`DELETE FROM usuario WHERE id = ${userId}::uuid OR id = ${otherUserId}::uuid`;
-        await sql`DELETE FROM auth.users WHERE id = ${authUserId}::uuid`;
-      } catch {
-        // ponytail: best-effort cleanup; the post-run verification query is the real check
+        await sql`DELETE FROM auth.users WHERE id = ${authUserId}::uuid OR id = ${otherAuthUserId}::uuid`;
+      } catch (error) {
+        console.error('dashboard integration cleanup failed', error);
+        throw error;
+      } finally {
+        await closeDb();
       }
+    } else {
+      await closeDb();
     }
-    await closeDb();
   });
 
   async function readStream(stream: ReadableStream<Uint8Array>): Promise<string> {
@@ -425,15 +530,35 @@ describe.skipIf(!RUN)('dashboard data layer (Postgres integration)', () => {
     expect(mayByCategory['Educación']).toMatchObject({ spent: 0, remaining: 3000, pct: 0, over: false });
   });
 
-  it('getPatrimonioNeto convierte USD con la tasa fija y excluye anulados', async () => {
-    await expect(getPatrimonioNeto(db(), userId)).resolves.toEqual({
-      total_ars: 15800,
-      usd_rate: 1300,
-      is_positive: true,
+  it('getPatrimonioNeto devuelve capital por moneda y un total por cotización', async () => {
+    await expect(getPatrimonioNeto(db(), userId, QUOTES)).resolves.toEqual({
+      ars_total: 5400,
+      usd_total: 8,
+      totals: { oficial: 15800, mep: 15000, blue: 17400 },
+      quotes: QUOTES,
     });
+  });
 
-    const may = await getPatrimonioNeto(db(), userId, '2026-05-01', '2026-05-31');
-    expect(may.total_ars).toBe(12000 + 13000 - 1500 - 2600);
+  it('getPatrimonioNeto sin cotizaciones deja los totales en null', async () => {
+    const result = await getPatrimonioNeto(db(), userId, EMPTY_QUOTES);
+    expect(result.ars_total).toBe(5400);
+    expect(result.usd_total).toBe(8);
+    expect(result.totals).toEqual({ oficial: null, mep: null, blue: null });
+  });
+
+  it('getPatrimonioNeto con compra null deja ese total en null', async () => {
+    const quotes: Quotes = { ...QUOTES, oficial: { ...quote(1300), compra: null } };
+    const result = await getPatrimonioNeto(db(), userId, quotes);
+    expect(result.totals.oficial).toBeNull();
+    expect(result.totals.mep).toBe(15000);
+    expect(result.totals.blue).toBe(17400);
+  });
+
+  it('getPatrimonioNeto excluye movimientos anulados y USD de otra moneda', async () => {
+    // 5400 = 12500 de ingresos ARS - 7100 de egresos ARS; los anulados no cuentan.
+    const result = await getPatrimonioNeto(db(), userId, QUOTES);
+    expect(result.ars_total).toBe(12500 - 7100);
+    expect(result.usd_total).toBe(10 - 2);
   });
 
   it('getConsumoPresupuesto suma límites y egresos de esas categorías', async () => {
@@ -447,9 +572,12 @@ describe.skipIf(!RUN)('dashboard data layer (Postgres integration)', () => {
       getConsumoPresupuesto(db(), userId, '2026-05-01', '2026-05-31'),
     ).resolves.toEqual({ pct: 12, spent: 1500, limit: 13000, over: false });
 
-    const noBudgets = await getConsumoPresupuesto(db(), otherUserId);
-    expect(noBudgets).toEqual({ pct: 0, spent: 0, limit: 0 });
-    expect(noBudgets.over).toBeUndefined();
+    await expect(getConsumoPresupuesto(db(), otherUserId)).resolves.toEqual({
+      pct: 78,
+      spent: 777777.77,
+      limit: 999999,
+      over: false,
+    });
   });
 
   it('getMonthlyFlow agrupa por mes, etiqueta en español y recorta a 6 sin fechas', async () => {
@@ -468,19 +596,19 @@ describe.skipIf(!RUN)('dashboard data layer (Postgres integration)', () => {
     ]);
   });
 
-  it('getPortfolioByCurrency separa ARS/USD, convierte y recorta a 6 sin fechas', async () => {
+  it('getPortfolioByCurrency separa ARS/USD en unidades y recorta a 6 sin fechas', async () => {
     await expect(getPortfolioByCurrency(db(), userId)).resolves.toEqual([
       { month: 'Nov 2025', ARS: 100, USD: 0 },
       { month: 'Dic 2025', ARS: 200, USD: 0 },
       { month: 'Ene 2026', ARS: 300, USD: 0 },
       { month: 'Mar 2026', ARS: 1000, USD: 0 },
       { month: 'Abr 2026', ARS: 4000, USD: 0 },
-      { month: 'May 2026', ARS: 1500, USD: 2600 },
+      { month: 'May 2026', ARS: 1500, USD: 2 },
     ]);
 
     await expect(
       getPortfolioByCurrency(db(), userId, '2026-05-01', '2026-05-31'),
-    ).resolves.toEqual([{ month: 'May 2026', ARS: 1500, USD: 2600 }]);
+    ).resolves.toEqual([{ month: 'May 2026', ARS: 1500, USD: 2 }]);
   });
 
   it('el CSV reproduce el formato de Python y pagina por keyset', async () => {
@@ -504,5 +632,118 @@ describe.skipIf(!RUN)('dashboard data layer (Postgres integration)', () => {
     expect(smallBatches).not.toContain('9999');
     expect(smallBatches).not.toContain('Ajeno');
     expect(smallBatches).not.toContain('4200');
+  });
+
+  it('getUserByAuthId resuelve a B con su propio auth_user_id', async () => {
+    await expect(getUserByAuthId(db(), otherAuthUserId)).resolves.toEqual({
+      id: otherUserId,
+      whatsapp_id: null,
+    });
+  });
+
+  it('getSummaryStats aísla A y B con totales exactos', async () => {
+    const a = await getSummaryStats(db(), userId);
+    expect(a.total_spent).toBe(7102);
+    expect(a.total_income).toBe(12510);
+
+    const b = await getSummaryStats(db(), otherUserId);
+    expect(b.total_spent).toBe(782866.65);
+    expect(b.total_income).toBe(0);
+    expect(b.transaction_count).toBe(3);
+    expect(b.top_category).toBe('B-CANARY');
+    expect(b.avg_per_day).toBe(782866.65);
+    expect(b.total_spent).not.toBe(a.total_spent);
+  });
+
+  it('getExpensesByCategory aísla A y B por categoría', async () => {
+    const a = await getExpensesByCategory(db(), userId);
+    expect(a.map((row) => row.category)).not.toContain('B-CANARY');
+
+    await expect(getExpensesByCategory(db(), otherUserId)).resolves.toEqual([
+      { category: 'B-CANARY', total: 777777.77, color: '#64748b' },
+      { category: 'Otro', total: 5088.88, color: '#64748b' },
+    ]);
+  });
+
+  it('getRecentTransactions no mezcla descripciones entre usuarios', async () => {
+    const a = await getRecentTransactions(db(), userId);
+    expect(a.map((row) => row.description)).not.toContain('B-CANARY');
+    expect(a.map((row) => row.description)).not.toContain('B-CANARY-USD');
+
+    const b = await getRecentTransactions(db(), otherUserId);
+    expect(b.map((row) => row.id)).toEqual([ids.bCanaryUsd, ids.bCanary, ids.otherUser]);
+    expect(b.map((row) => row.description)).not.toContain('Almuerzo, "especial"');
+    expect(b.map((row) => row.description)).not.toContain('Sueldo');
+    expect(b.map((row) => row.description)).not.toContain('Curso A-CANARY');
+  });
+
+  it('getBudgetsWithUsage aísla A y B', async () => {
+    const a = await getBudgetsWithUsage(db(), userId);
+    expect(Object.fromEntries(a.map((budget) => [budget.category, budget]))['B-CANARY']).toBeUndefined();
+
+    const b = await getBudgetsWithUsage(db(), otherUserId);
+    expect(b).toHaveLength(1);
+    expect(b[0].category).toBe('B-CANARY');
+    expect(b[0].limit).toBe(999999);
+    expect(b[0].spent).toBe(777777.77);
+    expect(b[0].remaining).toBeCloseTo(222221.23);
+    expect(b[0].pct).toBe(78);
+    expect(b[0].over).toBe(false);
+  });
+
+  it('getMonthlyFlow aísla A y B', async () => {
+    await expect(getMonthlyFlow(db(), otherUserId)).resolves.toEqual([
+      { month: 'May 2026', ingresos: 0, egresos: 782866.65 },
+    ]);
+
+    const a = await getMonthlyFlow(db(), userId);
+    expect(a.flatMap((p) => [p.ingresos, p.egresos])).not.toContain(782866.65);
+  });
+
+  it('getPortfolioByCurrency aísla A y B', async () => {
+    await expect(getPortfolioByCurrency(db(), otherUserId)).resolves.toEqual([
+      { month: 'May 2026', ARS: 781977.77, USD: 888.88 },
+    ]);
+
+    const a = await getPortfolioByCurrency(db(), userId);
+    expect(a).not.toContainEqual({ month: 'May 2026', ARS: 781977.77, USD: 888.88 });
+  });
+
+  it('getPatrimonioNeto aísla A y B', async () => {
+    const a = await getPatrimonioNeto(db(), userId, QUOTES);
+    expect(a.ars_total).toBe(5400);
+    expect(a.usd_total).toBe(8);
+
+    const b = await getPatrimonioNeto(db(), otherUserId, QUOTES);
+    expect(b.ars_total).toBe(-781977.77);
+    expect(b.usd_total).toBe(-888.88);
+    expect(b.totals).toEqual({
+      oficial: -1937521.77,
+      mep: -1848633.77,
+      blue: -2115297.77,
+    });
+    expect(b.totals.oficial).not.toBe(a.totals.oficial);
+  });
+
+  it('el CSV de A no incluye B-CANARY y el de B no incluye A-CANARY', async () => {
+    const userA = await getUserByAuthId(db(), authUserId);
+    const userB = await getUserByAuthId(db(), otherAuthUserId);
+    expect(userA).not.toBeNull();
+    expect(userB).not.toBeNull();
+
+    const csvA = await readStream(createCsvStream(db(), userA!.id, null, null));
+    expect(csvA).not.toContain('B-CANARY');
+    expect(csvA).not.toContain('777777.77');
+    expect(csvA).not.toContain('888.88');
+
+    const csvB = await readStream(createCsvStream(db(), userB!.id, null, null));
+    expect(csvB).toBe(
+      'Fecha,Monto,Moneda,Categoria,Descripcion\r\n' +
+        '2026-05-10,888.88,USD,Otro,B-CANARY-USD\r\n' +
+        '2026-05-10,777777.77,ARS,B-CANARY,B-CANARY\r\n' +
+        '2026-05-10,4200.0,ARS,Otro,Ajeno\r\n',
+    );
+    expect(csvB).not.toContain('A-CANARY');
+    expect(csvB).not.toContain('Sueldo');
   });
 });

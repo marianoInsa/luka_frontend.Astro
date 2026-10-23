@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { closeDb, getDb } from './db';
+import { closeDb, getDb, isLocalDatabaseUrl } from './db';
 import { hyperdriveConnectionString } from './runtime';
 
 vi.mock('./runtime', () => ({ hyperdriveConnectionString: vi.fn() }));
@@ -70,5 +70,29 @@ describe('getDb with Hyperdrive', () => {
   it('does not require DATABASE_URL when the binding is present', () => {
     delete process.env.DATABASE_URL;
     expect(() => getDb()).not.toThrow();
+  });
+});
+
+describe('isLocalDatabaseUrl', () => {
+  it('accepts localhost, 127.0.0.1 and bracketed [::1]', () => {
+    expect(
+      isLocalDatabaseUrl('postgresql://postgres:postgres@localhost:54322/postgres?sslmode=disable'),
+    ).toBe(true);
+    expect(
+      isLocalDatabaseUrl('postgresql://postgres:postgres@127.0.0.1:54322/postgres?sslmode=disable'),
+    ).toBe(true);
+    expect(
+      isLocalDatabaseUrl('postgresql://postgres:postgres@[::1]:54322/postgres?sslmode=disable'),
+    ).toBe(true);
+  });
+
+  it('rejects a production pooler, an invalid URL and undefined', () => {
+    expect(
+      isLocalDatabaseUrl(
+        'postgresql://postgres.abcdefgh:password@aws-0-sa-east-1.pooler.supabase.com:5432/postgres',
+      ),
+    ).toBe(false);
+    expect(isLocalDatabaseUrl('not-a-url')).toBe(false);
+    expect(isLocalDatabaseUrl(undefined)).toBe(false);
   });
 });
