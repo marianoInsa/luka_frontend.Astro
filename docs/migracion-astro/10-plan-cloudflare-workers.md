@@ -650,8 +650,9 @@ Supabase apuntando al Worker.
 
 - [x] Las 25 rutas responden con el mismo path/método desde el Worker.
 - [x] Magic link, OAuth PKCE, `/dev-login` (404 en prod), cookies httpOnly/lax/secure/TTL.
-- [x] Las 10 consultas devuelven los mismos valores (anulados excluidos, tasa 1300, top categoría,
-      últimos 6 meses).
+- [x] Las 10 consultas devuelven los mismos valores (anulados excluidos, top categoría,
+      últimos 6 meses). La tasa 1300 de esa validación es histórica: se removió en
+      STK-45 y la cotización real llega por `/api/cotizaciones`.
 - [x] `/exportar/csv` byte-equivalente, sin cargar todo en memoria.
 - [x] Sin DDL/migraciones desde el proyecto Astro.
 - [x] Secretos solo server-side; `FLOW_ADMIN_API_KEY` ausente de HTML/bundles.
