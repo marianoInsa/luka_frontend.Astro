@@ -16,7 +16,9 @@ const TIPOS: QuoteType[] = ['oficial', 'mep', 'blue'];
 const TIPO_LABELS: Record<QuoteType, string> = { oficial: 'Oficial', mep: 'MEP', blue: 'Blue' };
 
 const hasTransactions = stats.transaction_count > 0;
-const hasCapital = patrimonio.ars_total !== 0 || patrimonio.usd_total !== 0;
+// Signo antes del prefijo de moneda: -$500, -u$s500,00.
+const money = (prefix: string, text: string): string =>
+  text.startsWith('-') ? `-${prefix}${text.slice(1)}` : `${prefix}${text}`;
 const capitalColor =
   patrimonio.ars_total > 0 || patrimonio.usd_total > 0
     ? 'var(--money-in)'
@@ -70,42 +72,34 @@ const consumoOver = consumo.over === true;
     </div>
     <div class="stat-body stat-body--full">
       <p class="stat-label">Capital consolidado</p>
-      {
-        hasCapital ? (
-          <>
-            <div class="capital-lines">
-              <span class="capital-line" style={`color: ${capitalColor};`}>
-                ${formatInt(patrimonio.ars_total)}
+      <div class="capital-lines">
+        <span class="capital-line" style={`color: ${capitalColor};`}>
+          {money('$', formatInt(patrimonio.ars_total))}
+        </span>
+        <span class="capital-line" style={`color: ${capitalColor};`}>
+          {money('u$s', formatDecimals(patrimonio.usd_total, 2))}
+        </span>
+      </div>
+      <ul class="capital-totals">
+        {TIPOS.map((tipo) => {
+          const total = patrimonio.totals[tipo];
+          const quote = patrimonio.quotes[tipo];
+          return (
+            <li class="capital-total">
+              <span class="capital-total__label">{TIPO_LABELS[tipo]}</span>
+              <span class="capital-total__value" title={total == null ? 'No disponible' : undefined}>
+                {total == null ? '—' : money('$', formatInt(total))}
               </span>
-              <span class="capital-line" style={`color: ${capitalColor};`}>
-                u$s{formatInt(patrimonio.usd_total)}
-              </span>
-            </div>
-            <ul class="capital-totals">
-              {TIPOS.map((tipo) => {
-                const total = patrimonio.totals[tipo];
-                const quote = patrimonio.quotes[tipo];
-                return (
-                  <li class="capital-total">
-                    <span class="capital-total__label">{TIPO_LABELS[tipo]}</span>
-                    <span class="capital-total__value" title={total == null ? 'No disponible' : undefined}>
-                      {total == null ? '—' : `$${formatInt(total)}`}
-                    </span>
-                    {quote?.stale && (
-                      <span class="stat-badge stat-badge--warning" title={staleTitle(quote.fetched_at)}>
-                        Desactualizada
-                      </span>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-            <p class="stat-hint">Saldos originales, sin vender. Valuado a compra.</p>
-          </>
-        ) : (
-          <p class="stat-value stat-value--muted">Sin datos</p>
-        )
-      }
+              {quote?.stale && (
+                <span class="stat-badge stat-badge--warning" title={staleTitle(quote.fetched_at)}>
+                  Desactualizada
+                </span>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      <p class="stat-hint">Saldos originales, sin vender. Valuado a compra.</p>
     </div>
   </div>
 
