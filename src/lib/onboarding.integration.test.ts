@@ -13,11 +13,51 @@ const DISPLAY_NAME = 'Integracion Luka';
 
 describe.skipIf(!RUN)('finalizeOnboarding (Postgres integration)', () => {
   const suffix = randomUUID();
-  const whatsappId = `test-int-${suffix}`;
+
+  // Escenario base: un usuario que coincide solo por email (auth_user_id y
+  // whatsapp_id NULL). finalizeOnboarding lo REUSA (lo vincula) en vez de
+  // crear otro ni declarar conflicto: es la política actual de "email-only
+  // match" con un usuario todavía sin vincular.
   const email = `test-int-${suffix}@example.com`;
   const authUserId = randomUUID();
   const userId = randomUUID();
+  const whatsappId = `test-int-${suffix}`;
   const invitationId = randomUUID();
+
+  // Escenario (a) conflicto: un usuario A ya vinculado posee el whatsapp_id de
+  // la invitación con otro auth_user_id/email; una identidad B distinta debe
+  // chocar sin consumir la invitación.
+  const conflictAuthA = randomUUID();
+  const conflictEmailA = `onb-conf-a-${suffix}@example.com`;
+  const conflictUserA = randomUUID();
+  const conflictWhatsappId = `test-onb-conf-${suffix}`;
+  const conflictInvitationId = randomUUID();
+  // Identidad B (compartida con el escenario (b), su contrafáctico).
+  const conflictAuthB = randomUUID();
+  const conflictEmailB = `onb-conf-b-${suffix}@example.com`;
+
+  // Escenario (b): sin el usuario A previo, la misma identidad B se crea.
+  const createWhatsappId = `test-onb-create-${suffix}`;
+  const createInvitationId = randomUUID();
+
+  // Escenario (c) concurrencia: dos finalizaciones paralelas de la misma
+  // invitación.
+  const concAuthC = randomUUID();
+  const concEmailC = `onb-conc-${suffix}@example.com`;
+  const concWhatsappId = `test-onb-conc-${suffix}`;
+  const concInvitationId = randomUUID();
+
+  // Escenario (d) email-only match en conflicto: el email ya pertenece a un
+  // usuario con OTRO auth_user_id → identity_conflict (no se vincula ni se
+  // reusa), a diferencia del escenario base donde ese usuario no estaba
+  // vinculado.
+  const emailAuthD0 = randomUUID();
+  const emailAuthD1 = randomUUID();
+  const emailUserD0 = randomUUID();
+  const emailD = `onb-email-${suffix}@example.com`;
+  const emailD1Email = `onb-email-d1-${suffix}@example.com`;
+  const emailWhatsappId = `test-onb-email-${suffix}`;
+  const emailInvitationId = randomUUID();
 
   let sql: Sql | undefined;
   let agreementId = '';
@@ -49,39 +89,115 @@ describe.skipIf(!RUN)('finalizeOnboarding (Postgres integration)', () => {
 
     const now = new Date();
     const expiresAt = new Date(now.getTime() + 60 * 60 * 1000);
-    const tokenHash = await hashToken(randomUUID());
 
     // usuario.auth_user_id has a real FK to auth.users(id) in this DB, so the
-    // fake identity needs a matching auth.users row.
+    // fake identities need a matching auth.users row.
     await db()`
       INSERT INTO auth.users (id, email, created_at, updated_at)
       VALUES (${authUserId}::uuid, ${email}, ${now}, ${now})
     `;
     await db()`
-      INSERT INTO usuario (id, nombre, email, auth_user_id, whatsapp_id, creado_en, actualizado_en)
-      VALUES (${userId}::uuid, ${'Usuario Previo'}, ${email}, NULL, NULL, ${now}, ${now})
+      INSERT INTO auth.users (id, email, created_at, updated_at)
+      VALUES (${conflictAuthA}::uuid, ${conflictEmailA}, ${now}, ${now})
     `;
     await db()`
-      INSERT INTO onboarding_invitacion
-        (id, whatsapp_id, token_hash, estado, expira_en, intentos, reenvios,
-         usuario_id, consumida_en, revocada_en, creado_en, actualizado_en)
-      VALUES
-        (${invitationId}::uuid, ${whatsappId}, ${tokenHash}, 'pendiente', ${expiresAt}, 0, 0,
-         NULL, NULL, NULL, ${now}, ${now})
+      INSERT INTO auth.users (id, email, created_at, updated_at)
+      VALUES (${conflictAuthB}::uuid, ${conflictEmailB}, ${now}, ${now})
     `;
+    await db()`
+      INSERT INTO auth.users (id, email, created_at, updated_at)
+      VALUES (${concAuthC}::uuid, ${concEmailC}, ${now}, ${now})
+    `;
+    await db()`
+      INSERT INTO auth.users (id, email, created_at, updated_at)
+      VALUES (${emailAuthD0}::uuid, ${emailD}, ${now}, ${now})
+    `;
+    await db()`
+      INSERT INTO auth.users (id, email, created_at, updated_at)
+      VALUES (${emailAuthD1}::uuid, ${emailD1Email}, ${now}, ${now})
+    `;
+
+    // Usuario base: solo email, sin vincular (email-only reuse).
+    await db()`
+      INSERT INTO usuario (id, nombre, email, auth_user_id, whatsapp_id, creado_en, actualizado_en)
+      VALUES (${userId}::uuid, 'Usuario Previo', ${email}, NULL, NULL, ${now}, ${now})
+    `;
+    // Usuario A del escenario de conflicto: posee el whatsapp_id de la invitación.
+    await db()`
+      INSERT INTO usuario (id, nombre, email, auth_user_id, whatsapp_id, creado_en, actualizado_en)
+      VALUES (${conflictUserA}::uuid, 'Conflicto A', ${conflictEmailA}, ${conflictAuthA}::uuid, ${conflictWhatsappId}, ${now}, ${now})
+    `;
+    // Usuario del email-only conflict: posee el email con otro auth_user_id.
+    await db()`
+      INSERT INTO usuario (id, nombre, email, auth_user_id, whatsapp_id, creado_en, actualizado_en)
+      VALUES (${emailUserD0}::uuid, 'Email Owner', ${emailD}, ${emailAuthD0}::uuid, NULL, ${now}, ${now})
+    `;
+
+    const seedInvitation = async (id: string, whatsapp: string) => {
+      const tokenHash = await hashToken(randomUUID());
+      await db()`
+        INSERT INTO onboarding_invitacion
+          (id, whatsapp_id, token_hash, estado, expira_en, intentos, reenvios,
+           usuario_id, consumida_en, revocada_en, creado_en, actualizado_en)
+        VALUES
+          (${id}::uuid, ${whatsapp}, ${tokenHash}, 'pendiente', ${expiresAt}, 0, 0,
+           NULL, NULL, NULL, ${now}, ${now})
+      `;
+    };
+
+    await seedInvitation(invitationId, whatsappId);
+    await seedInvitation(conflictInvitationId, conflictWhatsappId);
+    await seedInvitation(createInvitationId, createWhatsappId);
+    await seedInvitation(concInvitationId, concWhatsappId);
+    await seedInvitation(emailInvitationId, emailWhatsappId);
   });
 
   afterAll(async () => {
     if (sql) {
       try {
-        await sql`DELETE FROM acuerdo_aceptado WHERE usuario_id = ${userId}::uuid`;
+        // Orden por FKs: aceptaciones → acuerdo de prueba → categorías →
+        // invitaciones → usuarios → auth.users. Un error de cleanup falla el test.
+        await sql`
+          DELETE FROM acuerdo_aceptado
+          WHERE usuario_id IN (
+            SELECT id FROM usuario WHERE auth_user_id IN (
+              ${authUserId}::uuid, ${conflictAuthA}::uuid, ${conflictAuthB}::uuid,
+              ${concAuthC}::uuid, ${emailAuthD0}::uuid
+            )
+          )
+        `;
         if (createdAgreementId) {
           await sql`DELETE FROM acuerdo_version WHERE id = ${createdAgreementId}::uuid`;
         }
-        await sql`DELETE FROM categorias WHERE usuario_id = ${userId}::uuid`;
-        await sql`DELETE FROM onboarding_invitacion WHERE id = ${invitationId}::uuid`;
-        await sql`DELETE FROM usuario WHERE id = ${userId}::uuid`;
-        await sql`DELETE FROM auth.users WHERE id = ${authUserId}::uuid`;
+        await sql`
+          DELETE FROM categorias
+          WHERE usuario_id IN (
+            SELECT id FROM usuario WHERE auth_user_id IN (
+              ${authUserId}::uuid, ${conflictAuthA}::uuid, ${conflictAuthB}::uuid,
+              ${concAuthC}::uuid, ${emailAuthD0}::uuid
+            )
+          )
+        `;
+        await sql`
+          DELETE FROM onboarding_invitacion
+          WHERE id IN (
+            ${invitationId}::uuid, ${conflictInvitationId}::uuid,
+            ${createInvitationId}::uuid, ${concInvitationId}::uuid,
+            ${emailInvitationId}::uuid
+          )
+        `;
+        await sql`
+          DELETE FROM usuario WHERE auth_user_id IN (
+            ${authUserId}::uuid, ${conflictAuthA}::uuid, ${conflictAuthB}::uuid,
+            ${concAuthC}::uuid, ${emailAuthD0}::uuid
+          )
+        `;
+        await sql`
+          DELETE FROM auth.users WHERE id IN (
+            ${authUserId}::uuid, ${conflictAuthA}::uuid, ${conflictAuthB}::uuid,
+            ${concAuthC}::uuid, ${emailAuthD0}::uuid, ${emailAuthD1}::uuid
+          )
+        `;
       } catch (error) {
         console.error('onboarding integration cleanup failed', error);
         throw error;
@@ -93,7 +209,7 @@ describe.skipIf(!RUN)('finalizeOnboarding (Postgres integration)', () => {
     }
   });
 
-  it('links the identity, records consent, seeds categories and consumes the invitation', async () => {
+  it('reusa y vincula un usuario que coincide solo por email (email-only match)', async () => {
     const result = await finalizeOnboarding(
       db(),
       invitationId,
@@ -162,5 +278,122 @@ describe.skipIf(!RUN)('finalizeOnboarding (Postgres integration)', () => {
       SELECT count(*)::int AS count FROM acuerdo_aceptado WHERE usuario_id = ${userId}::uuid
     `;
     expect(acceptances[0].count).toBe(1);
+  });
+
+  it('declara identity_conflict cuando el whatsapp_id ya pertenece a otra identidad', async () => {
+    const result = await finalizeOnboarding(
+      db(),
+      conflictInvitationId,
+      agreementId,
+      { authUserId: conflictAuthB, provider: 'google', email: conflictEmailB },
+      DISPLAY_NAME,
+    );
+    expect(result.status).toBe('identity_conflict');
+
+    // No se crea usuario para B.
+    const created = await db()<{ count: number }[]>`
+      SELECT count(*)::int AS count FROM usuario WHERE auth_user_id = ${conflictAuthB}::uuid
+    `;
+    expect(created[0].count).toBe(0);
+
+    // La invitación de A queda pendiente / no consumida.
+    const invitations = await db()<
+      { estado: string; usuario_id: string | null; consumida_en: Date | null }[]
+    >`
+      SELECT estado, usuario_id, consumida_en
+      FROM onboarding_invitacion WHERE id = ${conflictInvitationId}::uuid
+    `;
+    expect(invitations[0].estado).toBe('pendiente');
+    expect(invitations[0].usuario_id).toBeNull();
+    expect(invitations[0].consumida_en).toBeNull();
+  });
+
+  it('crea la identidad B cuando no hay un usuario previo que la bloquee', async () => {
+    const result = await finalizeOnboarding(
+      db(),
+      createInvitationId,
+      agreementId,
+      { authUserId: conflictAuthB, provider: 'google', email: conflictEmailB },
+      DISPLAY_NAME,
+    );
+    expect(result.status).toBe('success');
+
+    const users = await db()<
+      { email: string; auth_user_id: string | null; whatsapp_id: string | null }[]
+    >`
+      SELECT email, auth_user_id, whatsapp_id
+      FROM usuario WHERE auth_user_id = ${conflictAuthB}::uuid
+    `;
+    expect(users).toHaveLength(1);
+    expect(users[0].email).toBe(conflictEmailB);
+    expect(users[0].whatsapp_id).toBe(createWhatsappId);
+  });
+
+  it('finalización concurrente: exactamente un success y un invitation_consumed, una sola fila de usuario', async () => {
+    const [first, second] = await Promise.all([
+      finalizeOnboarding(
+        db(),
+        concInvitationId,
+        agreementId,
+        { authUserId: concAuthC, provider: 'google', email: concEmailC },
+        DISPLAY_NAME,
+      ),
+      finalizeOnboarding(
+        db(),
+        concInvitationId,
+        agreementId,
+        { authUserId: concAuthC, provider: 'google', email: concEmailC },
+        DISPLAY_NAME,
+      ),
+    ]);
+
+    expect([first.status, second.status].sort()).toEqual([
+      'invitation_consumed',
+      'success',
+    ]);
+
+    const users = await db()<{ count: number }[]>`
+      SELECT count(*)::int AS count FROM usuario WHERE auth_user_id = ${concAuthC}::uuid
+    `;
+    expect(users[0].count).toBe(1);
+
+    const categories = await db()<{ count: number }[]>`
+      SELECT count(*)::int AS count FROM categorias
+      WHERE usuario_id IN (SELECT id FROM usuario WHERE auth_user_id = ${concAuthC}::uuid)
+    `;
+    expect(categories[0].count).toBe(DEFAULT_CATEGORIES.length);
+
+    const acceptances = await db()<{ count: number }[]>`
+      SELECT count(*)::int AS count FROM acuerdo_aceptado
+      WHERE usuario_id IN (SELECT id FROM usuario WHERE auth_user_id = ${concAuthC}::uuid)
+    `;
+    expect(acceptances[0].count).toBe(1);
+  });
+
+  it('email-only match con otro auth_user_id ya vinculado: identity_conflict, sin reusar', async () => {
+    const result = await finalizeOnboarding(
+      db(),
+      emailInvitationId,
+      agreementId,
+      { authUserId: emailAuthD1, provider: 'google', email: emailD },
+      DISPLAY_NAME,
+    );
+    expect(result.status).toBe('identity_conflict');
+
+    // El usuario dueño del email queda intacto (no se vincula a D1).
+    const owner = await db()<
+      { auth_user_id: string | null; whatsapp_id: string | null }[]
+    >`
+      SELECT auth_user_id, whatsapp_id FROM usuario WHERE id = ${emailUserD0}::uuid
+    `;
+    expect(owner).toHaveLength(1);
+    expect(owner[0].auth_user_id).toBe(emailAuthD0);
+    expect(owner[0].whatsapp_id).toBeNull();
+
+    // Y no se crea un usuario para D1.
+    const created = await db()<{ count: number }[]>`
+      SELECT count(*)::int AS count FROM usuario WHERE auth_user_id = ${emailAuthD1}::uuid
+    `;
+    expect(created[0].count).toBe(0);
   });
 });
