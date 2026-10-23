@@ -35,3 +35,5 @@ $env:RUN_DB_INTEGRATION='1'; npx vitest run src/lib/onboarding.integration.test.
 - No commitear ni pushear sin pedido explícito del usuario.
 - No tocar `prerenderEnvironment: 'node'` (el build con Hyperdrive falla sin él) ni el `name`
   `luka-frontend` de `wrangler.jsonc` (Workers Builds lo pisa con `WRANGLER_CI_OVERRIDE_NAME`).
+- Toda query del dashboard filtra por `usuario_id`; el Worker usa Hyperdrive; no escribir
+  `movimientos_financieros`; los tests cross-user son obligatorios.
