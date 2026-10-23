@@ -59,6 +59,7 @@ describe.skipIf(!RUN)('dashboard data layer (Postgres integration)', () => {
 
   const catFoodId = randomUUID();
   const catEduId = randomUUID();
+  const catBCanaryId = randomUUID();
 
   const ids = {
     activeFood: randomUUID(),
@@ -74,6 +75,8 @@ describe.skipIf(!RUN)('dashboard data layer (Postgres integration)', () => {
     decExpense: randomUUID(),
     novExpense: randomUUID(),
     otherUser: randomUUID(),
+    bCanary: randomUUID(),
+    bCanaryUsd: randomUUID(),
   };
 
   let sql: Sql | undefined;
@@ -132,6 +135,10 @@ describe.skipIf(!RUN)('dashboard data layer (Postgres integration)', () => {
       INSERT INTO categorias (id, usuario_id, nombre, es_default, esta_eliminado)
       VALUES (${catEduId}::uuid, ${userId}::uuid, 'Educación', false, false)
     `;
+    await db()`
+      INSERT INTO categorias (id, usuario_id, nombre, es_default, esta_eliminado)
+      VALUES (${catBCanaryId}::uuid, ${otherUserId}::uuid, 'B-CANARY', false, false)
+    `;
 
     await db()`
       INSERT INTO limite_categoria (id, usuario_id, categoria_id, cantidad_max, inicio_periodo, fin_periodo)
@@ -140,6 +147,10 @@ describe.skipIf(!RUN)('dashboard data layer (Postgres integration)', () => {
     await db()`
       INSERT INTO limite_categoria (id, usuario_id, categoria_id, cantidad_max, inicio_periodo, fin_periodo)
       VALUES (${randomUUID()}::uuid, ${userId}::uuid, ${catEduId}::uuid, ${'3000.00'}::numeric, ${'2026-04-01'}::date, ${'2026-04-30'}::date)
+    `;
+    await db()`
+      INSERT INTO limite_categoria (id, usuario_id, categoria_id, cantidad_max, inicio_periodo, fin_periodo)
+      VALUES (${randomUUID()}::uuid, ${otherUserId}::uuid, ${catBCanaryId}::uuid, ${'999999.00'}::numeric, ${'2026-05-01'}::date, ${'2026-05-31'}::date)
     `;
 
     const movements: SeedMovement[] = [
@@ -228,7 +239,7 @@ describe.skipIf(!RUN)('dashboard data layer (Postgres integration)', () => {
         moneda: 'ARS',
         fecha: '2026-04-15',
         categoriaId: catEduId,
-        descripcion: 'Curso',
+        descripcion: 'Curso A-CANARY',
         creadoOffset: 6,
       },
       {
@@ -303,6 +314,31 @@ describe.skipIf(!RUN)('dashboard data layer (Postgres integration)', () => {
         categoriaId: null,
         descripcion: 'Ajeno',
         creadoOffset: 12,
+      },
+      // Canarios de B: no deben aparecer en ninguna consulta de A.
+      {
+        id: ids.bCanary,
+        usuarioId: otherUserId,
+        billeteraId: otherWalletArsId,
+        tipo: 'egreso',
+        cantidad: '777777.77',
+        moneda: 'ARS',
+        fecha: '2026-05-10',
+        categoriaId: catBCanaryId,
+        descripcion: 'B-CANARY',
+        creadoOffset: 13,
+      },
+      {
+        id: ids.bCanaryUsd,
+        usuarioId: otherUserId,
+        billeteraId: otherWalletUsdId,
+        tipo: 'egreso',
+        cantidad: '888.88',
+        moneda: 'USD',
+        fecha: '2026-05-10',
+        categoriaId: null,
+        descripcion: 'B-CANARY-USD',
+        creadoOffset: 14,
       },
     ];
 
@@ -498,9 +534,12 @@ describe.skipIf(!RUN)('dashboard data layer (Postgres integration)', () => {
       getConsumoPresupuesto(db(), userId, '2026-05-01', '2026-05-31'),
     ).resolves.toEqual({ pct: 12, spent: 1500, limit: 13000, over: false });
 
-    const noBudgets = await getConsumoPresupuesto(db(), otherUserId);
-    expect(noBudgets).toEqual({ pct: 0, spent: 0, limit: 0 });
-    expect(noBudgets.over).toBeUndefined();
+    await expect(getConsumoPresupuesto(db(), otherUserId)).resolves.toEqual({
+      pct: 78,
+      spent: 777777.77,
+      limit: 999999,
+      over: false,
+    });
   });
 
   it('getMonthlyFlow agrupa por mes, etiqueta en español y recorta a 6 sin fechas', async () => {
@@ -555,5 +594,113 @@ describe.skipIf(!RUN)('dashboard data layer (Postgres integration)', () => {
     expect(smallBatches).not.toContain('9999');
     expect(smallBatches).not.toContain('Ajeno');
     expect(smallBatches).not.toContain('4200');
+  });
+
+  it('getUserByAuthId resuelve a B con su propio auth_user_id', async () => {
+    await expect(getUserByAuthId(db(), otherAuthUserId)).resolves.toEqual({
+      id: otherUserId,
+      whatsapp_id: null,
+    });
+  });
+
+  it('getSummaryStats aísla A y B con totales exactos', async () => {
+    const a = await getSummaryStats(db(), userId);
+    expect(a.total_spent).toBe(7102);
+    expect(a.total_income).toBe(12510);
+
+    const b = await getSummaryStats(db(), otherUserId);
+    expect(b.total_spent).toBe(782866.65);
+    expect(b.total_income).toBe(0);
+    expect(b.transaction_count).toBe(3);
+    expect(b.top_category).toBe('B-CANARY');
+    expect(b.avg_per_day).toBe(782866.65);
+    expect(b.total_spent).not.toBe(a.total_spent);
+  });
+
+  it('getExpensesByCategory aísla A y B por categoría', async () => {
+    const a = await getExpensesByCategory(db(), userId);
+    expect(a.map((row) => row.category)).not.toContain('B-CANARY');
+
+    await expect(getExpensesByCategory(db(), otherUserId)).resolves.toEqual([
+      { category: 'B-CANARY', total: 777777.77, color: '#64748b' },
+      { category: 'Otro', total: 5088.88, color: '#64748b' },
+    ]);
+  });
+
+  it('getRecentTransactions no mezcla descripciones entre usuarios', async () => {
+    const a = await getRecentTransactions(db(), userId);
+    expect(a.map((row) => row.description)).not.toContain('B-CANARY');
+    expect(a.map((row) => row.description)).not.toContain('B-CANARY-USD');
+
+    const b = await getRecentTransactions(db(), otherUserId);
+    expect(b.map((row) => row.id)).toEqual([ids.bCanaryUsd, ids.bCanary, ids.otherUser]);
+    expect(b.map((row) => row.description)).not.toContain('Almuerzo, "especial"');
+    expect(b.map((row) => row.description)).not.toContain('Sueldo');
+    expect(b.map((row) => row.description)).not.toContain('Curso A-CANARY');
+  });
+
+  it('getBudgetsWithUsage aísla A y B', async () => {
+    const a = await getBudgetsWithUsage(db(), userId);
+    expect(Object.fromEntries(a.map((budget) => [budget.category, budget]))['B-CANARY']).toBeUndefined();
+
+    const b = await getBudgetsWithUsage(db(), otherUserId);
+    expect(b).toHaveLength(1);
+    expect(b[0].category).toBe('B-CANARY');
+    expect(b[0].limit).toBe(999999);
+    expect(b[0].spent).toBe(777777.77);
+    expect(b[0].remaining).toBeCloseTo(222221.23);
+    expect(b[0].pct).toBe(78);
+    expect(b[0].over).toBe(false);
+  });
+
+  it('getMonthlyFlow aísla A y B', async () => {
+    await expect(getMonthlyFlow(db(), otherUserId)).resolves.toEqual([
+      { month: 'May 2026', ingresos: 0, egresos: 782866.65 },
+    ]);
+
+    const a = await getMonthlyFlow(db(), userId);
+    expect(a.flatMap((p) => [p.ingresos, p.egresos])).not.toContain(782866.65);
+  });
+
+  it('getPortfolioByCurrency aísla A y B', async () => {
+    await expect(getPortfolioByCurrency(db(), otherUserId)).resolves.toEqual([
+      { month: 'May 2026', ARS: 781977.77, USD: 1155544 },
+    ]);
+
+    const a = await getPortfolioByCurrency(db(), userId);
+    expect(a).not.toContainEqual({ month: 'May 2026', ARS: 781977.77, USD: 1155544 });
+  });
+
+  it('getPatrimonioNeto aísla A y B', async () => {
+    const a = await getPatrimonioNeto(db(), userId);
+    expect(a.total_ars).toBe(15800);
+
+    await expect(getPatrimonioNeto(db(), otherUserId)).resolves.toEqual({
+      total_ars: -1937521.77,
+      usd_rate: 1300,
+      is_positive: false,
+    });
+  });
+
+  it('el CSV de A no incluye B-CANARY y el de B no incluye A-CANARY', async () => {
+    const userA = await getUserByAuthId(db(), authUserId);
+    const userB = await getUserByAuthId(db(), otherAuthUserId);
+    expect(userA).not.toBeNull();
+    expect(userB).not.toBeNull();
+
+    const csvA = await readStream(createCsvStream(db(), userA!.id, null, null));
+    expect(csvA).not.toContain('B-CANARY');
+    expect(csvA).not.toContain('777777.77');
+    expect(csvA).not.toContain('888.88');
+
+    const csvB = await readStream(createCsvStream(db(), userB!.id, null, null));
+    expect(csvB).toBe(
+      'Fecha,Monto,Moneda,Categoria,Descripcion\r\n' +
+        '2026-05-10,888.88,USD,Otro,B-CANARY-USD\r\n' +
+        '2026-05-10,777777.77,ARS,B-CANARY,B-CANARY\r\n' +
+        '2026-05-10,4200.0,ARS,Otro,Ajeno\r\n',
+    );
+    expect(csvB).not.toContain('A-CANARY');
+    expect(csvB).not.toContain('Sueldo');
   });
 });
