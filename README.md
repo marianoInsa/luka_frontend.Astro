@@ -179,6 +179,16 @@ local: la suite de integración corrió verde contra el stack local (`3 files / 
 failed / 0 skipped`). El checkout de `blob1618/luka@main` es intencional: la rama de feature del
 backend no está pusheada y estos tests de integración no dependen de la migración de Fase 0.
 
+- **Dónde caen los PRs (pre-flight):** este workflow vive en el fork `marianoInsa/luka_frontend.Astro`,
+  que es donde caen los PRs hoy, así que los gatea. Si un PR se abre contra el padre
+  `blob1618/luka_frontend`, el workflow del fork **no** lo gatea: hay que agregar el mismo
+  workflow espejo en el padre.
+- **Cron:** tras el primer push, verificar que el run diario quede registrado (Actions →
+  workflow «DB integration» → runs programados).
+- **Contingencia:** si no se pueden habilitar Actions en el fork, mover el mismo job al repo
+  `blob1618/luka` (con checkout de `marianoInsa/luka_frontend.Astro`), trigger en
+  `supabase/migrations/**` + cron.
+
 Riesgo residual: un PR de migración del backend no dispara este workflow del frontend; el cron
 diario lo detecta en 24 h. Si se necesita hard gate, agregar el job espejo en el backend.
 
