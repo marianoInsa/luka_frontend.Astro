@@ -525,6 +525,7 @@ const wave = [30, 55, 80, 45, 95, 60, 35, 75, 50, 85, 40, 25];
 
       html {
         background: var(--bg-base);
+        scroll-behavior: smooth;
       }
 
       body {
@@ -2022,6 +2023,10 @@ const wave = [30, 55, 80, 45, 95, 60, 35, 75, 50, 85, 40, 25];
       }
 
       @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+
         .btn:hover {
           transform: none;
         }
