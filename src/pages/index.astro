@@ -90,6 +90,7 @@ const wave = [30, 55, 80, 45, 95, 60, 35, 75, 50, 85, 40, 25];
 
     <main>
       <section class="hero" id="hero" aria-labelledby="hero-title">
+        <div class="hero__birds" data-hero-birds aria-hidden="true"></div>
         <div class="hero__copy">
           <h1 id="hero-title" class="hero__title">
             Hacete cargo de tu plata sin planillas ni culpa
@@ -111,6 +112,21 @@ const wave = [30, 55, 80, 45, 95, 60, 35, 75, 50, 85, 40, 25];
                 <path d="M12 5v14" /><path d="m6 13 6 6 6-6" />
               </svg>
             </a>
+            <button
+              class="hero__motion"
+              type="button"
+              data-hero-motion
+              data-paused="false"
+              disabled
+            >
+              <svg class="hero__motion-icon hero__motion-icon--pause" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <rect x="6" y="4" width="4" height="16" rx="1" /><rect x="14" y="4" width="4" height="16" rx="1" />
+              </svg>
+              <svg class="hero__motion-icon hero__motion-icon--play" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+              <span>Pausar animación</span>
+            </button>
           </div>
         </div>
 
@@ -668,6 +684,8 @@ const wave = [30, 55, 80, 45, 95, 60, 35, 75, 50, 85, 40, 25];
       }
 
       .hero {
+        position: relative;
+        isolation: isolate;
         display: grid;
         gap: 48px;
         align-items: center;
@@ -675,6 +693,68 @@ const wave = [30, 55, 80, 45, 95, 60, 35, 75, 50, 85, 40, 25];
         max-width: 1200px;
         margin-inline: auto;
         padding: 88px 24px 40px;
+      }
+
+      .hero__birds {
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        overflow: hidden;
+        pointer-events: none;
+      }
+
+      .hero__copy {
+        position: relative;
+        z-index: 1;
+      }
+
+      .hero__motion {
+        display: none;
+        align-items: center;
+        gap: 8px;
+        min-height: 44px;
+        padding: 0 18px;
+        background: var(--bg-glass);
+        border: 1px solid var(--border-strong);
+        border-radius: var(--radius-md);
+        color: var(--text-secondary);
+        font: 600 14px/1 var(--font-ui);
+        cursor: pointer;
+      }
+
+      .hero-js .hero__motion {
+        display: inline-flex;
+      }
+
+      .hero__motion:disabled {
+        cursor: default;
+        opacity: 0.55;
+      }
+
+      .hero__motion:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+
+      .hero__motion svg {
+        width: 16px;
+        height: 16px;
+      }
+
+      .hero__motion-icon--play {
+        display: none;
+      }
+
+      .hero__motion[data-paused='true'] .hero__motion-icon--pause {
+        display: none;
+      }
+
+      .hero__motion[data-paused='true'] .hero__motion-icon--play {
+        display: block;
+      }
+
+      .hero__motion[hidden] {
+        display: none;
       }
 
       .hero__title {
@@ -699,6 +779,7 @@ const wave = [30, 55, 80, 45, 95, 60, 35, 75, 50, 85, 40, 25];
 
       .hero__art {
         position: relative;
+        z-index: 1;
         min-height: 540px;
       }
 
@@ -2047,8 +2128,10 @@ const wave = [30, 55, 80, 45, 95, 60, 35, 75, 50, 85, 40, 25];
 
     <script>
       import { startHeroArt } from '../scripts/hero-art';
+      import { startHeroBirds } from '../scripts/hero-birds';
 
       startHeroArt();
+      startHeroBirds();
     </script>
   </body>
 </html>

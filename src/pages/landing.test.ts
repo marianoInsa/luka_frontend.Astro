@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { startHeroBirds } from '../scripts/hero-birds';
 
 const source = readFileSync(resolve(import.meta.dirname, 'index.astro'), 'utf8');
 
@@ -84,6 +85,69 @@ describe('landing v2', () => {
 
   it('el logo del chat es el mismo de la página', () => {
     expect(source.match(/logo-luka\.png/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
+  });
+
+  it('el Hero monta la capa decorativa de aves como primer hijo', () => {
+    const hero = source.match(/<section class="hero"[^>]*>([\s\S]*?)<\/section>/)?.[1] ?? '';
+    expect(hero.trimStart()).toMatch(
+      /^<div class="hero__birds" data-hero-birds aria-hidden="true"><\/div>/,
+    );
+  });
+
+  it('la capa de aves queda detrás del contenido y no recibe puntero', () => {
+    const layer = source.match(/\.hero__birds\s*\{([^}]*)\}/)?.[1] ?? '';
+    for (const rule of [
+      'position: absolute',
+      'inset: 0',
+      'z-index: 0',
+      'overflow: hidden',
+      'pointer-events: none',
+    ]) {
+      expect(layer).toContain(rule);
+    }
+
+    const hero = source.match(/\n\s*\.hero\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(hero).toContain('position: relative');
+    expect(hero).toContain('isolation: isolate');
+    expect(source.match(/\.hero__copy\s*\{([^}]*)\}/)?.[1] ?? '').toContain('z-index: 1');
+    expect(source.match(/\.hero__art\s*\{([^}]*)\}/)?.[1] ?? '').toContain('z-index: 1');
+  });
+
+  it('el control de movimiento es nativo, deshabilitado y sin aria-pressed', () => {
+    const button = source.match(/<button[^>]*data-hero-motion[^>]*>[\s\S]*?<\/button>/)?.[0] ?? '';
+    expect(button).toContain('type="button"');
+    expect(button).toContain('disabled');
+    expect(button).toContain('Pausar animación');
+    expect(button).not.toContain('aria-pressed');
+  });
+
+  it('el control de movimiento tiene target de 44 px y espera a hero-js', () => {
+    const base = source.match(/\n\s*\.hero__motion\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(base).toContain('display: none');
+    expect(base).toContain('min-height: 44px');
+    expect(source.match(/\.hero-js\s+\.hero__motion\s*\{([^}]*)\}/)?.[1] ?? '').toContain(
+      'display: inline-flex',
+    );
+  });
+
+  it('el control arranca pausado en falso y cambia de ícono al pausar', () => {
+    expect(source).toMatch(/data-hero-motion[\s\S]{0,40}data-paused="false"/);
+    expect(
+      source.match(/\.hero__motion\[data-paused='true'\]\s+\.hero__motion-icon--pause\s*\{([^}]*)\}/)?.[1] ??
+        '',
+    ).toContain('display: none');
+    expect(
+      source.match(/\.hero__motion\[data-paused='true'\]\s+\.hero__motion-icon--play\s*\{([^}]*)\}/)?.[1] ??
+        '',
+    ).toContain('display: block');
+    expect(source.match(/\.hero__motion\[hidden\]\s*\{([^}]*)\}/)?.[1] ?? '').toContain(
+      'display: none',
+    );
+  });
+
+  it('el render de aves falla en silencio sin DOM', () => {
+    expect(() => startHeroBirds()).not.toThrow();
+    expect(startHeroBirds()).toBeNull();
   });
 
   it('el Dashboard refleja los datos del chat y las categorías extra', () => {

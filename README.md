@@ -95,8 +95,14 @@ npx wrangler dev   # http://localhost:4321; carga .dev.vars
   teléfono, Beneficios (bento), Conflicto, Plan, FAQ y Cierre. El hero tiene dos tarjetas
   («Dashboard» y el teléfono) que se traen al frente con click y una secuencia animada de carga de
   gastos e ingresos en el chat (`src/scripts/hero-art.ts`; mockup adaptado del componente «Great UI
-  Mobile Mockup» de 21st.dev, MIT). `robots.txt.ts` y `sitemap.xml.ts` son endpoints también
-  prerenderizados.
+  Mobile Mockup» de 21st.dev, MIT). Sobre el Hero vuela una bandada procedural de cotorras
+  argentinas en ASCII (`src/scripts/hero-birds.ts` y `hero-birds-model.ts`): 1, 2 o 3 aves según el
+  ancho, con un canvas transparente por ave y `filter: blur()` solo en el canvas del ave: el
+  desenfoque se aplica al pasar detrás del copy y se atenúa sobre las tarjetas opacas. El botón
+  «Pausar animación» congela y reanuda la bandada (también se pausa al salir del viewport o al
+  ocultarse la pestaña); con `prefers-reduced-motion: reduce` queda un cuadro estático, sin botón y
+  sin bucle de animación. El diseño está adaptado de `stackedlol/ascii-sharks` (MIT): ver
+  `THIRD-PARTY.md`. `robots.txt.ts` y `sitemap.xml.ts` son endpoints también prerenderizados.
 - `src/pages/registro.astro` y `src/pages/auth/google.ts` inician el onboarding (F2):
   validan el token de la invitación, emiten la cookie firmada `luka_onboarding` y arrancan
   el OAuth PKCE de Supabase. `src/pages/auth/callback.ts` intercambia el código y fija la
