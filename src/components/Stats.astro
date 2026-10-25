@@ -15,7 +15,8 @@ const { stats, patrimonio, consumo } = Astro.props;
 const TIPOS: QuoteType[] = ['oficial', 'mep', 'blue'];
 const TIPO_LABELS: Record<QuoteType, string> = { oficial: 'Oficial', mep: 'MEP', blue: 'Blue' };
 
-const hasTransactions = stats.transaction_count > 0;
+const hasBudget = consumo.limit > 0;
+const hasTopCategory = stats.top_category !== '—';
 // Signo antes del prefijo de moneda: -$500, -u$s500,00.
 const money = (prefix: string, text: string): string =>
   text.startsWith('-') ? `-${prefix}${text.slice(1)}` : `${prefix}${text}`;
@@ -53,7 +54,7 @@ const staleTitle = (iso: string): string => {
   return time ? `Cotización de ${time}` : 'Cotización desactualizada';
 };
 
-const consumoColor = !hasTransactions
+const consumoColor = !hasBudget
   ? 'var(--money-out)'
   : consumo.over
     ? 'var(--danger)'
@@ -88,7 +89,7 @@ const consumoOver = consumo.over === true;
             <li class="capital-total">
               <span class="capital-total__label">{TIPO_LABELS[tipo]}</span>
               <span class="capital-total__value" title={total == null ? 'No disponible' : undefined}>
-                {total == null ? '—' : money('$', formatInt(total))}
+                {total == null ? 'n/d' : money('$', formatInt(total))}
               </span>
               {quote?.stale && (
                 <span class="stat-badge stat-badge--warning" title={staleTitle(quote.fetched_at)}>
@@ -141,8 +142,8 @@ const consumoOver = consumo.over === true;
                         )}
                       </span>
                     </th>
-                    <td>{quote?.compra == null ? '—' : `$${formatDecimals(quote.compra)}`}</td>
-                    <td>{quote?.venta == null ? '—' : `$${formatDecimals(quote.venta)}`}</td>
+                    <td>{quote?.compra == null ? 'n/d' : `$${formatDecimals(quote.compra)}`}</td>
+                    <td>{quote?.venta == null ? 'n/d' : `$${formatDecimals(quote.venta)}`}</td>
                   </tr>
                 );
               })}
@@ -151,7 +152,7 @@ const consumoOver = consumo.over === true;
           {patrimonio.usd_total === 0 && <p class="quotes-note">Sin saldos en USD.</p>}
           {asOf && <p class="quotes-asof">Actualizada {asOf}</p>}
           <p class="quotes-footnote">
-            DolarAPI{consultedAt ? ` · consultado ${consultedAt}` : ''}. Valuado a compra.
+            DolarAPI{consultedAt ? `, consultado ${consultedAt}` : ''}. Valuado a compra.
           </p>
         </>
       }
@@ -166,27 +167,29 @@ const consumoOver = consumo.over === true;
     <div class="stat-body stat-body--full">
       <div class="stat-row">
         <p class="stat-label">Presupuesto</p>
-        <p class:list={['stat-value', !hasTransactions && 'stat-value--muted']}>
-          {hasTransactions ? `${consumo.pct}%` : 'Sin datos'}
+        <p class:list={['stat-value', !hasBudget && 'stat-value--muted']}>
+          {hasBudget ? `${consumo.pct}%` : 'Sin datos'}
         </p>
       </div>
       <div class="kpi-bar-bg">
         <div
           class:list={['kpi-bar-fill', consumoOver && 'kpi-bar--over', !consumoOver && consumo.pct > 80 && 'kpi-bar--warn']}
-          style={`width: ${hasTransactions ? consumo.pct : 0}%`}
+          style={`width: ${hasBudget ? consumo.pct : 0}%`}
         >
         </div>
       </div>
       <p class="stat-hint">
         {
-          hasTransactions ? (
+          hasBudget ? (
             <>
               ${formatInt(consumo.spent)} / ${formatInt(consumo.limit)}
-              {consumo.limit === 0 && <span class="stat-badge stat-badge--soon">Próximamente</span>}
               {consumoOver && <span class="stat-badge stat-badge--danger">Excedido</span>}
             </>
           ) : (
-            '—'
+            <>
+              Sin presupuesto
+              <span class="stat-badge stat-badge--soon">Próximamente</span>
+            </>
           )
         }
       </p>
@@ -200,22 +203,24 @@ const consumoOver = consumo.over === true;
     </div>
     <div class="stat-body">
       <p class="stat-label">Días de racha</p>
-      <p class="stat-value stat-value--muted">—</p>
+      <p class="stat-value stat-value--muted">Sin datos</p>
       <p class="stat-hint"><span class="stat-badge stat-badge--soon">Próximamente</span></p>
     </div>
   </div>
 
   <!-- KPI 6: Categoría Top -->
-  <div class="stat-card" id="stat-category">
-    <div class="stat-icon" style={`--icon-color: ${stats.top_category !== '—' ? 'var(--cat-ocio)' : 'var(--money-out)'};`}>
+  <div class:list={['stat-card', !hasTopCategory && 'stat-card--placeholder']} id="stat-category">
+    <div class="stat-icon" style={`--icon-color: ${hasTopCategory ? 'var(--cat-ocio)' : 'var(--money-out)'};`}>
       <Icon name="icon_tag_stats" />
     </div>
     <div class="stat-body">
       <p class="stat-label">Categoría top</p>
-      <p class:list={['stat-value', stats.top_category === '—' && 'stat-value--muted']}>
-        {stats.top_category !== '—' ? stats.top_category : 'Sin datos'}
+      <p class:list={['stat-value', !hasTopCategory && 'stat-value--muted']}>
+        {hasTopCategory ? stats.top_category : 'Sin datos'}
       </p>
-      <p class="stat-hint"><span class="stat-badge stat-badge--soon">Próximamente</span></p>
+      {!hasTopCategory && (
+        <p class="stat-hint"><span class="stat-badge stat-badge--soon">Próximamente</span></p>
+      )}
     </div>
   </div>
 
