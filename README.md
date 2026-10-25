@@ -97,11 +97,20 @@ npx wrangler dev   # http://localhost:4321; carga .dev.vars
   gastos e ingresos en el chat (`src/scripts/hero-art.ts`; mockup adaptado del componente «Great UI
   Mobile Mockup» de 21st.dev, MIT). Sobre el Hero vuela una bandada procedural de cotorras
   argentinas en ASCII (`src/scripts/hero-birds.ts` y `hero-birds-model.ts`): 1, 2 o 3 aves según el
-  ancho, con un canvas transparente por ave y `filter: blur()` solo en el canvas del ave: el
-  desenfoque se aplica al pasar detrás del copy y se atenúa sobre las tarjetas opacas. El botón
-  «Pausar animación» congela y reanuda la bandada (también se pausa al salir del viewport o al
-  ocultarse la pestaña); con `prefers-reduced-motion: reduce` queda un cuadro estático, sin botón y
-  sin bucle de animación. El diseño está adaptado de `stackedlol/ascii-sharks` (MIT): ver
+  ancho, con un canvas transparente por ave. Cada ave navega por waypoints 2D aleatorios y
+  estratificados en nueve zonas del Hero, con una ruta nueva en cada carga y una silueta 20 % más
+  chica que la versión de patrulla. La silueta nunca se recorta: el centro permanece en el
+  rectángulo seguro que deja libre el alcance de la caja rotada (pico, alas y cola), la llegada al
+  waypoint usa un radio de al menos dos radios de giro y el clamp de caja completa queda solo como
+  red de seguridad. El blur (≤1,5 px en móvil, 2 px en landscape, 3 px en desktop)
+  aparece con la primera celda de tinta que solape cualquier componente del Hero (título,
+  subtítulo, fila de CTAs, dashboard y teléfono), con un mínimo visible de 0,5 px; no hay frames
+  nítidos sobre contenido. La opacidad baja a 0,45 solo sobre texto y controles translúcidos
+  (ghost y pausa), para conservar el contraste AA del copy; el CTA primario opaco y los huecos
+  de la fila no atenúan el ave. El botón «Pausar
+  animación» congela y reanuda la bandada (también se pausa al salir del viewport o al ocultarse la
+  pestaña); con `prefers-reduced-motion: reduce` queda un cuadro estático y nivelado, sin botón y sin
+  bucle de animación. El diseño está adaptado de `stackedlol/ascii-sharks` (MIT): ver
   `THIRD-PARTY.md`. `robots.txt.ts` y `sitemap.xml.ts` son endpoints también prerenderizados.
 - `src/pages/registro.astro` y `src/pages/auth/google.ts` inician el onboarding (F2):
   validan el token de la invitación, emiten la cookie firmada `luka_onboarding` y arrancan
