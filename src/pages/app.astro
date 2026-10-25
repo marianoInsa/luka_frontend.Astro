@@ -1,5 +1,6 @@
 ---
 import '../styles/style.css';
+import '../styles/dashboard.css';
 import Charts from '../components/Charts.astro';
 import Icon from '../components/Icon.astro';
 import Sidebar from '../components/Sidebar.astro';
@@ -48,7 +49,7 @@ const whatsappLabel = user.whatsapp_id ? `+${user.whatsapp_id.slice(-4)}` : '+·
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="LUKA — Tu asistente financiero personal. Visualizá tus gastos, presupuestos y metas desde cualquier lugar."
+      content="LUKA: Tu asistente financiero personal. Visualizá tus gastos, presupuestos y metas desde cualquier lugar."
     />
     <title>LUKA · Dashboard</title>
     <link rel="icon" href="/favicon-32.png" />
@@ -60,135 +61,126 @@ const whatsappLabel = user.whatsapp_id ? `+${user.whatsapp_id.slice(-4)}` : '+·
     />
     <script src="https://unpkg.com/htmx.org@2.0.3" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js" defer></script>
+    <style is:global>
+      html,
+      body {
+        overflow-x: clip;
+      }
+    </style>
   </head>
-  <body>
+  <body class="dashboard">
     <Sidebar whatsappLabel={whatsappLabel} isFlowAdmin={flowAdmin} active="dashboard" />
 
     <!-- Main content -->
     <main class="main-content">
-      <div class="page-header">
-        <div>
-          <h1 class="page-title">Dashboard</h1>
-          <p class="page-subtitle">Revisión completa de tu economía</p>
-        </div>
-        <!-- Date filters: HTMX updates stats, charts, and transactions -->
-        <form
-          class="filter-form"
-          hx-get="/dashboard/actualizar"
-          hx-target="#stats-section"
-          hx-swap="innerHTML"
-          hx-trigger="change"
-          hx-indicator="#stats-loading"
-          id="filter-form"
-        >
-          <div class="filter-group">
-            <label for="date_from">Desde</label>
-            <input type="date" id="date_from" name="date_from" value={from ?? ''} />
+      <div class="dash-shell">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Dashboard</h1>
+            <p class="page-subtitle">Revisión completa de tu economía</p>
           </div>
-          <div class="filter-group">
-            <label for="date_to">Hasta</label>
-            <input type="date" id="date_to" name="date_to" value={to ?? ''} />
-          </div>
-        </form>
-      </div>
-
-      <!-- ── Stats Cards ── -->
-      <section id="stats-section">
-        <div id="stats-loading" class="stats-grid" aria-hidden="true">
-          {Array.from({ length: 4 }).map(() => <div class="skeleton skeleton-stat" />)}
-        </div>
-        <Stats stats={stats} patrimonio={patrimonio} consumo={consumo} />
-      </section>
-
-      <!-- ── Charts — grilla 2×2 superior + barra full-width ── -->
-      <section class="charts-grid-2x2" id="charts-section">
-        <Charts />
-      </section>
-
-      <!-- ── Metas Compartidas — placeholder ── -->
-      <section class="section-card section-card--placeholder" id="metas-section">
-        <h2 class="section-title">
-          <Icon name="icon_coming_soon" />
-          Metas compartidas
-          <span class="chip chip--soon">Próximamente</span>
-        </h2>
-        <div class="placeholder-body">
-          <Icon name="icon_placeholder" />
-          <p class="placeholder-title">Progreso de metas compartidas</p>
-          <p class="placeholder-desc">
-            Visualizá el avance de tus metas grupales y presupuestos compartidos.<br />
-            Esta funcionalidad estará disponible en una próxima versión.
-          </p>
-        </div>
-      </section>
-
-      <!-- ── Budget Bars ── -->
-      {
-        budgets.length > 0 && (
-          <section class="section-card" id="budgets-section">
-            <h2 class="section-title">
-              <Icon name="icon_history_nav" />
-              Presupuestos por categoría
-            </h2>
-            <div class="budgets-list">
-              {budgets.map((budget) => (
-                <div class="budget-item">
-                  <div class="budget-header">
-                    <div class="budget-name">
-                      <span class="cat-dot" style={`background:${budget.color}`} />
-                      {budget.category}
-                    </div>
-                    <div class="budget-amounts">
-                      <span class:list={['budget-spent', budget.over && 'over-budget']}>
-                        ${formatPlainInt(budget.spent)}
-                      </span>
-                      <span class="budget-limit"> / ${formatPlainInt(budget.limit)}</span>
-                    </div>
-                  </div>
-                  <div class="budget-bar-bg">
-                    <div
-                      class:list={['budget-bar-fill', budget.over && 'bar-over']}
-                      style={`width: ${budget.pct}%; background: ${budget.over ? 'var(--danger)' : budget.pct >= 80 ? 'var(--warning)' : 'var(--action)'};`}
-                      role="progressbar"
-                      aria-valuenow={budget.pct}
-                      aria-valuemin="0"
-                      aria-valuemax="100"
-                    >
-                    </div>
-                  </div>
-                  <div class="budget-meta">
-                    <span>{budget.pct}% utilizado</span>
-                    {budget.over ? (
-                      <span class="over-label">⚠ Excedido ${formatPlainInt(budget.spent - budget.limit)}</span>
-                    ) : (
-                      <span>Disponible: ${formatPlainInt(budget.remaining)}</span>
-                    )}
-                  </div>
-                </div>
-              ))}
+          <!-- Date filters: HTMX updates stats, charts, and transactions -->
+          <form
+            class="filter-form"
+            hx-get="/dashboard/actualizar"
+            hx-target="#stats-section"
+            hx-swap="innerHTML"
+            hx-trigger="change"
+            hx-indicator="#stats-loading"
+            id="filter-form"
+          >
+            <div class="filter-group">
+              <label for="date_from">Desde</label>
+              <input type="date" id="date_from" name="date_from" value={from ?? ''} />
             </div>
-          </section>
-        )
-      }
+            <div class="filter-group">
+              <label for="date_to">Hasta</label>
+              <input type="date" id="date_to" name="date_to" value={to ?? ''} />
+            </div>
+          </form>
+        </div>
 
-      <!-- ── Recent Transactions ── -->
-      <section class="section-card" id="transactions-section">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-          <h2 class="section-title" style="margin-bottom: 0;">
-            <Icon name="icon_portfolio" />
-            Últimas transacciones
-          </h2>
-          <button type="button" class="btn-export" onclick="exportCSV()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-            </svg>
-            Exportar
-          </button>
-        </div>
-        <div id="transactions-list">
-          <Transactions transactions={transactions} />
-        </div>
-      </section>
+        <!-- ── Stats Cards ── -->
+        <section id="stats-section">
+          <div id="stats-loading" class="stats-grid" aria-hidden="true">
+            {Array.from({ length: 5 }).map(() => <div class="skeleton skeleton-stat" />)}
+          </div>
+          <Stats stats={stats} patrimonio={patrimonio} consumo={consumo} />
+        </section>
+
+        <!-- ── Charts — grilla 2×2 superior + barra full-width ── -->
+        <section class="charts-grid-2x2" id="charts-section">
+          <Charts />
+        </section>
+
+        <!-- ── Budget Bars ── -->
+        {
+          budgets.length > 0 && (
+            <section class="section-card" id="budgets-section">
+              <h2 class="section-title">
+                <Icon name="icon_history_nav" />
+                Presupuestos por categoría
+              </h2>
+              <div class="budgets-list">
+                {budgets.map((budget) => (
+                  <div class="budget-item">
+                    <div class="budget-header">
+                      <div class="budget-name">
+                        <span class="cat-dot" style={`background:${budget.color}`} />
+                        {budget.category}
+                      </div>
+                      <div class="budget-amounts">
+                        <span class:list={['budget-spent', budget.over && 'over-budget']}>
+                          ${formatPlainInt(budget.spent)}
+                        </span>
+                        <span class="budget-limit"> / ${formatPlainInt(budget.limit)}</span>
+                      </div>
+                    </div>
+                    <div class="budget-bar-bg">
+                      <div
+                        class:list={['budget-bar-fill', budget.over && 'bar-over']}
+                        style={`width: ${budget.pct}%; background: ${budget.over ? 'var(--danger)' : budget.pct >= 80 ? 'var(--warning)' : 'var(--action)'};`}
+                        role="progressbar"
+                        aria-valuenow={budget.pct}
+                        aria-valuemin="0"
+                        aria-valuemax="100"
+                      >
+                      </div>
+                    </div>
+                    <div class="budget-meta">
+                      <span>{budget.pct}% utilizado</span>
+                      {budget.over ? (
+                        <span class="over-label">Excedido ${formatPlainInt(budget.spent - budget.limit)}</span>
+                      ) : (
+                        <span>Disponible: ${formatPlainInt(budget.remaining)}</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )
+        }
+
+        <!-- ── Recent Transactions ── -->
+        <section class="section-card" id="transactions-section">
+          <div class="section-header">
+            <h2 class="section-title">
+              <Icon name="icon_portfolio" />
+              Últimas transacciones
+            </h2>
+            <button type="button" class="btn-export" onclick="exportCSV()">
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+              </svg>
+              Exportar
+            </button>
+          </div>
+          <div id="transactions-list">
+            <Transactions transactions={transactions} />
+          </div>
+        </section>
+      </div>
     </main>
 
     <script is:inline>
@@ -257,6 +249,7 @@ const whatsappLabel = user.whatsapp_id ? `+${user.whatsapp_id.slice(-4)}` : '+·
         const canvas = container.querySelector('canvas');
         if (!hasData) {
           if (canvas) canvas.style.display = 'none';
+          container.classList.add('is-empty');
           const msg = document.createElement('div');
           msg.className = 'empty-state chart-empty-msg';
           msg.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:100%;padding:0;';
@@ -272,6 +265,7 @@ const whatsappLabel = user.whatsapp_id ? `+${user.whatsapp_id.slice(-4)}` : '+·
           return true; // is empty
         } else {
           if (canvas) canvas.style.display = 'block';
+          container.classList.remove('is-empty');
           return false; // has data
         }
       }

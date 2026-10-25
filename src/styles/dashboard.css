@@ -1,0 +1,759 @@
+/* Hallmark · shape: app screen · genre: modern-minimal · theme: brand (Bodegón) · redesign: full
+ * paper: oklch(18% 0.02 320) · accent: oklch(70% 0.15 35) · display: Gabarito · body: Inter
+ * nav: kept, dashboard-scoped sidebar · signature: the ledger (transactions list) · states: hover, focus, active, disabled, loading, empty, full
+ * axes: dark/rounded-sans/warm · posture: dense · contrast: pass · v2.0.0 */
+/* Hallmark · crítica previa: el dashboard tenía cinco ritmos verticales y una grilla KPI con huecos.
+ * Lo resuelve un stack único de 24px, una grilla de seis columnas y valores tabulares. */
+/* Hallmark · reworded "Flujo mensual — Ingresos vs Egresos" to "Flujo mensual: ingresos vs egresos" · 19 names the dash */
+/* Hallmark · reworded missing-value dashes to "n/d" / "Sin datos" / "Sin presupuesto" · 19 names the dash */
+/* Hallmark · reworded "DolarAPI · consultado" to "DolarAPI, consultado" · 63 names the middle dot */
+/* Hallmark · dropped metas-section, icon_coming_soon, icon_placeholder · el usuario pidió retirar la sección vacía del dashboard; los iconos quedan sin uso */
+@import "./tokens.css";
+
+:root {
+  --dash-max: 1280px;
+  --dash-stack: var(--space-6);
+}
+
+/* ── Base ────────────────────────────────────────────────────────────────── */
+html,
+body {
+  overflow-x: clip;
+}
+
+body.dashboard {
+  font-family: var(--font-ui);
+  background: var(--bg-base);
+}
+
+.dashboard h1,
+.dashboard h2 {
+  text-wrap: balance;
+}
+
+.dashboard .main-content {
+  margin-left: var(--sidebar-w);
+  max-width: none;
+  padding: var(--space-8) var(--space-8) var(--space-16);
+  min-height: 100vh;
+}
+
+.dash-shell {
+  width: 100%;
+  max-width: var(--dash-max);
+  margin-inline: auto;
+}
+
+.dashboard .dash-shell > * + * {
+  margin-top: var(--dash-stack);
+}
+
+/* ── Foco y estados ──────────────────────────────────────────────────────── */
+.dashboard :where(a, button, input, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.dashboard :where(a, button, input):active {
+  transform: translateY(1px);
+}
+
+.dashboard :where(button, input):disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ── Sidebar (sólo dashboard) ────────────────────────────────────────────── */
+.dashboard .sidebar {
+  background: var(--bg-surface);
+  border-right-color: var(--border);
+  transition: transform var(--duration-base) var(--ease-out);
+}
+
+.dashboard .sidebar-brand {
+  padding: var(--space-6) var(--space-5) var(--space-5);
+}
+
+.dashboard .brand-name {
+  background: none;
+  -webkit-text-fill-color: currentColor;
+  color: var(--text-primary);
+  font-size: 1.125rem;
+  letter-spacing: 0.08em;
+}
+
+.dashboard .sidebar-nav {
+  padding: var(--space-4) var(--space-3);
+  gap: var(--space-1);
+}
+
+.dashboard .nav-item {
+  min-height: 40px;
+  padding: 0 var(--space-3);
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.dashboard .nav-item:hover {
+  background: var(--bg-glass-hover);
+  color: var(--text-primary);
+}
+
+.dashboard .nav-item.active {
+  background: color-mix(in srgb, var(--action) 12%, transparent);
+  color: var(--text-primary);
+}
+
+.dashboard .nav-item.active::before {
+  width: 2px;
+  background: var(--action);
+}
+
+.dashboard .sidebar-footer {
+  padding: var(--space-4) var(--space-3);
+  gap: var(--space-2);
+}
+
+.dashboard .user-avatar {
+  width: 32px;
+  height: 32px;
+}
+
+.dashboard .user-name {
+  font-size: 0.8125rem;
+}
+
+.dashboard .user-label {
+  font-size: 0.6875rem;
+}
+
+.dashboard .logout-btn {
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+/* ── Header de página ────────────────────────────────────────────────────── */
+.dashboard .page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-6);
+  margin-bottom: var(--space-8);
+}
+
+.dashboard .page-title {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+  background: none;
+  -webkit-text-fill-color: currentColor;
+}
+
+.dashboard .page-subtitle {
+  margin-top: var(--space-1);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* ── Filtros ─────────────────────────────────────────────────────────────── */
+.dashboard .filter-form {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.dashboard .filter-group {
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.dashboard .filter-group label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.dashboard .filter-group input[type="date"] {
+  min-height: 36px;
+  padding: 0 var(--space-3);
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  transition:
+    border-color var(--duration-fast) var(--ease-out);
+}
+
+.dashboard .filter-group input[type="date"]:hover {
+  border-color: var(--border-strong);
+}
+
+.dashboard .filter-group input[type="date"]:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--action) 20%, transparent);
+}
+
+/* ── KPIs ────────────────────────────────────────────────────────────────── */
+.dashboard .stats-grid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: var(--space-4);
+  margin-bottom: 0;
+}
+
+.dashboard #stats-loading {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.dashboard #stats-loading .skeleton-stat:nth-child(-n + 2) {
+  grid-column: span 3;
+  height: 250px;
+}
+
+.dashboard #stats-loading .skeleton-stat:nth-child(n + 3) {
+  grid-column: span 2;
+  height: 140px;
+}
+
+.dashboard #stat-patrimonio,
+.dashboard #stat-cotizacion {
+  grid-column: span 3;
+}
+
+.dashboard #stat-consumo,
+.dashboard #stat-racha,
+.dashboard #stat-category {
+  grid-column: span 2;
+}
+
+.dashboard .stat-card {
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-6);
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  animation: none;
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+
+.dashboard .stat-card:hover {
+  transform: none;
+  border-color: var(--border);
+  box-shadow: none;
+}
+
+.dashboard .stat-card--highlight {
+  background: color-mix(in srgb, var(--action) 6%, var(--bg-surface));
+  border-color: color-mix(in srgb, var(--action) 24%, transparent);
+}
+
+.dashboard .stat-card--placeholder {
+  opacity: 1;
+  border-style: dashed;
+}
+
+.dashboard .stat-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+}
+
+.dashboard .stat-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.dashboard .stat-label {
+  margin-bottom: var(--space-1);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--text-muted);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.dashboard .stat-value {
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.dashboard .stat-row {
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  align-items: baseline;
+}
+
+.dashboard .stat-row .stat-value {
+  font-size: 1.25rem;
+}
+
+.dashboard .stat-hint {
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.dashboard .stat-badge {
+  padding: 2px var(--space-2);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  border-radius: var(--radius-full);
+}
+
+/* Capital consolidado */
+.dashboard .capital-lines {
+  gap: var(--space-1) var(--space-4);
+}
+
+.dashboard .capital-line {
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+.dashboard .capital-totals {
+  margin: var(--space-2) 0;
+  gap: var(--space-1);
+}
+
+.dashboard .capital-total {
+  gap: var(--space-2);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.dashboard .capital-total__label {
+  min-width: 4.5em;
+  color: var(--text-muted);
+}
+
+.dashboard .capital-total__value {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Cotizaciones */
+.dashboard .quotes-table {
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.dashboard .quotes-table th,
+.dashboard .quotes-table td {
+  padding: var(--space-2) 0;
+}
+
+.dashboard .quotes-table thead th {
+  padding-bottom: var(--space-2);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.dashboard .quotes-table tbody th {
+  font-weight: 500;
+}
+
+.dashboard .quotes-table td {
+  font-variant-numeric: tabular-nums;
+}
+
+.dashboard .quotes-house {
+  gap: var(--space-2);
+}
+
+.dashboard .quotes-note,
+.dashboard .quotes-asof,
+.dashboard .quotes-footnote {
+  margin-top: var(--space-2);
+  font-size: 0.6875rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+.dashboard .quotes-footnote {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+}
+
+/* Consumo de presupuesto */
+.dashboard .kpi-bar-bg {
+  height: 6px;
+  margin: var(--space-2) 0;
+  background: var(--bg-elevated);
+}
+
+.dashboard .kpi-bar-fill {
+  transition: background-color var(--duration-fast) var(--ease-out);
+}
+
+/* ── Secciones ───────────────────────────────────────────────────────────── */
+.dashboard .section-card {
+  margin-bottom: 0;
+  padding: var(--space-6);
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  animation: none;
+}
+
+.dashboard .section-title {
+  gap: var(--space-2);
+  margin-bottom: var(--space-5);
+  font-family: var(--font-ui);
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--text-primary);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.dashboard .section-title > span {
+  display: inline-flex;
+  color: var(--text-muted);
+}
+
+.dashboard .section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+
+.dashboard .section-header .section-title {
+  margin-bottom: 0;
+}
+
+/* ── Gráficos ────────────────────────────────────────────────────────────── */
+.dashboard .charts-grid-2x2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+  margin-bottom: 0;
+}
+
+.dashboard .chart-card {
+  padding: var(--space-6);
+  animation: none;
+}
+
+.dashboard .chart-wrapper {
+  height: 260px;
+}
+
+.dashboard .chart-wrapper--tall {
+  height: 300px;
+}
+
+.dashboard .chart-card.is-empty .chart-wrapper {
+  height: 128px;
+}
+
+.dashboard .chart-card.is-empty .empty-hint {
+  max-width: none;
+}
+
+.dashboard .chart-skeleton {
+  inset: 0;
+}
+
+/* ── Presupuestos ────────────────────────────────────────────────────────── */
+.dashboard .budgets-list {
+  gap: var(--space-5);
+}
+
+.dashboard .budget-header {
+  margin-bottom: var(--space-2);
+}
+
+.dashboard .budget-name {
+  gap: var(--space-2);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.dashboard .budget-amounts {
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.dashboard .budget-spent {
+  font-weight: 600;
+}
+
+.dashboard .budget-bar-bg {
+  height: 6px;
+  margin-bottom: var(--space-2);
+  background: var(--bg-elevated);
+}
+
+.dashboard .budget-bar-fill {
+  transition: background-color var(--duration-fast) var(--ease-out);
+}
+
+.dashboard .budget-meta {
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Botón exportar ──────────────────────────────────────────────────────── */
+.dashboard .btn-export {
+  min-height: 32px;
+  padding: 0 var(--space-3);
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.dashboard .btn-export:hover {
+  transform: none;
+}
+
+/* ── Transacciones ───────────────────────────────────────────────────────── */
+.dashboard .tx-list {
+  gap: 0;
+}
+
+.dashboard .tx-row {
+  gap: var(--space-3);
+  min-height: 48px;
+  padding: var(--space-3) var(--space-2);
+  border-radius: var(--radius-sm);
+  transition: background-color var(--duration-fast) var(--ease-out);
+}
+
+.dashboard .tx-row + .tx-row {
+  border-top: 1px solid var(--border);
+}
+
+.dashboard .tx-cat-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+}
+
+.dashboard .tx-description {
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.dashboard .tx-meta {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.dashboard .tx-date {
+  color: var(--text-muted);
+}
+
+.dashboard .tx-amount {
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Estados vacíos ──────────────────────────────────────────────────────── */
+.dashboard .empty-state {
+  padding: var(--space-10) var(--space-6);
+  gap: var(--space-2);
+  color: var(--text-muted);
+}
+
+.dashboard .empty-icon {
+  display: flex;
+  justify-content: center;
+  opacity: 0.6;
+}
+
+.dashboard .empty-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
+.dashboard .empty-hint {
+  max-width: 34ch;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+@media (max-width: 1180px) {
+  .dashboard .stats-grid,
+  .dashboard #stats-loading {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard #stat-patrimonio,
+  .dashboard #stat-cotizacion,
+  .dashboard #stat-consumo {
+    grid-column: 1 / -1;
+  }
+
+  .dashboard #stat-racha,
+  .dashboard #stat-category {
+    grid-column: auto;
+  }
+
+  .dashboard #stats-loading .skeleton-stat {
+    grid-column: auto;
+    height: 140px;
+  }
+
+  .dashboard #stats-loading .skeleton-stat:nth-child(-n + 3) {
+    grid-column: 1 / -1;
+    height: 180px;
+  }
+}
+
+@media (max-width: 900px) {
+  .dashboard .charts-grid-2x2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dashboard .chart-card--wide {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard .main-content {
+    margin-left: 0;
+    padding: var(--space-4) var(--space-4) var(--space-10);
+  }
+
+  .dashboard .page-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-4);
+    margin-bottom: var(--space-6);
+  }
+
+  .dashboard .page-title {
+    font-size: 1.375rem;
+  }
+
+  .dashboard .filter-form {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-3);
+    width: 100%;
+  }
+
+  .dashboard .filter-group input[type="date"] {
+    width: 100%;
+  }
+
+  .dashboard .stats-grid,
+  .dashboard #stats-loading {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dashboard #stat-cotizacion {
+    grid-column: auto;
+  }
+
+  .dashboard #stats-loading .skeleton-stat,
+  .dashboard #stats-loading .skeleton-stat:nth-child(-n + 3) {
+    grid-column: auto;
+    height: 120px;
+  }
+
+  .dashboard .stat-card {
+    gap: var(--space-3);
+    padding: var(--space-4);
+  }
+
+  .dashboard .stat-icon {
+    width: 36px;
+    height: 36px;
+  }
+
+  .dashboard .section-card,
+  .dashboard .chart-card {
+    padding: var(--space-4);
+    border-radius: var(--radius-md);
+  }
+
+  .dashboard .section-title {
+    font-size: 0.9375rem;
+  }
+
+  .dashboard .chart-wrapper {
+    height: 230px;
+  }
+
+  .dashboard .chart-wrapper--tall {
+    height: 260px;
+  }
+
+  .dashboard .chart-card.is-empty .chart-wrapper {
+    height: 148px;
+  }
+
+  .dashboard .empty-state {
+    padding: var(--space-8) var(--space-4);
+  }
+}
+
+/* ── Movimiento ──────────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .dashboard *,
+  .dashboard *::before,
+  .dashboard *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

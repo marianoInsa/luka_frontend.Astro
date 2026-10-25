@@ -31,7 +31,7 @@ const { transactions } = Astro.props;
               >
                 {tx.tipo === 'ingreso' && tx.category === 'Otro' ? 'Ingreso' : tx.category}
               </span>
-              · {tx.date} a las {tx.time}
+              <span class="tx-date">{tx.date} a las {tx.time}</span>
             </p>
           </div>
           <div class="tx-amount" style={tx.tipo === 'ingreso' ? 'color: var(--money-in);' : undefined}>
@@ -44,12 +44,10 @@ const { transactions } = Astro.props;
     </div>
   ) : (
     <div class="empty-state" id="empty-transactions">
-      <div style="opacity:0.5; margin-bottom:4px; display:flex; justify-content:center;">
+      <div class="empty-icon">
         <Icon name="icon_empty_inbox" />
       </div>
-      <p style="color:var(--text-secondary); font-weight:600; font-size:0.95rem; margin-bottom:4px;">
-        Sin transacciones
-      </p>
+      <p class="empty-title">Sin transacciones</p>
       <p class="empty-hint">Enviá gastos a LUKA por WhatsApp para verlos acá.</p>
     </div>
   )
