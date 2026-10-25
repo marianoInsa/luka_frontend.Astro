@@ -8,10 +8,16 @@
  *
  * The flight loop runs on a fixed 1/60 s step (max 4 substeps, dt clamped to
  * 0.1 s) so motion is frame-rate independent and a resumed tab never jumps.
+ * The silhouette is never clipped: the model keeps the bird centre inside the
+ * rectangle that leaves room for the whole rotated box, arrival turns before a
+ * waypoint on the border, and the tick still runs the full-box clamp as a
+ * safety net that never corrects in normal flight. Mount, settle and resize
+ * frame the box as well.
  * Every bird is repainted on every frame; the transform is updated with the
  * subpixel position and heading. Blur is applied only to the canvas of a bird
- * that overlaps Hero content; its opacity fades with the raw overlap, so text
- * keeps WCAG AA contrast even when the deadband leaves the raster sharp.
+ * that overlaps Hero content, with a visible minimum from the first covered
+ * cell; opacity fades only where the bird covers text or translucent controls,
+ * so the copy keeps WCAG AA contrast even while the raster softens.
  *
  * The silhouette comes from `hero-birds-model`: green body/wings/tail, gray
  * head and chest, short hooked orange beak, no crest, very long tapered tail.
@@ -19,14 +25,19 @@
 
 import {
   BIRD_LOCAL_BOUNDS,
+  MIN_BLUR,
+  TURN_RATE,
   approach,
+  cruiseSpeed,
   blurTarget,
   clampBirdInside,
   createFlock,
   glyphForShade,
   resizeFlock,
   resolveBirdCount,
+  safeFlightRect,
   sampleBird,
+  seedFlight,
   settleFlock,
   stepFlock,
   type Bird,
@@ -177,6 +188,8 @@ export function createControllerRegistry<
 }
 
 const SEED = 0x5eed;
+/** Render size relative to the pre-waypoint flock. */
+export const BIRD_SIZE_SCALE = 0.8;
 const CELL_MIN = 8;
 const CELL_MAX = 13;
 const SHADE_LEVELS = 8;
@@ -192,28 +205,45 @@ const MAX_STEPS = 4;
 const MAX_DELTA = 0.1;
 const BLUR_STEP = 0.5;
 const BLUR_RATE = 6;
-/** Mobile budget: a 2.5 px blur still keeps the ASCII readable. */
-const BLUR_MIN = 2.5;
-const BLUR_MAX = 6;
+/** Mobile budget: 1.5 px is the first point on the 0.5 px quantizer. */
+const BLUR_MOBILE = 1.5;
+/** Landscape phones are wide but short: a little more blur is affordable. */
+const BLUR_SHORT = 2;
+/**
+ * Desktop budget. The flock now crosses the copy or a card most of the time,
+ * so 6 px would erase the ASCII: 3 px still reads as a soft bird.
+ */
+const BLUR_DESKTOP = 3;
+/** Stage height below which the copy owns the layout (landscape phone). */
+const SHORT_STAGE = 520;
 /** Viewport-height drift a mobile URL bar can cause without a real relayout. */
 const URL_BAR_SLACK = 96;
-/** Mobile needs a wider deadband: the copy fills almost the whole stage. */
-const MOBILE_DEADBAND = 0.28;
-const DESKTOP_DEADBAND = 0;
 
 /**
- * Hero content a bird must not cover with sharp ink. Text weighs 1; the
- * product cards are opaque and paint above the layer, so a bird behind them
- * is hidden and only their silhouette edge is worth softening.
+ * Every Hero component the bird can cross. All of them dim and soften the bird,
+ * including the opaque cards: a hard silhouette sliding behind a card reads as
+ * a glitch, and the product asked for blur behind every component.
  */
-const OBSTACLES: ReadonlyArray<{ selector: string; weight: number }> = [
-  { selector: '.hero__copy h1', weight: 1 },
-  { selector: '.hero__copy > p', weight: 1 },
-  // Opaque buttons and cards hide or barely tint the bird; text nodes win.
-  { selector: '.hero__actions', weight: 0.45 },
-  { selector: '.mini-dash', weight: 0.15 },
-  { selector: '.phone', weight: 0.15 },
+export const OBSTACLES: ReadonlyArray<{ selector: string; weight: number; contrast: boolean }> = [
+  // Text and glass: the bird must fade so the copy keeps its contrast.
+  { selector: '.hero__copy h1', weight: 1, contrast: true },
+  { selector: '.hero__copy > p', weight: 1, contrast: true },
+  // The whole CTA row softens the bird; only the transparent controls fade it.
+  // The primary CTA is opaque and the gaps show the background, so dimming
+  // there would just wash the bird without protecting any text.
+  { selector: '.hero__actions', weight: 1, contrast: false },
+  { selector: '.hero__actions .btn--ghost', weight: 1, contrast: true },
+  { selector: '.hero__actions .hero__motion', weight: 1, contrast: true },
+  // Opaque cards: the bird is already hidden, so it only needs the blur.
+  { selector: '.mini-dash', weight: 1, contrast: false },
+  { selector: '.phone', weight: 1, contrast: false },
 ];
+/**
+ * Grow every text box by one glyph cell. A cell whose centre just misses the
+ * box still paints half of itself over the first glyphs; without the margin
+ * that sliver kept the bird sharp and broke the text contrast at the edge.
+ */
+const TEXT_INFLATE = 6;
 
 /** Color blocks per part, as `r, g, b`. Green, gray and orange only. */
 const PALETTE: Record<BirdPart, string> = {
@@ -249,11 +279,39 @@ function clamp(value: number, lo: number, hi: number): number {
 }
 
 /** Readable bird size for the render; depth still drives perspective. */
-function displayLength(width: number, height: number, depth: number): number {
-  // Very narrow layers need a smaller bird or the silhouette clips the layer.
-  const floor = clamp(width * 0.45, 110, 180);
-  const base = clamp(Math.min(width, height) * 0.34, floor, 280);
-  return base * (0.7 + 0.3 * clamp(depth, 0, 1));
+export function displayLength(
+  width: number,
+  height: number,
+  depth: number,
+  scale = BIRD_SIZE_SCALE,
+): number {
+  // Scale with the short side: a landscape phone (844×390) used to keep a bird
+  // taller than its stage, so the silhouette clipped for the whole cruise.
+  // Desktop keeps its previous 0.34·min size.
+  const minSide = Math.min(width, height);
+  // A stage shorter than the copy needs a smaller bird to fit the strip under
+  // it; otherwise the flock flies behind the title for the whole cycle.
+  const shortCap = height > 0 && height < SHORT_STAGE ? height * 0.26 : Number.POSITIVE_INFINITY;
+  // Keep the bird at most 26 % of the width so the 2D flight rectangle keeps a
+  // real horizontal run on every viewport.
+  const widthCap = width > 0 ? width * 0.26 : Number.POSITIVE_INFINITY;
+  // Vertically the diagonal box must leave a real waypoint band: a bird taller
+  // than that would have to fly in the middle strip only.
+  const diagonal = Math.hypot(
+    Math.max(-BIRD_LOCAL_BOUNDS.uMin, BIRD_LOCAL_BOUNDS.uMax),
+    BIRD_LOCAL_BOUNDS.vHalf,
+  );
+  const verticalCap =
+    height > 0
+      ? (0.38 * height - (2 * cruiseSpeed(1, width)) / TURN_RATE) / diagonal
+      : Number.POSITIVE_INFINITY;
+  const base = clamp(
+    Math.min(minSide * 0.34, shortCap, widthCap, verticalCap),
+    88,
+    280,
+  );
+  const safeScale = Number.isFinite(scale) && scale > 0 ? scale : BIRD_SIZE_SCALE;
+  return base * (0.7 + 0.3 * clamp(depth, 0, 1)) * safeScale;
 }
 
 /**
@@ -268,6 +326,20 @@ export function glyphForInk(shade: number, part: BirdPart): string {
 function effectiveDpr(raw: number): number {
   const value = Number.isFinite(raw) && raw > 0 ? raw : 1;
   return Math.min(2, value);
+}
+
+/** Fresh 32-bit seed per page load. Never touches the render loop. */
+export function createLoadSeed(): number {
+  const cryptoApi = typeof globalThis !== 'undefined' ? globalThis.crypto : undefined;
+  if (cryptoApi && typeof cryptoApi.getRandomValues === 'function') {
+    const buffer = new Uint32Array(1);
+    cryptoApi.getRandomValues(buffer);
+    return buffer[0] || 1;
+  }
+
+  const now = Date.now();
+  const fine = typeof performance !== 'undefined' ? Math.floor(performance.now() * 1000) : 0;
+  return ((now ^ fine) >>> 0) || 1;
 }
 
 /**
@@ -289,16 +361,38 @@ export function stageHeight(
 }
 
 /**
- * Blur budget in px: at most 2.5 px on mobile, 6 px on wider screens.
+ * Part of the layer the window actually shows, in layer coordinates. The Hero
+ * starts under the nav, so using `innerHeight` alone parked the lower lanes
+ * below the fold on a landscape phone (layer top 61 px, window 390 px).
  */
-export function blurLimit(width: number): number {
-  return width < 720 ? BLUR_MIN : BLUR_MAX;
+export function visibleViewportHeight(
+  layerTop: number,
+  layerHeight: number,
+  viewportHeight: number,
+): number {
+  const height = Number.isFinite(layerHeight) && layerHeight > 0 ? layerHeight : 0;
+  const viewport = Number.isFinite(viewportHeight) && viewportHeight > 0 ? viewportHeight : 0;
+  if (!(viewport > 0)) return height;
+
+  const top = Number.isFinite(layerTop) ? Math.max(0, layerTop) : 0;
+  return Math.min(height, Math.max(0, viewport - top));
+}
+
+/**
+ * Blur budget in px. Mobile keeps the ASCII readable (1.25 px), a short
+ * landscape stage gets a little more (2 px) and desktop keeps 3 px.
+ */
+export function blurLimit(width: number, height = Number.POSITIVE_INFINITY): number {
+  if (Number.isFinite(height) && height > 0 && height < SHORT_STAGE) return BLUR_SHORT;
+  return width < 720 ? BLUR_MOBILE : BLUR_DESKTOP;
 }
 
 /** Half-pixel blur, snapped to zero below a quarter pixel. */
-export function quantizeBlur(value: number): number {
-  if (!Number.isFinite(value) || value < BLUR_STEP / 2) return 0;
-  return Math.round(value / BLUR_STEP) * BLUR_STEP;
+export function quantizeBlur(value: number, floor = 0): number {
+  if (!Number.isFinite(value) || value <= 0) return 0;
+
+  const min = Number.isFinite(floor) && floor > 0 ? floor : 0;
+  return Math.max(Math.round(value / BLUR_STEP) * BLUR_STEP, min);
 }
 
 /** Canvas style for a blur amount; `will-change` only while blurred. */
@@ -316,15 +410,20 @@ export function birdStyle(
   };
 }
 
-/** Lowest bird opacity while it sits behind text; measured for WCAG AA. */
-const BIRD_MIN_OPACITY = 0.4;
-/** Raw overlap that already reaches the floor. */
-const OPACITY_RAMP = 0.12;
+/**
+ * Lowest bird opacity while it sits behind text. 0.45 keeps the brightest wing
+ * cell at ~5.5:1 under the subtitle and ~7.8:1 under the title, so the copy
+ * stays AA. Off the text the bird is fully opaque: the opacity only pays for
+ * the cells that actually cover text.
+ */
+const BIRD_MIN_OPACITY = 0.45;
+/** Raw text overlap that reaches the floor; above 8 % the bird is dimmed. */
+const OPACITY_RAMP = 0.08;
 
 /**
- * Dim the bird from its raw content overlap, independent of the blur. The
- * blur deadband keeps light grazes sharp so the ASCII reads, but text
- * contrast still needs the bird itself to fade as soon as it covers content.
+ * Dim the bird from its raw content overlap, independent of the blur. Blur
+ * starts with the first covered cell, and text contrast still needs the bird
+ * itself to fade as soon as it covers content.
  */
 export function opacityForOverlap(
   overlap: number,
@@ -473,25 +572,90 @@ export function canvasTransform(frame: BirdLayout): {
 }
 
 /**
- * Pure layout of the flock: spawn, optional settle, readable length, edge
+ * Production flight tick: fixed 60 Hz steps plus the full-box clamp as a safety
+ * net. The turn margin already keeps the silhouette inside, so the clamp is
+ * expected to correct nothing; tests assert that every frame stays inside.
+ */
+export function advanceBirds(birds: Bird[], steps: number, width: number, height: number): void {
+  for (let step = 0; step < steps; step += 1) stepFlock(birds, STEP, width, height);
+  for (const bird of birds) clampBirdInside(bird, width, height, 0);
+}
+
+/**
+ * Reduced-motion still frame: settle, then level every bird. There is no loop,
+ * so snapping the heading to the nearest horizontal cannot animate a turn; it
+ * only keeps the frozen frame readable instead of a vertical smear.
+ */
+export function settleLevel(birds: Bird[], width: number, height: number, seconds: number): void {
+  settleFlock(birds, width, height, seconds);
+  for (const bird of birds) {
+    bird.heading = Math.cos(bird.heading) >= 0 ? 0 : Math.PI;
+  }
+}
+
+/**
+ * Pure layout of the flock: spawn, optional settle, readable length, safe-rect
  * clamp and one canvas box per bird. No DOM access.
- */export function layoutHeroBirds(
+ */
+export function layoutHeroBirds(
   width: number,
   height: number,
   rawDpr = 1,
   settleSeconds = 0,
+  seed = SEED,
 ): HeroBirdsLayout {
   const w = Math.max(0, width);
   const h = Math.max(0, height);
   const dpr = effectiveDpr(rawDpr);
   const count = resolveBirdCount(w);
-  const birds = createFlock(count, w, h, SEED);
+  const birds = createFlock(count, w, h, seed);
 
   for (const bird of birds) bird.length = displayLength(w, h, bird.depth);
+  // Reseed after the display length changes the safe rectangle, so every
+  // waypoint is expressed against the rectangle the bird will actually fly in.
+  seedFlight(birds, w, h, seed);
   if (settleSeconds > 0) settleFlock(birds, w, h, settleSeconds);
   for (const bird of birds) clampBirdInside(bird, w, h, EDGE_MARGIN);
 
   return { width: w, height: h, count, dpr, birds: birds.map((bird) => birdFrame(bird, dpr)) };
+}
+
+/**
+ * Resize step for the controller: rescale the survivors, refresh their length
+ * and clamp the centre into the new safe rectangle. Waypoint fractions stay
+ * untouched, so a destination is reprojected instead of re-randomised.
+ */
+export function resizeBirds(
+  birds: Bird[],
+  count: number,
+  width: number,
+  height: number,
+  scaleX: number,
+  scaleY: number,
+  seed = SEED,
+): Bird[] {
+  const w = Math.max(0, width);
+  const h = Math.max(0, height);
+  const kept = Math.min(birds.length, Math.max(0, Math.floor(count)));
+  const sx = Number.isFinite(scaleX) && scaleX > 0 ? scaleX : 1;
+  const sy = Number.isFinite(scaleY) && scaleY > 0 ? scaleY : 1;
+
+  // Reproject the survivors before any frame clamp, so a 1440→800 resize keeps
+  // the relative position instead of pinning it to the new edge first.
+  for (const bird of birds.slice(0, kept)) {
+    bird.x = clamp(bird.x * sx, 0, w);
+    bird.y = clamp(bird.y * sy, 0, h);
+  }
+
+  const resized = resizeFlock(birds, count, w, h, seed);
+  resized.forEach((bird) => {
+    bird.length = displayLength(w, h, bird.depth);
+    const rect = safeFlightRect(bird.length, w, h);
+    bird.x = clamp(bird.x, rect.x, rect.x + rect.width);
+    bird.y = clamp(bird.y, rect.y, rect.y + rect.height);
+  });
+
+  return resized;
 }
 
 /** Rectangles in layer space, dropping elements with no box. */
@@ -514,15 +678,16 @@ function measureObstacles(layer: HTMLElement, root: Element): Obstacle[] {
   const base = layer.getBoundingClientRect();
   const rects: Obstacle[] = [];
 
-  for (const { selector, weight } of OBSTACLES) {
+  for (const { selector, weight, contrast } of OBSTACLES) {
     for (const element of root.querySelectorAll(selector)) {
       const rect = element.getBoundingClientRect();
       rects.push({
-        x: rect.left,
-        y: rect.top,
-        width: rect.width,
-        height: rect.height,
+        x: rect.left - TEXT_INFLATE,
+        y: rect.top - TEXT_INFLATE,
+        width: rect.width + TEXT_INFLATE * 2,
+        height: rect.height + TEXT_INFLATE * 2,
         weight,
+        contrast,
       });
     }
   }
@@ -538,6 +703,8 @@ function measureObstacles(layer: HTMLElement, root: Element): Obstacle[] {
 export interface Obstacle extends Rect {
   /** 1 for text surfaces, lower for opaque cards that hide the bird. */
   weight: number;
+  /** Text or glass: the bird must fade here for contrast, not only blur. */
+  contrast?: boolean;
 }
 
 export interface FrameStats {
@@ -545,6 +712,8 @@ export interface FrameStats {
   cells: number;
   /** Cells whose box intersects cached Hero content. */
   covered: number;
+  /** Cells whose box intersects text or glass, where opacity protects the copy. */
+  coveredText: number;
 }
 
 /**
@@ -572,6 +741,7 @@ export function paintBirdFrame(
 
   let cells = 0;
   let covered = 0;
+  let coveredText = 0;
 
   for (let row = 0; row < frame.rows; row += 1) {
     for (let col = 0; col < frame.columns; col += 1) {
@@ -586,12 +756,16 @@ export function paintBirdFrame(
       if (obstacles.length > 0) {
         const world = localToWorld(frame.bird, localX, localY);
         let weight = 0;
+        let contrast = false;
         for (const obstacle of obstacles) {
           const onX = world.x - half < obstacle.x + obstacle.width && world.x + half > obstacle.x;
           const onY = world.y - half < obstacle.y + obstacle.height && world.y + half > obstacle.y;
-          if (onX && onY && obstacle.weight > weight) weight = obstacle.weight;
+          if (!onX || !onY) continue;
+          if (obstacle.weight > weight) weight = obstacle.weight;
+          if (obstacle.contrast) contrast = true;
         }
         covered += weight;
+        if (contrast) coveredText += 1;
       }
 
       const level = Math.round(clamp(sampled.shade, 0, 1) * (SHADE_LEVELS - 1));
@@ -603,7 +777,7 @@ export function paintBirdFrame(
     }
   }
 
-  return { cells, covered };
+  return { cells, covered, coveredText };
 }
 
 /**
@@ -617,7 +791,7 @@ export function paintFlock(
 ): FrameStats[] {
   return frames.map((frame, index) => {
     const handle = handles[index];
-    if (!handle) return { cells: 0, covered: 0 };
+    if (!handle) return { cells: 0, covered: 0, coveredText: 0 };
 
     return paintBirdFrame(handle.ctx, frame, obstacles);
   });
@@ -712,6 +886,7 @@ export function startHeroBirds(): HeroBirdsController | null {
 
   registry.current?.destroy();
 
+  const loadSeed = createLoadSeed();
   const layer: HTMLElement = found;
   const hero = layer.closest<HTMLElement>('.hero') ?? layer;
   const button = hero.querySelector<HTMLButtonElement>('[data-hero-motion]');
@@ -723,7 +898,11 @@ export function startHeroBirds(): HeroBirdsController | null {
   // Birds fly in the part of the Hero the visitor can actually see; a tall
   // stacked Hero would otherwise keep the flock below the fold. A single bird
   // also stays above the stacked art, where the opaque phone cannot hide it.
-  let stage = stageHeight(height, window.innerHeight, stageCapFor(startWidth));
+  let stage = stageHeight(
+    height,
+    visibleViewportHeight(layer.getBoundingClientRect().top, height, window.innerHeight),
+    stageCapFor(startWidth),
+  );
   let dpr = effectiveDpr(window.devicePixelRatio || 1);
   let birds: Bird[] = [];
   let handles: BirdHandle[] = [];
@@ -815,7 +994,7 @@ export function startHeroBirds(): HeroBirdsController | null {
 
   /** Reposition and repaint every bird; the raster is local, CSS rotates it. */
   function render(dt: number): void {
-    const limit = blurLimit(width);
+    const limit = blurLimit(width, stage);
     const frames = birds.map((bird) => birdFrame(bird, dpr));
     const stats = paintFlock(handles, frames, obstacles);
 
@@ -832,14 +1011,18 @@ export function startHeroBirds(): HeroBirdsController | null {
         handle.canvas.style.transform = place.transform;
       }
 
-      overlap[index] = stats[index].cells > 0 ? stats[index].covered / stats[index].cells : 0;
+      const cells = stats[index].cells;
+      overlap[index] = cells > 0 ? stats[index].covered / cells : 0;
+      const textOverlap = cells > 0 ? stats[index].coveredText / cells : 0;
 
-      const deadband = width < 720 ? MOBILE_DEADBAND : DESKTOP_DEADBAND;
-      const target = blurTarget(overlap[index], limit, deadband);
+      const target = blurTarget(overlap[index], limit);
       blur[index] = dt > 0 ? approach(blur[index], target, dt, BLUR_RATE) : target;
 
-      const px = quantizeBlur(blur[index]);
-      const style = birdStyle(px, opacityForOverlap(overlap[index]));
+      // The first covered cell already blurs, so the smoothed value can dip
+      // under the quantizer threshold for a frame; the floor keeps it visible.
+      const px = quantizeBlur(blur[index], overlap[index] > 0 ? MIN_BLUR : 0);
+      // Blur follows every component; opacity only fades on text and glass.
+      const style = birdStyle(px, opacityForOverlap(textOverlap));
       const key = `${style.filter}|${style.opacity}`;
       if (key === applied[index]) continue;
 
@@ -856,8 +1039,7 @@ export function startHeroBirds(): HeroBirdsController | null {
     const steps = advanceClock(clock, now);
     if (steps === 0) return;
 
-    for (let step = 0; step < steps; step += 1) stepFlock(birds, STEP, width, stage);
-    for (const bird of birds) clampBirdInside(bird, width, stage, EDGE_MARGIN);
+    advanceBirds(birds, steps, width, stage);
 
     render(steps * STEP);
   }
@@ -882,7 +1064,7 @@ export function startHeroBirds(): HeroBirdsController | null {
   }
 
   function settleStatic(): void {
-    settleFlock(birds, width, stage, SETTLE_SECONDS);
+    settleLevel(birds, width, stage, SETTLE_SECONDS);
     for (const bird of birds) clampBirdInside(bird, width, stage, EDGE_MARGIN);
     render(0);
   }
@@ -895,13 +1077,30 @@ export function startHeroBirds(): HeroBirdsController | null {
     if (!(nextWidth > 0) || !(nextHeight > 0)) return;
 
     const nextCap = stageCapFor(nextWidth);
-    const nextStage = stageHeight(nextHeight, window.innerHeight, nextCap);
+    const nextStage = stageHeight(
+      nextHeight,
+      visibleViewportHeight(
+        layer.getBoundingClientRect().top,
+        nextHeight,
+        window.innerHeight,
+      ),
+      nextCap,
+    );
     const nextDpr = effectiveDpr(window.devicePixelRatio || 1);
     const sameBox =
       Math.abs(nextWidth - width) < 1 && Math.abs(nextHeight - height) < 1 && nextDpr === dpr;
     // A mobile URL bar only moves `innerHeight`; do not rebuild the flock for
     // it. Real layer box or DPR changes always fall through.
     if (sameBox && Math.abs(nextStage - stage) < URL_BAR_SLACK) {
+      // The stage shrank or grew with the window; keep the route and clamp the
+      // centres into the new flight rectangle, never rebuild the flock.
+      const ratio = stage > 0 ? nextStage / stage : 1;
+      stage = nextStage;
+      for (const bird of birds) {
+        const rect = safeFlightRect(bird.length, width, stage);
+        bird.y = clamp(bird.y * ratio, rect.y, rect.y + rect.height);
+        bird.x = clamp(bird.x, rect.x, rect.x + rect.width);
+      }
       refreshObstacles();
       // With no loop running, the cached rectangles would never repaint.
       if (!canAnimate(flags)) render(0);
@@ -923,20 +1122,10 @@ export function startHeroBirds(): HeroBirdsController | null {
     };
     const scaleX = nextWidth / width;
     const scaleY = nextStage / stage;
+    // Survivors keep their fractional position; the re-frame shifts a bird by
+    // at most the width/stage delta, and the lane clamp below keeps it inside.
     const count = resolveBirdCount(nextWidth);
-    const before = birds.length;
-    const resized = resizeFlock(birds, count, nextWidth, nextStage);
-    const kept = Math.min(before, count);
-
-    for (let index = 0; index < resized.length; index += 1) {
-      const bird = resized[index];
-      if (index < kept) {
-        bird.x *= scaleX;
-        bird.y *= scaleY;
-      }
-      bird.length = displayLength(nextWidth, nextStage, bird.depth);
-      clampBirdInside(bird, nextWidth, nextStage, EDGE_MARGIN);
-    }
+    const resized = resizeBirds(birds, count, nextWidth, nextStage, scaleX, scaleY, loadSeed);
 
     const boxes = resized.map((bird) => birdFrame(bird, nextDpr));
     const layout: HeroBirdsLayout = {
@@ -1012,10 +1201,9 @@ export function startHeroBirds(): HeroBirdsController | null {
     registry.release(controller);
   }
 
-  const initial: HeroBirdsLayout = layoutHeroBirds(width, stage, dpr);
-  if (!mount(initial)) return null;
-
   refreshObstacles();
+  const initial: HeroBirdsLayout = layoutHeroBirds(width, stage, dpr, 0, loadSeed);
+  if (!mount(initial)) return null;
 
   io =
     typeof IntersectionObserver === 'undefined'

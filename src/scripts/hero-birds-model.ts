@@ -25,6 +25,15 @@ export interface Bird {
   seed: number;
   /** Instantaneous wing bank in -1..1; 0 keeps both wings symmetric. */
   flap: number;
+  /** Current waypoint, as fractions of the centre-safe flight rectangle. */
+  targetU: number;
+  targetV: number;
+  /** Zone of the current waypoint, 0..8. */
+  zone: number;
+  /** Stable seed for the zone tour and waypoint jitter. */
+  zoneSeed: number;
+  /** Waypoints selected so far; drives the zone tour. */
+  leg: number;
 }
 
 export interface Rect {
@@ -53,6 +62,29 @@ export const PART_RAMPS: Record<BirdPart, string> = {
 const TAU = Math.PI * 2;
 const STEPS_PER_SECOND = 60;
 
+/** Hard cap on the heading rate, shared by every waypoint turn. */
+export const TURN_RATE = 1.8;
+/** The flight rectangle is split into 3×3 zones for stratified waypoints. */
+const ZONE_SIDE = 3;
+const ZONE_COUNT = ZONE_SIDE * ZONE_SIDE;
+/** Extra room between the safe rect and the canvas edge. */
+const FLIGHT_PAD = 2;
+/** Keep random waypoints off the exact safe-rect border. */
+const TARGET_INSET = 4;
+/** Arrival radius floor, even for a very slow bird. */
+const ARRIVAL_MIN = 6;
+/** Arrival radius in turn radii; below 2 the bird can orbit a waypoint. */
+const ARRIVAL_TURNS = 2;
+/** Waypoint legs shorter than this would leave the bird hovering. */
+const MIN_LEG_SHARE = 0.25;
+const MAX_LEG_SHARE = 0.8;
+/** Cruise speed per depth, scaled down on narrow stages. */
+const CRUISE_BASE = 26;
+const CRUISE_DEPTH = 24;
+const CRUISE_REFERENCE = 1200;
+const CRUISE_MIN_SCALE = 0.85;
+const CRUISE_MAX_SCALE = 1.15;
+
 // Local outline constants, in units of bird.length.
 const BEAK_BASE = 0.315;
 const BEAK_TIP = 0.45;
@@ -64,6 +96,53 @@ const RIM = 0.012;
 
 function clamp(value: number, lo: number, hi: number): number {
   return value < lo ? lo : value > hi ? hi : value;
+}
+
+/** Cruising speed in px/s: depth adds pace, narrow stages cruise slower. */
+export function cruiseSpeed(depth: number, width: number): number {
+  const scale = clamp(width / CRUISE_REFERENCE, CRUISE_MIN_SCALE, CRUISE_MAX_SCALE);
+  return (CRUISE_BASE + CRUISE_DEPTH * clamp(depth, 0, 1)) * scale;
+}
+
+/**
+ * Radius of the smallest circle around the bird centre that contains the whole
+ * rotated silhouette. A centre inside `[R, width-R] × [R, height-R]` cannot
+ * clip at any heading.
+ */
+export function birdReach(length: number): number {
+  const size = Number.isFinite(length) && length > 0 ? length : 1;
+  const longitudinal = Math.max(-BIRD_LOCAL_BOUNDS.uMin, BIRD_LOCAL_BOUNDS.uMax);
+  return Math.hypot(longitudinal, BIRD_LOCAL_BOUNDS.vHalf) * size;
+}
+
+/** Centre-safe flight rectangle for one bird at its current length. */
+export function safeFlightRect(length: number, width: number, height: number): Rect {
+  const w = Number.isFinite(width) ? Math.max(0, width) : 0;
+  const h = Number.isFinite(height) ? Math.max(0, height) : 0;
+  const reach = birdReach(length) + FLIGHT_PAD;
+  const innerWidth = Math.max(0, w - 2 * reach);
+  const innerHeight = Math.max(0, h - 2 * reach);
+
+  return {
+    x: (w - innerWidth) / 2,
+    y: (h - innerHeight) / 2,
+    width: innerWidth,
+    height: innerHeight,
+  };
+}
+
+/** Radar that catches a waypoint without orbiting it: at least two turn radii. */
+export function arrivalRadius(speed: number): number {
+  const velocity = Number.isFinite(speed) ? Math.max(0, speed) : 0;
+  return Math.max(ARRIVAL_MIN, (ARRIVAL_TURNS * velocity) / TURN_RATE);
+}
+
+function normalizeHeading(heading: number): number {
+  if (!Number.isFinite(heading)) return 0;
+  let angle = heading % TAU;
+  if (angle > Math.PI) angle -= TAU;
+  if (angle <= -Math.PI) angle += TAU;
+  return angle;
 }
 
 function angleDiff(from: number, to: number): number {
@@ -109,14 +188,12 @@ export function createFlock(count: number, width: number, height: number, seed =
   for (let i = 0; i < total; i += 1) {
     const depth = 0.45 + rng() * 0.55;
     const length = lengthFor(w, h, depth);
-    const marginX = Math.min(w / 2, length * 0.9);
-    const marginY = Math.min(h / 2, length * 0.9);
 
     birds.push({
       id: i + 1,
-      x: marginX + rng() * Math.max(0, w - marginX * 2),
-      y: marginY + rng() * Math.max(0, h - marginY * 2),
-      heading: rng() * TAU,
+      x: 0,
+      y: 0,
+      heading: 0,
       speed: 24 + rng() * 30,
       phase: rng() * TAU,
       flapRate: 1.4 + rng() * 0.6,
@@ -124,24 +201,190 @@ export function createFlock(count: number, width: number, height: number, seed =
       depth,
       seed: rng(),
       flap: 0,
+      targetU: 0.5,
+      targetV: 0.5,
+      zone: -1,
+      zoneSeed: 1,
+      leg: 0,
     });
   }
+
+  seedFlight(birds, w, h, seed);
 
   return birds;
 }
 
-/** Soft push back toward the interior; 0 while inside the margin. */
-function boundaryPush(value: number, margin: number, size: number): number {
-  if (margin <= 0) return 0;
-  if (value < margin) return (1 - clamp(value / margin, 0, 1)) * 1.6;
-  if (value > size - margin) return -(1 - clamp((size - value) / margin, 0, 1)) * 1.6;
-  return 0;
+/** Stable 0..8 permutation for one zone cycle. */
+function zonePermutation(seed: number, cycle: number): number[] {
+  const rng = createRng((seed ^ Math.imul(cycle + 1, 0x9e3779b1)) >>> 0);
+  const zones = Array.from({ length: ZONE_COUNT }, (_, index) => index);
+  for (let index = zones.length - 1; index > 0; index -= 1) {
+    const swap = Math.floor(rng() * (index + 1));
+    const value = zones[index];
+    zones[index] = zones[swap];
+    zones[swap] = value;
+  }
+  return zones;
+}
+
+function zoneAt(seed: number, leg: number): number {
+  const safeLeg = Number.isFinite(leg) && leg >= 0 ? Math.floor(leg) : 0;
+  const cycle = Math.floor(safeLeg / ZONE_COUNT);
+  return zonePermutation(seed, cycle)[safeLeg % ZONE_COUNT];
+}
+
+function chooseZone(bird: Bird, leg: number): number {
+  const seed = Number.isFinite(bird.zoneSeed) ? bird.zoneSeed >>> 0 : 1;
+  const zone = zoneAt(seed, leg);
+  if (zone !== bird.zone || ZONE_COUNT < 2) return zone;
+
+  const cycle = Math.floor(leg / ZONE_COUNT);
+  const index = leg % ZONE_COUNT;
+  return zonePermutation(seed, cycle)[(index + 1) % ZONE_COUNT];
+}
+
+/** Random point inside one zone, avoiding a leg shorter than `minLeg`. */
+function pointInZone(
+  zone: number,
+  rect: Rect,
+  avoidX: number,
+  avoidY: number,
+  minLeg: number,
+  rng: () => number,
+): { x: number; y: number } {
+  const column = zone % ZONE_SIDE;
+  const row = Math.floor(zone / ZONE_SIDE);
+  const zoneWidth = rect.width / ZONE_SIDE;
+  const zoneHeight = rect.height / ZONE_SIDE;
+
+  if (!(zoneWidth > 0) || !(zoneHeight > 0)) {
+    return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+  }
+
+  const inset = Math.min(TARGET_INSET, zoneWidth * 0.2, zoneHeight * 0.2);
+  const left = rect.x + column * zoneWidth + inset;
+  const top = rect.y + row * zoneHeight + inset;
+  const right = rect.x + (column + 1) * zoneWidth - inset;
+  const bottom = rect.y + (row + 1) * zoneHeight - inset;
+  let best = { x: left, y: top };
+  let bestDistance = -1;
+
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    const x = left + rng() * Math.max(0, right - left);
+    const y = top + rng() * Math.max(0, bottom - top);
+    const distance = Math.hypot(x - avoidX, y - avoidY);
+    if (distance > bestDistance) {
+      best = { x, y };
+      bestDistance = distance;
+    }
+    if (distance >= minLeg) return { x, y };
+  }
+
+  for (const x of [left, right]) {
+    for (const y of [top, bottom]) {
+      const distance = Math.hypot(x - avoidX, y - avoidY);
+      if (distance > bestDistance) {
+        best = { x, y };
+        bestDistance = distance;
+      }
+    }
+  }
+
+  return best;
+}
+
+function targetPoint(bird: Bird, rect: Rect): { x: number; y: number } {
+  return {
+    x: rect.x + clamp(bird.targetU, 0, 1) * rect.width,
+    y: rect.y + clamp(bird.targetV, 0, 1) * rect.height,
+  };
+}
+
+function ensureFlightState(bird: Bird): void {
+  if (!Number.isFinite(bird.targetU)) bird.targetU = 0.5;
+  if (!Number.isFinite(bird.targetV)) bird.targetV = 0.5;
+  if (!Number.isFinite(bird.zoneSeed)) {
+    const seed = Math.floor((Number.isFinite(bird.seed) ? bird.seed : 0.5) * 0xffffffff);
+    bird.zoneSeed = ((seed ^ Math.imul(bird.id || 1, 0x9e3779b1)) >>> 0) || 1;
+  }
+  if (!Number.isFinite(bird.zone)) bird.zone = -1;
+  if (!Number.isFinite(bird.leg) || bird.leg < 0) bird.leg = 0;
+}
+
+/** Arrival radius, widened for a waypoint that sits close to an edge. */
+function arrivalFor(bird: Bird, rect: Rect, target: { x: number; y: number }): number {
+  const base = arrivalRadius(bird.speed);
+  const turnRadius = bird.speed / TURN_RATE;
+  const guard = 2 * turnRadius + 8;
+  const edge = Math.min(
+    target.x - rect.x,
+    rect.x + rect.width - target.x,
+    target.y - rect.y,
+    rect.y + rect.height - target.y,
+  );
+  return Math.max(base, guard - Math.max(0, Math.min(edge, guard)));
+}
+
+function chooseWaypoint(bird: Bird, rect: Rect): void {
+  const diagonal = Math.hypot(rect.width, rect.height);
+  const leg = (Number.isFinite(bird.leg) ? Math.max(0, Math.floor(bird.leg)) : 0) + 1;
+  bird.leg = leg;
+
+  if (!(diagonal > 1e-6)) {
+    bird.zone = chooseZone(bird, leg);
+    bird.targetU = 0.5;
+    bird.targetV = 0.5;
+    return;
+  }
+
+  const zone = chooseZone(bird, leg);
+  bird.zone = zone;
+  const minLeg = Math.min(
+    MAX_LEG_SHARE * diagonal,
+    Math.max(arrivalRadius(bird.speed), MIN_LEG_SHARE * diagonal),
+  );
+  const rng = createRng((bird.zoneSeed ^ Math.imul(leg, 0x85ebca6b)) >>> 0);
+  const point = pointInZone(zone, rect, bird.x, bird.y, minLeg, rng);
+  bird.targetU = clamp((point.x - rect.x) / rect.width, 0, 1);
+  bird.targetV = clamp((point.y - rect.y) / rect.height, 0, 1);
 }
 
 /**
- * Advance flight one step. Heading stays continuous and turns back from the
- * frame edges (no wrap), the wing phase runs independently per bird, and the
- * glide envelope rides on top of it so the stroke is not a perfect sine.
+ * Spawn the flock in distinct 3×3 zones and give every bird its first 2D
+ * waypoint. Positions, zones and headings are deterministic from `seed`.
+ */
+export function seedFlight(birds: Bird[], width: number, height: number, seed = 1): void {
+  const w = Number.isFinite(width) ? Math.max(0, width) : 0;
+  const h = Number.isFinite(height) ? Math.max(0, height) : 0;
+  const fleetSeed = (seed >>> 0) || 1;
+  const spawnOrder = zonePermutation(fleetSeed, 0);
+
+  birds.forEach((bird, index) => {
+    const length = bird.length > 0 ? bird.length : 1;
+    const rect = safeFlightRect(length, w, h);
+    bird.zoneSeed =
+      ((fleetSeed ^ Math.imul(bird.id || index + 1, 0x9e3779b1)) >>> 0) || 1;
+    bird.leg = 0;
+    const spawnZone = spawnOrder[index % ZONE_COUNT];
+    const rng = createRng((bird.zoneSeed ^ 0x51ed270b) >>> 0);
+    const spawn = pointInZone(spawnZone, rect, rect.x - 1, rect.y - 1, 0, rng);
+    bird.x = spawn.x;
+    bird.y = spawn.y;
+    bird.zone = spawnZone;
+    chooseWaypoint(bird, rect);
+
+    const target = targetPoint(bird, rect);
+    const dx = target.x - bird.x;
+    const dy = target.y - bird.y;
+    bird.heading = Math.hypot(dx, dy) > 1e-9 ? Math.atan2(dy, dx) : 0;
+  });
+}
+
+/**
+ * Advance flight one step. Each bird steers toward its waypoint, turns at the
+ * shared rate cap and picks a new stratified destination on arrival. The centre
+ * stays inside `safeFlightRect`, so the rotated silhouette cannot leave the
+ * layer; the full-box clamp remains a safety net that should never correct.
  */
 export function stepFlock(birds: Bird[], dt: number, width: number, height: number): void {
   if (!(dt > 0) || !Number.isFinite(dt)) return;
@@ -151,57 +394,96 @@ export function stepFlock(birds: Bird[], dt: number, width: number, height: numb
   const h = Math.max(0, height);
 
   for (const bird of birds) {
-    const length = bird.length > 0 ? bird.length : 1;
+    ensureFlightState(bird);
+    if (!Number.isFinite(bird.speed) || bird.speed < 0) bird.speed = 0;
 
+    const length = bird.length > 0 ? bird.length : 1;
     bird.phase += TAU * bird.flapRate * step;
     const glide = 0.5 + 0.5 * Math.sin(bird.phase * 0.113 + bird.seed * TAU);
     bird.flap = Math.sin(bird.phase) * (0.35 + 0.65 * glide);
 
-    const wander =
-      Math.sin(bird.phase * 0.21 + bird.seed * TAU) * 0.35 +
-      Math.sin(bird.phase * 0.07 + bird.id) * 0.2;
-
-    let dirX = Math.cos(bird.heading) + Math.cos(bird.heading + wander) * 0.18;
-    let dirY = Math.sin(bird.heading) + Math.sin(bird.heading + wander) * 0.18;
-
-    const margin = Math.max(length * 0.6, 24);
-    const marginX = Math.min(margin, w * 0.3);
-    const marginY = Math.min(margin, h * 0.3);
-    dirX += boundaryPush(bird.x, marginX, w);
-    dirY += boundaryPush(bird.y, marginY, h);
-
-    if (Math.hypot(dirX, dirY) > 1e-6) {
-      const desired = Math.atan2(dirY, dirX);
-      bird.heading += clamp(angleDiff(bird.heading, desired), -1.8 * step, 1.8 * step);
-    }
-
-    const cruise = 26 + 24 * clamp(bird.depth, 0, 1);
+    const cruise = cruiseSpeed(bird.depth, w);
     bird.speed += (cruise - bird.speed) * Math.min(1, step * 0.9);
 
-    bird.x = clamp(bird.x + Math.cos(bird.heading) * bird.speed * step, 0, w);
-    bird.y = clamp(bird.y + Math.sin(bird.heading) * bird.speed * step, 0, h);
+    const rect = safeFlightRect(length, w, h);
+    let target = targetPoint(bird, rect);
+    let dx = target.x - bird.x;
+    let dy = target.y - bird.y;
+    let distance = Math.hypot(dx, dy);
+    let arrival = arrivalFor(bird, rect, target);
+
+    const canSteer = rect.width > 1e-6 || rect.height > 1e-6;
+    if (canSteer && !(distance > arrival)) {
+      chooseWaypoint(bird, rect);
+      target = targetPoint(bird, rect);
+      dx = target.x - bird.x;
+      dy = target.y - bird.y;
+      distance = Math.hypot(dx, dy);
+      arrival = arrivalFor(bird, rect, target);
+    }
+
+    // Boundary guard: close to an edge and heading outward, aim at the centre
+    // for a moment instead of letting the envelope stop the body. The enlarged
+    // arrival radius already turns the bird before a waypoint on the border.
+    let aimX = target.x;
+    let aimY = target.y;
+    if (distance > arrival) {
+      const turnRadius = bird.speed / TURN_RATE;
+      const guard = 2 * turnRadius + 8;
+      const escapeLeft = bird.x - rect.x < guard && Math.cos(bird.heading) < -0.05;
+      const escapeRight = rect.x + rect.width - bird.x < guard && Math.cos(bird.heading) > 0.05;
+      const escapeTop = bird.y - rect.y < guard && Math.sin(bird.heading) < -0.05;
+      const escapeBottom = rect.y + rect.height - bird.y < guard && Math.sin(bird.heading) > 0.05;
+
+      if (escapeLeft || escapeRight || escapeTop || escapeBottom) {
+        aimX = rect.x + rect.width / 2;
+        aimY = rect.y + rect.height / 2;
+      }
+    }
+
+    const desired = distance > 1e-9 ? Math.atan2(aimY - bird.y, aimX - bird.x) : bird.heading;
+    const delta = angleDiff(bird.heading, desired);
+    bird.heading = normalizeHeading(
+      bird.heading + clamp(delta, -TURN_RATE * step, TURN_RATE * step),
+    );
+
+    // Hard flight envelope: keep the centre in the safe rect. The silhouette
+    // clamp still runs after the step, but this envelope means it never fires.
+    const nextX = bird.x + Math.cos(bird.heading) * bird.speed * step;
+    const nextY = bird.y + Math.sin(bird.heading) * bird.speed * step;
+    bird.x = clamp(nextX, rect.x, rect.x + rect.width);
+    bird.y = clamp(nextY, rect.y, rect.y + rect.height);
   }
 }
 
 /**
  * Resize the flock to `count` birds. Surviving ids are preserved and their
- * positions clamp into the new frame; extra birds come from a seeded spawn.
+ * positions clamp into the new centre-safe rect; extra birds come from a seeded
+ * spawn. Waypoint fractions are kept, so a resize reprojects the destination.
  */
-export function resizeFlock(birds: Bird[], count: number, width: number, height: number): Bird[] {
+export function resizeFlock(
+  birds: Bird[],
+  count: number,
+  width: number,
+  height: number,
+  seed = 0x5eed,
+): Bird[] {
   const target = Math.max(0, Math.floor(count));
   const w = Math.max(0, width);
   const h = Math.max(0, height);
   const kept = birds.slice(0, target);
 
   for (const bird of kept) {
-    bird.x = clamp(bird.x, 0, w);
-    bird.y = clamp(bird.y, 0, h);
+    ensureFlightState(bird);
     bird.length = lengthFor(w, h, bird.depth);
+    const rect = safeFlightRect(bird.length, w, h);
+    bird.x = clamp(bird.x, rect.x, rect.x + rect.width);
+    bird.y = clamp(bird.y, rect.y, rect.y + rect.height);
   }
 
   if (kept.length >= target) return kept;
 
-  const extra = createFlock(target - kept.length, w, h, 0x5eed + target * 131);
+  const extra = createFlock(target - kept.length, w, h, seed + target * 131);
   let nextId = kept.reduce((max, bird) => Math.max(max, bird.id), 0) + 1;
   for (const bird of extra) {
     bird.id = nextId;
@@ -336,17 +618,20 @@ export function overlapRatio(bounds: Rect, obstacles: Rect[]): number {
 }
 
 /**
- * Blur budget for a bird: a deadband ignores light grazes so the bird stays
- * sharp in the gaps, then a smooth ramp reaches `maxBlur` on real text.
+ * Blur budget for a bird: any covered cell yields at least `minBlur`, so a
+ * bird that grazes a component is never sharp behind it. The ramp still
+ * reaches `maxBlur` as the content covers more of the silhouette.
  */
-export function blurTarget(overlap: number, maxBlur: number, deadband = 0.15): number {
-  if (!(maxBlur > 0)) return 0;
+export const MIN_BLUR = 0.5;
 
-  const dead = clamp(Number.isFinite(deadband) ? deadband : 0, 0, 1);
-  if (dead >= 1) return 0;
+export function blurTarget(overlap: number, maxBlur: number, minBlur = MIN_BLUR): number {
+  if (!(maxBlur > 0) || !(overlap > 0)) return 0;
 
-  const t = clamp((clamp(overlap, 0, 1) - dead) / (1 - dead), 0, 1);
-  return clamp(t * t * (3 - 2 * t) * maxBlur, 0, maxBlur);
+  const floor = clamp(Number.isFinite(minBlur) ? minBlur : MIN_BLUR, 0, maxBlur);
+  const t = clamp(overlap, 0, 1);
+  const ramp = t * t * (3 - 2 * t) * maxBlur;
+
+  return clamp(Math.max(floor, ramp), 0, maxBlur);
 }
 
 /** Exponential approach that never overshoots the target. */

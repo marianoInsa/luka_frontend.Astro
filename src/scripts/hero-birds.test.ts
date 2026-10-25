@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  BIRD_LOCAL_BOUNDS,
+  MIN_BLUR,
   PART_RAMPS,
+  TURN_RATE,
   approach,
+  arrivalRadius,
   birdBounds,
+  birdReach,
   blurTarget,
   clampBirdInside,
   createFlock,
@@ -12,13 +17,18 @@ import {
   overlapRatio,
   resizeFlock,
   resolveBirdCount,
+  safeFlightRect,
   sampleBird,
+  seedFlight,
   settleFlock,
   stepFlock,
   type Bird,
 } from './hero-birds-model';
 import {
   BIRD_CANVAS_PADDING,
+  BIRD_SIZE_SCALE,
+  OBSTACLES,
+  advanceBirds,
   advanceClock,
   birdFrame,
   birdStyle,
@@ -26,6 +36,7 @@ import {
   canAnimate,
   canvasTransform,
   createControllerRegistry,
+  createLoadSeed,
   createScheduler,
   glyphForInk,
   layoutHeroBirds,
@@ -35,9 +46,12 @@ import {
   opacityForOverlap,
   paintFlock,
   quantizeBlur,
+  resizeBirds,
+  settleLevel,
   shouldSettle,
   stageHeight,
   toLayerRects,
+  visibleViewportHeight,
   type BirdContext,
   type BirdLayout,
   type SchedulerFlags,
@@ -58,8 +72,21 @@ function makeBird(overrides: Partial<Bird> = {}): Bird {
     depth: 0.8,
     seed: 0.5,
     flap: 0,
+    targetU: 0.5,
+    targetV: 0.5,
+    zone: -1,
+    zoneSeed: 0x5eed,
+    leg: 0,
     ...overrides,
   };
+}
+
+/** Shortest signed rotation from `from` to `to`, in (-PI, PI]. */
+function angleOff(from: number, to: number): number {
+  let delta = (to - from) % TAU;
+  if (delta > Math.PI) delta -= TAU;
+  if (delta < -Math.PI) delta += TAU;
+  return delta;
 }
 
 /** World AABB of the local canvas box after the CSS rotation. */
@@ -112,6 +139,77 @@ describe('createRng', () => {
       expect(value).toBeGreaterThanOrEqual(0);
       expect(value).toBeLessThan(1);
     }
+  });
+});
+
+describe('flight geometry', () => {
+  it('uses the rotated silhouette radius as the safe inset', () => {
+    const length = 100;
+    const longitudinal = Math.max(-BIRD_LOCAL_BOUNDS.uMin, BIRD_LOCAL_BOUNDS.uMax);
+    expect(birdReach(length)).toBeCloseTo(
+      Math.hypot(longitudinal, BIRD_LOCAL_BOUNDS.vHalf) * length,
+      9,
+    );
+    expect(birdReach(Number.NaN)).toBeGreaterThan(0);
+  });
+
+  it('insets the safe rect by the bird reach on both axes', () => {
+    const rect = safeFlightRect(100, 1200, 700);
+    const reach = birdReach(100) + 2;
+
+    expect(rect.x).toBeCloseTo(reach, 9);
+    expect(rect.y).toBeCloseTo(reach, 9);
+    expect(rect.width).toBeCloseTo(1200 - 2 * reach, 9);
+    expect(rect.height).toBeCloseTo(700 - 2 * reach, 9);
+    expect(safeFlightRect(100, 0, 0)).toEqual({ x: 0, y: 0, width: 0, height: 0 });
+  });
+
+  it('never arrives faster than two turn radii', () => {
+    for (const speed of [0, 10, 40, 80]) {
+      expect(arrivalRadius(speed)).toBeGreaterThanOrEqual((2 * speed) / TURN_RATE);
+    }
+  });
+});
+
+describe('seedFlight', () => {
+  it('is deterministic and changes with the seed', () => {
+    const a = createFlock(3, 1200, 700, 4);
+    const b = createFlock(3, 1200, 700, 4);
+    const c = createFlock(3, 1200, 700, 5);
+
+    seedFlight(a, 1200, 700, 4);
+    seedFlight(b, 1200, 700, 4);
+    seedFlight(c, 1200, 700, 5);
+
+    expect(a).toEqual(b);
+    expect(a.map((bird) => bird.targetU)).not.toEqual(c.map((bird) => bird.targetU));
+  });
+
+  it('keeps every spawn and waypoint finite in a degenerate stage', () => {
+    const birds = createFlock(2, 0, 0, 4);
+    seedFlight(birds, 0, 0, 4);
+
+    for (const bird of birds) {
+      expect(Number.isFinite(bird.x + bird.y + bird.heading)).toBe(true);
+      expect(bird.targetU).toBeGreaterThanOrEqual(0);
+      expect(bird.targetU).toBeLessThanOrEqual(1);
+      expect(bird.targetV).toBeGreaterThanOrEqual(0);
+      expect(bird.targetV).toBeLessThanOrEqual(1);
+    }
+  });
+});
+
+describe('createLoadSeed', () => {
+  it('returns a fresh finite 32-bit seed', () => {
+    const seeds = new Set<number>();
+    for (let index = 0; index < 8; index += 1) {
+      const seed = createLoadSeed();
+      expect(Number.isFinite(seed)).toBe(true);
+      expect(seed).toBeGreaterThan(0);
+      expect(seed).toBeLessThanOrEqual(0xffffffff);
+      seeds.add(seed);
+    }
+    expect(seeds.size).toBeGreaterThan(1);
   });
 });
 
@@ -170,6 +268,428 @@ describe('createFlock', () => {
   });
 });
 
+describe('createFlock waypoint setup', () => {
+  it('spawns every bird inside its safe flight rectangle', () => {
+    const width = 1200;
+    const height = 700;
+    const birds = createFlock(3, width, height, 5);
+
+    for (const bird of birds) {
+      const rect = safeFlightRect(bird.length, width, height);
+      expect(bird.x).toBeGreaterThanOrEqual(rect.x - 1e-9);
+      expect(bird.x).toBeLessThanOrEqual(rect.x + rect.width + 1e-9);
+      expect(bird.y).toBeGreaterThanOrEqual(rect.y - 1e-9);
+      expect(bird.y).toBeLessThanOrEqual(rect.y + rect.height + 1e-9);
+      expect(bird.targetU).toBeGreaterThanOrEqual(0);
+      expect(bird.targetU).toBeLessThanOrEqual(1);
+      expect(bird.targetV).toBeGreaterThanOrEqual(0);
+      expect(bird.targetV).toBeLessThanOrEqual(1);
+      expect(bird.leg).toBe(1);
+      expect(bird.zone).toBeGreaterThanOrEqual(0);
+      expect(bird.zone).toBeLessThan(9);
+    }
+  });
+
+  it('points each bird at its first waypoint', () => {
+    const width = 1200;
+    const height = 700;
+    for (const bird of createFlock(3, width, height, 5)) {
+      const rect = safeFlightRect(bird.length, width, height);
+      const targetX = rect.x + bird.targetU * rect.width;
+      const targetY = rect.y + bird.targetV * rect.height;
+      const aim = Math.atan2(targetY - bird.y, targetX - bird.x);
+
+      expect(Math.cos(bird.heading - aim)).toBeGreaterThan(0.999);
+      expect(Number.isFinite(bird.heading)).toBe(true);
+    }
+  });
+
+  it('spreads the flock across the safe rectangle', () => {
+    const width = 1200;
+    const height = 700;
+    const birds = createFlock(3, width, height, 5);
+    const xs = birds.map((bird) => bird.x).sort((a, b) => a - b);
+    const ys = birds.map((bird) => bird.y).sort((a, b) => a - b);
+
+    expect(xs[2] - xs[0]).toBeGreaterThan(width * 0.15);
+    expect(ys[2] - ys[0]).toBeGreaterThan(0);
+
+    const zones = new Set(
+      birds.map((bird) => {
+        const rect = safeFlightRect(bird.length, width, height);
+        const column = Math.min(2, Math.floor(((bird.x - rect.x) / rect.width) * 3));
+        const row = Math.min(2, Math.floor(((bird.y - rect.y) / rect.height) * 3));
+        return row * 3 + column;
+      }),
+    );
+    expect(zones.size).toBe(3);
+  });
+
+  it('changes routes with the seed', () => {
+    const a = createFlock(3, 1200, 700, 1);
+    const b = createFlock(3, 1200, 700, 2);
+
+    expect(a.map((bird) => [bird.targetU, bird.targetV, bird.zoneSeed])).not.toEqual(
+      b.map((bird) => [bird.targetU, bird.targetV, bird.zoneSeed]),
+    );
+  });
+});
+
+describe('waypoint flight', () => {
+  const WIDTH = 1200;
+  const HEIGHT = 700;
+  const DT = 1 / 60;
+  const FRAMES = 90 * 60;
+
+  interface Trace {
+    minX: number[];
+    maxX: number[];
+    minY: number[];
+    maxY: number[];
+    zones: Set<number>[];
+    legs: number[];
+    signsX: Set<number>[];
+    signsY: Set<number>[];
+    maxHeadingStep: number;
+    teleports: number;
+    outside: number;
+    broken: number;
+  }
+
+  function flight(seed: number): { birds: Bird[]; trace: Trace } {
+    const birds = createFlock(3, WIDTH, HEIGHT, seed);
+    const trace: Trace = {
+      minX: birds.map((bird) => bird.x),
+      maxX: birds.map((bird) => bird.x),
+      minY: birds.map((bird) => bird.y),
+      maxY: birds.map((bird) => bird.y),
+      zones: birds.map(() => new Set<number>()),
+      legs: birds.map(() => 0),
+      signsX: birds.map(() => new Set<number>()),
+      signsY: birds.map(() => new Set<number>()),
+      maxHeadingStep: 0,
+      teleports: 0,
+      outside: 0,
+      broken: 0,
+    };
+    const previousHeading = birds.map((bird) => bird.heading);
+    const previousX = birds.map((bird) => bird.x);
+    const previousY = birds.map((bird) => bird.y);
+
+    for (let frame = 0; frame < FRAMES; frame += 1) {
+      stepFlock(birds, DT, WIDTH, HEIGHT);
+
+      for (let index = 0; index < birds.length; index += 1) {
+        const bird = birds[index];
+        const dx = bird.x - previousX[index];
+        const dy = bird.y - previousY[index];
+        const headingStep = Math.abs(angleOff(previousHeading[index], bird.heading));
+        if (Math.abs(dx) > 1e-3) trace.signsX[index].add(Math.sign(dx));
+        if (Math.abs(dy) > 1e-3) trace.signsY[index].add(Math.sign(dy));
+
+        trace.maxHeadingStep = Math.max(trace.maxHeadingStep, headingStep);
+        if (headingStep > 1.8 * DT + 1e-9) trace.broken += 1;
+        if (!(Math.abs(bird.heading) <= Math.PI + 1e-9)) trace.broken += 1;
+        if (Math.hypot(dx, dy) > Math.max(bird.speed, 1) * DT + 1e-6) trace.teleports += 1;
+        if (!Number.isFinite(bird.x + bird.y + bird.heading + bird.flap)) trace.broken += 1;
+
+        const bounds = birdBounds(bird);
+        if (
+          bounds.x < -1e-6 ||
+          bounds.y < -1e-6 ||
+          bounds.x + bounds.width > WIDTH + 1e-6 ||
+          bounds.y + bounds.height > HEIGHT + 1e-6
+        ) {
+          trace.outside += 1;
+        }
+
+        trace.minX[index] = Math.min(trace.minX[index], bird.x);
+        trace.maxX[index] = Math.max(trace.maxX[index], bird.x);
+        trace.minY[index] = Math.min(trace.minY[index], bird.y);
+        trace.maxY[index] = Math.max(trace.maxY[index], bird.y);
+        trace.zones[index].add(bird.zone);
+        trace.legs[index] = bird.leg;
+
+        previousHeading[index] = bird.heading;
+        previousX[index] = bird.x;
+        previousY[index] = bird.y;
+      }
+    }
+
+    return { birds, trace };
+  }
+
+  it('covers both axes, several zones and both directions', () => {
+    const { birds, trace } = flight(23);
+
+    expect(trace.broken).toBe(0);
+    expect(trace.teleports).toBe(0);
+    expect(trace.outside).toBe(0);
+
+    birds.forEach((_bird, index) => {
+      expect(trace.maxX[index] - trace.minX[index]).toBeGreaterThan(WIDTH * 0.3);
+      expect(trace.maxY[index] - trace.minY[index]).toBeGreaterThan(HEIGHT * 0.2);
+      expect(trace.zones[index].size).toBeGreaterThanOrEqual(3);
+      expect(trace.legs[index]).toBeGreaterThanOrEqual(3);
+      expect(trace.signsX[index].size).toBe(2);
+      expect(trace.signsY[index].size).toBe(2);
+    });
+  });
+
+  it('turns at the limited angular rate instead of snapping', () => {
+    const { trace } = flight(23);
+
+    expect(trace.maxHeadingStep).toBeLessThanOrEqual(1.8 * DT + 1e-9);
+    expect(trace.maxHeadingStep).toBeGreaterThan(1.8 * DT * 0.6);
+  });
+
+  it('is deterministic for the same seed', () => {
+    const a = createFlock(3, WIDTH, HEIGHT, 31);
+    const b = createFlock(3, WIDTH, HEIGHT, 31);
+
+    for (let frame = 0; frame < 600; frame += 1) {
+      stepFlock(a, DT, WIDTH, HEIGHT);
+      stepFlock(b, DT, WIDTH, HEIGHT);
+    }
+
+    expect(a).toEqual(b);
+  });
+
+  it('ignores an invalid dt', () => {
+    const birds = createFlock(2, 800, 600, 3);
+    const before = birds.map((bird) => ({ ...bird }));
+
+    stepFlock(birds, 0, 800, 600);
+    stepFlock(birds, Number.NaN, 800, 600);
+    stepFlock(birds, -1, 800, 600);
+    stepFlock(birds, Number.POSITIVE_INFINITY, 800, 600);
+
+    expect(birds).toEqual(before);
+  });
+
+  it('stays finite on a zero-height stage', () => {
+    const birds = createFlock(2, 800, 0, 3);
+
+    for (let frame = 0; frame < 120; frame += 1) {
+      stepFlock(birds, DT, 800, 0);
+      for (const bird of birds) {
+        expect(Number.isFinite(bird.x + bird.y + bird.heading)).toBe(true);
+        expect(bird.y).toBe(0);
+      }
+    }
+  });
+});
+
+describe('waypoint integration', () => {
+  const DT = 1 / 60;
+  const FRAMES = 90 * 60;
+
+  /** Layer width and visible stage for each viewport (no DOM in the test). */
+  const VIEWPORTS: Array<[number, number]> = [
+    [1440, 900],
+    [800, 900],
+    [390, 844],
+    [844, 329],
+    [390, 552],
+    [390, 450],
+    [320, 800],
+  ];
+
+  interface Flight {
+    travelX: number;
+    travelY: number;
+    zones: number;
+    legs: number;
+    outsideFrames: number;
+    maxDepth: number;
+    corrections: number;
+    maxCorrection: number;
+    maxHeadingStep: number;
+    maxPositionStep: number;
+    maxSpeed: number;
+    stallFrames: number;
+    teleports: number;
+    outside: number;
+    broken: number;
+    signsX: Set<number>;
+    signsY: Set<number>;
+  }
+
+  function flightOf(width: number, height: number): Flight[] {
+    const birds = layoutHeroBirds(width, height, 1, 0, 11).birds.map((box) => box.bird);
+    const stats = birds.map((bird) => ({
+      minX: bird.x,
+      maxX: bird.x,
+      minY: bird.y,
+      maxY: bird.y,
+      zones: new Set<number>(),
+      legs: bird.leg,
+      outsideFrames: 0,
+      maxDepth: 0,
+      corrections: 0,
+      maxCorrection: 0,
+      maxHeadingStep: 0,
+      maxPositionStep: 0,
+      maxSpeed: bird.speed,
+      stallFrames: 0,
+      teleports: 0,
+      outside: 0,
+      broken: 0,
+      signsX: new Set<number>(),
+      signsY: new Set<number>(),
+    }));
+
+    for (let frame = 0; frame < FRAMES; frame += 1) {
+      const beforeX = birds.map((bird) => bird.x);
+      const beforeY = birds.map((bird) => bird.y);
+      const beforeHeading = birds.map((bird) => bird.heading);
+      const beforeSpeed = birds.map((bird) => bird.speed);
+
+      stepFlock(birds, DT, width, height);
+      // Snapshot after physics and before the net: the AABB is measured on the
+      // raw position, so "no clipping" cannot be tautological.
+      const raw = birds.map((bird) => ({ ...bird }));
+      const moved = birds.map((bird) => ({ x: bird.x, y: bird.y }));
+      for (const bird of birds) clampBirdInside(bird, width, height, 0);
+
+      birds.forEach((bird, index) => {
+        const entry = stats[index];
+        const bounds = birdBounds(raw[index]);
+        const reach = Math.max(beforeSpeed[index], bird.speed) * DT + 1e-6;
+        const correction = Math.hypot(bird.x - moved[index].x, bird.y - moved[index].y);
+        const dx = bird.x - beforeX[index];
+        const dy = bird.y - beforeY[index];
+
+        entry.corrections += correction > 1e-6 ? 1 : 0;
+        entry.maxCorrection = Math.max(entry.maxCorrection, correction);
+        entry.maxHeadingStep = Math.max(
+          entry.maxHeadingStep,
+          Math.abs(angleOff(beforeHeading[index], bird.heading)),
+        );
+        entry.maxPositionStep = Math.max(
+          entry.maxPositionStep,
+          Math.abs(bird.x - beforeX[index]),
+          Math.abs(bird.y - beforeY[index]),
+        );
+        entry.maxSpeed = Math.max(entry.maxSpeed, bird.speed);
+        if (Math.hypot(dx, dy) < 0.2 * Math.max(bird.speed, 1) * DT) entry.stallFrames += 1;
+        entry.minX = Math.min(entry.minX, bird.x);
+        entry.maxX = Math.max(entry.maxX, bird.x);
+        entry.minY = Math.min(entry.minY, bird.y);
+        entry.maxY = Math.max(entry.maxY, bird.y);
+        entry.zones.add(bird.zone);
+        entry.legs = bird.leg;
+        if (Math.abs(dx) > 1e-3) entry.signsX.add(Math.sign(dx));
+        if (Math.abs(dy) > 1e-3) entry.signsY.add(Math.sign(dy));
+
+        const depth = Math.max(
+          0,
+          -bounds.x,
+          bounds.x + bounds.width - width,
+          -bounds.y,
+          bounds.y + bounds.height - height,
+        );
+        entry.maxDepth = Math.max(entry.maxDepth, depth);
+        if (depth > 1e-6) entry.outsideFrames += 1;
+
+        if (Math.abs(dx) > reach || Math.abs(dy) > reach) entry.teleports += 1;
+        if (!(bird.x >= 0 && bird.x <= width && bird.y >= 0 && bird.y <= height)) {
+          entry.outside += 1;
+        }
+        if (!Number.isFinite(bird.x + bird.y + bird.heading + bird.flap)) entry.broken += 1;
+      });
+    }
+
+    return stats.map((entry) => ({
+      travelX: (entry.maxX - entry.minX) / width,
+      travelY: (entry.maxY - entry.minY) / height,
+      zones: entry.zones.size,
+      legs: entry.legs,
+      outsideFrames: entry.outsideFrames,
+      maxDepth: entry.maxDepth,
+      corrections: entry.corrections,
+      maxCorrection: entry.maxCorrection,
+      maxHeadingStep: entry.maxHeadingStep,
+      maxPositionStep: entry.maxPositionStep,
+      maxSpeed: entry.maxSpeed,
+      stallFrames: entry.stallFrames,
+      teleports: entry.teleports,
+      outside: entry.outside,
+      broken: entry.broken,
+      signsX: entry.signsX,
+      signsY: entry.signsY,
+    }));
+  }
+
+  it('runs stepFlock plus the edge clamp in the production tick', () => {
+    const width = 1200;
+    const height = 792;
+    const ticked = layoutHeroBirds(width, height, 1, 0, 7).birds.map((box) => box.bird);
+    const reference = ticked.map((bird) => ({ ...bird }));
+
+    advanceBirds(ticked, 900, width, height);
+    for (let step = 0; step < 900; step += 1) stepFlock(reference, DT, width, height);
+    for (const bird of reference) clampBirdInside(bird, width, height, 0);
+
+    expect(ticked).toEqual(reference);
+  });
+
+  it.each(VIEWPORTS)('keeps the centre inside and finite at %s×%s', (width, height) => {
+    for (const flight of flightOf(width, height)) {
+      expect(flight.broken).toBe(0);
+      expect(flight.outside).toBe(0);
+      expect(flight.teleports).toBe(0);
+      expect(flight.maxPositionStep).toBeLessThanOrEqual(flight.maxSpeed * DT + 1e-6);
+      expect(flight.maxPositionStep).toBeGreaterThan(0);
+      expect(flight.stallFrames).toBe(0);
+      expect(flight.maxHeadingStep).toBeLessThanOrEqual(1.8 * DT + 1e-9);
+    }
+  });
+
+  it.each(VIEWPORTS)('never clips the silhouette at %s×%s', (width, height) => {
+    for (const flight of flightOf(width, height)) {
+      expect(flight.outsideFrames).toBe(0);
+      expect(flight.maxDepth).toBe(0);
+      // The clamp is only a net: the flight rectangle must do all the work.
+      expect(flight.corrections).toBe(0);
+      expect(flight.maxCorrection).toBe(0);
+    }
+  });
+
+  it.each(VIEWPORTS)('covers the deck at %s×%s', (width, height) => {
+    const flights = flightOf(width, height);
+
+    expect(flights.length).toBeGreaterThan(0);
+    for (const flight of flights) {
+      expect(flight.travelX).toBeGreaterThan(0.22);
+      expect(flight.travelY).toBeGreaterThan(0.12);
+      expect(flight.zones).toBeGreaterThanOrEqual(3);
+      expect(flight.legs).toBeGreaterThanOrEqual(3);
+      expect(flight.legs).toBeLessThanOrEqual(60);
+      expect(flight.signsX.size).toBe(2);
+      expect(flight.signsY.size).toBe(2);
+    }
+  });
+
+  it.each([
+    { name: '844×390', width: 844, layer: 1399, top: 61, viewport: 390, cap: Infinity },
+    { name: '390×844', width: 390, layer: 1569, top: 52, viewport: 844, cap: 552 },
+  ])('keeps every centre on screen at $name', ({ width, layer, top, viewport, cap }) => {
+    const stage = stageHeight(layer, visibleViewportHeight(top, layer, viewport), cap);
+    const birds = layoutHeroBirds(width, stage, 1, 0, 11).birds.map((box) => box.bird);
+
+    for (let frame = 0; frame < 90 * 60; frame += 1) {
+      advanceBirds(birds, 1, width, stage);
+      for (const bird of birds) {
+        expect(bird.y).toBeGreaterThanOrEqual(0);
+        expect(bird.y).toBeLessThanOrEqual(stage);
+        // Centre inside the window, not just inside the layer.
+        expect(top + bird.y).toBeLessThanOrEqual(viewport);
+      }
+    }
+  });
+});
+
 describe('stepFlock', () => {
   it('moves birds and keeps heading continuous', () => {
     const birds = createFlock(3, 900, 500, 11);
@@ -204,15 +724,19 @@ describe('stepFlock', () => {
     }
   });
 
-  it('turns a bird away from the edge instead of letting it leave', () => {
-    const bird = makeBird({ x: 4, y: 300, heading: Math.PI, speed: 40 });
+  it('picks a new waypoint on arrival', () => {
+    const bird = makeBird({ x: 400, y: 300, length: 100, targetU: 0.5, targetV: 0.5 });
+    const before = bird.leg;
+    const zone = bird.zone;
 
-    for (let frame = 0; frame < 240; frame += 1) {
-      stepFlock([bird], 1 / 60, 800, 600);
-    }
+    stepFlock([bird], 1 / 60, 800, 600);
 
-    expect(bird.x).toBeGreaterThan(30);
-    expect(Math.cos(bird.heading)).toBeGreaterThan(-0.2);
+    expect(bird.leg).toBeGreaterThan(before);
+    expect(bird.zone).not.toBe(zone);
+    expect(bird.targetU).toBeGreaterThanOrEqual(0);
+    expect(bird.targetU).toBeLessThanOrEqual(1);
+    expect(bird.targetV).toBeGreaterThanOrEqual(0);
+    expect(bird.targetV).toBeLessThanOrEqual(1);
   });
 
   it('advances the wing phase at the flap rate', () => {
@@ -276,6 +800,44 @@ describe('resizeFlock', () => {
   it('handles an empty flock', () => {
     expect(resizeFlock([], 2, 1000, 600)).toHaveLength(2);
   });
+
+  it('keeps waypoint fractions and never introduces NaN', () => {
+    const birds = createFlock(2, 1200, 700, 4);
+    const routes = birds.map((bird) => ({
+      targetU: bird.targetU,
+      targetV: bird.targetV,
+      zoneSeed: bird.zoneSeed,
+      zone: bird.zone,
+      leg: bird.leg,
+    }));
+    const grown = resizeFlock(birds, 3, 900, 600);
+
+    expect(grown).toHaveLength(3);
+    expect(
+      grown.slice(0, 2).map((bird) => ({
+        targetU: bird.targetU,
+        targetV: bird.targetV,
+        zoneSeed: bird.zoneSeed,
+        zone: bird.zone,
+        leg: bird.leg,
+      })),
+    ).toEqual(routes);
+    for (const bird of grown) {
+      const rect = safeFlightRect(bird.length, 900, 600);
+      expect(Number.isFinite(bird.x + bird.y + bird.heading)).toBe(true);
+      expect(bird.x).toBeGreaterThanOrEqual(rect.x - 1e-9);
+      expect(bird.x).toBeLessThanOrEqual(rect.x + rect.width + 1e-9);
+      expect(bird.y).toBeGreaterThanOrEqual(rect.y - 1e-9);
+      expect(bird.y).toBeLessThanOrEqual(rect.y + rect.height + 1e-9);
+    }
+
+    for (let frame = 0; frame < 300; frame += 1) stepFlock(grown, 1 / 60, 900, 600);
+    for (const bird of grown) {
+      expect(Number.isFinite(bird.y)).toBe(true);
+      expect(Math.abs(bird.targetU)).toBeLessThanOrEqual(1);
+      expect(Math.abs(bird.targetV)).toBeLessThanOrEqual(1);
+    }
+  });
 });
 
 describe('settleFlock', () => {
@@ -314,6 +876,36 @@ describe('settleFlock', () => {
     }
 
     expect(capped).toEqual(reference);
+  });
+
+  it('leaves a safe still frame after the four-second settle', () => {
+    for (const [width, height] of [
+      [1440, 900],
+      [800, 900],
+      [390, 844],
+    ] as const) {
+      const layout = layoutHeroBirds(width, height, 1, 4);
+      const again = layoutHeroBirds(width, height, 1, 4);
+
+      expect(layout.birds.length).toBeGreaterThan(0);
+      expect(layout.birds.map((box) => box.bird)).toEqual(again.birds.map((box) => box.bird));
+
+      for (const box of layout.birds) {
+        const bird = box.bird;
+        const bounds = birdBounds(bird);
+        const rect = safeFlightRect(bird.length, width, height);
+
+        expect(Number.isFinite(bird.x + bird.y + bird.heading)).toBe(true);
+        expect(bird.x).toBeGreaterThanOrEqual(rect.x - 1e-6);
+        expect(bird.x).toBeLessThanOrEqual(rect.x + rect.width + 1e-6);
+        expect(bird.y).toBeGreaterThanOrEqual(rect.y - 1e-6);
+        expect(bird.y).toBeLessThanOrEqual(rect.y + rect.height + 1e-6);
+        expect(bounds.x).toBeGreaterThanOrEqual(8 - 1e-6);
+        expect(bounds.y).toBeGreaterThanOrEqual(8 - 1e-6);
+        expect(bounds.x + bounds.width).toBeLessThanOrEqual(width - 8 + 1e-6);
+        expect(bounds.y + bounds.height).toBeLessThanOrEqual(height - 8 + 1e-6);
+      }
+    }
   });
 });
 
@@ -428,11 +1020,22 @@ describe('blurTarget', () => {
     expect(blurTarget(0.8, 0)).toBe(0);
   });
 
-  it('stays at zero inside the deadband and blurs after it', () => {
-    expect(blurTarget(0.1, 2.5, 0.15)).toBe(0);
-    expect(blurTarget(0.15, 2.5, 0.15)).toBe(0);
-    expect(blurTarget(0.3, 2.5, 0.15)).toBeGreaterThan(0);
-    expect(blurTarget(1, 2.5, 0.15)).toBe(2.5);
+  it('blurs visibly from a single covered cell, whatever the fraction', () => {
+    // One ink cell over a 4.5k-cell bird is a 0.02 % overlap: still not sharp.
+    const oneCell = 1 / 4500;
+
+    for (const limit of [1.25, 2, 3]) {
+      const raw = blurTarget(oneCell, limit);
+      expect(raw).toBeGreaterThan(0);
+      expect(raw).toBeLessThanOrEqual(limit);
+      expect(quantizeBlur(raw, MIN_BLUR)).toBeGreaterThan(0);
+    }
+  });
+
+  it('keeps the minimum below the ramp and the cap at maxBlur', () => {
+    expect(blurTarget(0.01, 2.5)).toBeGreaterThanOrEqual(MIN_BLUR);
+    expect(blurTarget(1, 2.5)).toBe(2.5);
+    expect(blurTarget(1, 0.2)).toBeLessThanOrEqual(0.2);
   });
 });
 
@@ -636,7 +1239,7 @@ describe('layoutHeroBirds', () => {
       expect(box.originY).toBeLessThan(box.height);
       // The old square used hypot(1.38L, 1.22L) ≈ 1.84L per side.
       expect(box.width).toBeLessThan(1.6 * box.bird.length);
-      expect(box.height).toBeLessThan(1.4 * box.bird.length);
+      expect(box.height).toBeLessThan(1.5 * box.bird.length);
     }
   });
 
@@ -683,6 +1286,63 @@ describe('layoutHeroBirds', () => {
       layout.birds.map((box) => [box.left, box.top, box.width, box.height, box.cellWidth]);
 
     expect(shape(a)).toEqual(shape(b));
+    expect(a.birds.map((box) => box.bird)).toEqual(b.birds.map((box) => box.bird));
+  });
+
+  it('changes the route with the seed', () => {
+    const a = layoutHeroBirds(1440, 900, 1, 0, 1);
+    const b = layoutHeroBirds(1440, 900, 1, 0, 2);
+    const route = (layout: typeof a) =>
+      layout.birds.map((box) => [box.bird.targetU, box.bird.targetV, box.bird.zoneSeed]);
+
+    expect(route(a)).not.toEqual(route(b));
+  });
+
+  it('renders every bird at 80% of the pre-waypoint length', () => {
+    for (const [width, height] of [
+      [1440, 900],
+      [844, 329],
+      [390, 552],
+    ] as const) {
+      const layout = layoutHeroBirds(width, height, 1);
+      const diagonal = Math.hypot(
+        Math.max(-BIRD_LOCAL_BOUNDS.uMin, BIRD_LOCAL_BOUNDS.uMax),
+        BIRD_LOCAL_BOUNDS.vHalf,
+      );
+      const cruise = 50 * Math.min(1.15, Math.max(0.85, width / 1200));
+      const verticalCap = (0.38 * height - (2 * cruise) / TURN_RATE) / diagonal;
+      const shortCap = height < 520 ? height * 0.26 : Number.POSITIVE_INFINITY;
+      const widthCap = width * 0.26;
+      const base = Math.min(
+        Math.max(
+          Math.min(Math.min(width, height) * 0.34, shortCap, widthCap, verticalCap),
+          88,
+        ),
+        280,
+      );
+
+      for (const box of layout.birds) {
+        const previous = base * (0.7 + 0.3 * box.bird.depth);
+        expect(box.bird.length).toBeCloseTo(previous * BIRD_SIZE_SCALE, 6);
+      }
+    }
+  });
+
+  it('normalizes waypoint fractions and keeps every centre in its flight rect', () => {
+    const layout = layoutHeroBirds(1440, 900, 1);
+
+    for (const box of layout.birds) {
+      const bird = box.bird;
+      const rect = safeFlightRect(bird.length, 1440, 900);
+      expect(bird.targetU).toBeGreaterThanOrEqual(0);
+      expect(bird.targetU).toBeLessThanOrEqual(1);
+      expect(bird.targetV).toBeGreaterThanOrEqual(0);
+      expect(bird.targetV).toBeLessThanOrEqual(1);
+      expect(bird.x).toBeGreaterThanOrEqual(rect.x - 1e-6);
+      expect(bird.x).toBeLessThanOrEqual(rect.x + rect.width + 1e-6);
+      expect(bird.y).toBeGreaterThanOrEqual(rect.y - 1e-6);
+      expect(bird.y).toBeLessThanOrEqual(rect.y + rect.height + 1e-6);
+    }
   });
 });
 
@@ -810,20 +1470,36 @@ describe('advanceClock', () => {
 });
 
 describe('blurLimit', () => {
-  it('caps mobile at 2.5 px and desktop at 3–6 px', () => {
-    expect(blurLimit(390)).toBe(2.5);
-    expect(blurLimit(719)).toBe(2.5);
-    expect(blurLimit(720)).toBe(6);
-    expect(blurLimit(1440)).toBe(6);
+  it('caps handheld stages low and desktop at 3 px', () => {
+    expect(blurLimit(390, 844)).toBe(1.5);
+    expect(blurLimit(719, 800)).toBe(1.5);
+    expect(blurLimit(390, 530)).toBe(1.5);
+    // A landscape phone is 844 wide but only 390 tall: keep it readable.
+    expect(blurLimit(844, 390)).toBe(2);
+    expect(blurLimit(720, 768)).toBe(3);
+    expect(blurLimit(1440, 792)).toBe(3);
+    // Without a height the previous width-only behaviour is kept.
+    expect(blurLimit(390)).toBe(1.5);
+    expect(blurLimit(1440)).toBe(3);
   });
 
-  it('stays inside the brief range for every width', () => {
-    for (const width of [320, 390, 719, 720, 800, 1440, 2560]) {
-      const limit = blurLimit(width);
+  it('never grows with the width', () => {
+    for (const [width, height] of [
+      [320, 800],
+      [390, 844],
+      [719, 900],
+      [720, 768],
+      [800, 900],
+      [844, 390],
+      [1440, 900],
+      [2560, 1200],
+    ]) {
+      const limit = blurLimit(width, height);
 
-      expect(limit).toBeGreaterThanOrEqual(2.5);
-      expect(limit).toBeLessThanOrEqual(6);
-      if (width < 720) expect(limit).toBeLessThanOrEqual(2.5);
+      expect(limit).toBeGreaterThan(0);
+      expect(limit).toBeLessThanOrEqual(3);
+      if (height < 520) expect(limit).toBeLessThanOrEqual(2);
+      else if (width < 720) expect(limit).toBeLessThanOrEqual(1.5);
     }
   });
 });
@@ -878,6 +1554,12 @@ describe('quantizeBlur', () => {
     expect(quantizeBlur(Number.NaN)).toBe(0);
     expect(quantizeBlur(Number.POSITIVE_INFINITY)).toBe(0);
   });
+
+  it('never rounds a covered frame down to zero', () => {
+    expect(quantizeBlur(0.02)).toBe(0);
+    expect(quantizeBlur(0.02, MIN_BLUR)).toBe(MIN_BLUR);
+    expect(quantizeBlur(MIN_BLUR, MIN_BLUR)).toBe(MIN_BLUR);
+  });
 });
 
 describe('birdStyle', () => {
@@ -909,23 +1591,176 @@ describe('opacityForOverlap', () => {
     for (let overlap = 0; overlap <= 1.0001; overlap += 0.02) {
       const value = opacityForOverlap(overlap);
       expect(value).toBeLessThanOrEqual(previous + 1e-9);
-      expect(value).toBeGreaterThanOrEqual(0.4);
+      expect(value).toBeGreaterThanOrEqual(0.45);
       expect(value).toBeLessThanOrEqual(1);
       previous = value;
     }
-    expect(opacityForOverlap(1)).toBe(0.4);
-    expect(opacityForOverlap(0.5)).toBe(0.4);
+    expect(opacityForOverlap(1)).toBe(0.45);
+    expect(opacityForOverlap(0.5)).toBe(0.45);
   });
 
-  it('dims even when the deadband keeps the blur at zero', () => {
-    expect(blurTarget(0.2, 2.5, 0.28)).toBe(0);
+  it('stays readable at the floor and only dims on real text overlap', () => {
+    // A light graze over a text edge keeps most of the opacity, so the ASCII
+    // is not a permanent smudge; heavy overlap still reaches the floor.
+    expect(opacityForOverlap(0.02)).toBeGreaterThan(0.8);
+    expect(opacityForOverlap(0.08)).toBe(0.45);
+    expect(opacityForOverlap(0.6)).toBe(0.45);
+  });
+
+  it('starts blurring and dimming on the same graze', () => {
+    expect(blurTarget(0.2, 2.5)).toBeGreaterThan(0);
     expect(opacityForOverlap(0.2)).toBeLessThan(1);
   });
 
   it('keeps the floor configurable and clamped', () => {
-    expect(opacityForOverlap(1, 0.6)).toBe(0.6);
+    expect(opacityForOverlap(1, 0.55)).toBe(0.55);
     expect(opacityForOverlap(1, -2)).toBe(0);
     expect(opacityForOverlap(1, 3)).toBe(1);
+  });
+});
+
+describe('visibleViewportHeight', () => {
+  it('drops the part of the layer that sits under the fold', () => {
+    // Landscape phone: the Hero starts 61 px below the top of the window.
+    expect(visibleViewportHeight(61, 1399, 390)).toBe(329);
+    // Portrait phone: the layer is taller than the window, the nav eats 52 px.
+    expect(visibleViewportHeight(52, 1569, 844)).toBe(792);
+    // Desktop: the layer itself ends before the window does.
+    expect(visibleViewportHeight(61, 792, 900)).toBe(792);
+  });
+
+  it('stays sane when the hero is scrolled or the inputs are broken', () => {
+    expect(visibleViewportHeight(-120, 900, 800)).toBe(800);
+    expect(visibleViewportHeight(Number.NaN, 900, 800)).toBe(800);
+    expect(visibleViewportHeight(61, 1399, 0)).toBe(1399);
+    expect(visibleViewportHeight(500, 400, 390)).toBe(0);
+    expect(stageHeight(1399, visibleViewportHeight(61, 1399, 390))).toBe(329);
+  });
+});
+
+describe('obstacles', () => {
+  it('blurs the bird behind every Hero component', () => {
+    const selectors = OBSTACLES.map((obstacle) => obstacle.selector);
+
+    expect(selectors).toContain('.hero__copy h1');
+    expect(selectors).toContain('.hero__copy > p');
+    // The whole CTA row: primary, ghost and the pause control.
+    expect(selectors).toContain('.hero__actions');
+    // The product cards paint above the layer; the bird must still soften.
+    expect(selectors).toContain('.mini-dash');
+    expect(selectors).toContain('.phone');
+    for (const obstacle of OBSTACLES) expect(obstacle.weight).toBe(1);
+    // Text and glass fade the bird; the opaque cards only blur it.
+    expect(OBSTACLES.find((o) => o.selector === '.hero__copy h1')?.contrast).toBe(true);
+    expect(OBSTACLES.find((o) => o.selector === '.hero__copy > p')?.contrast).toBe(true);
+    // The row softens the whole flock; only the transparent controls fade it.
+    expect(OBSTACLES.find((o) => o.selector === '.hero__actions')?.contrast).toBe(false);
+    expect(OBSTACLES.find((o) => o.selector === '.hero__actions .btn--ghost')?.contrast).toBe(true);
+    expect(OBSTACLES.find((o) => o.selector === '.hero__actions .hero__motion')?.contrast).toBe(true);
+    expect(OBSTACLES.find((o) => o.selector === '.mini-dash')?.contrast).toBe(false);
+    expect(OBSTACLES.find((o) => o.selector === '.phone')?.contrast).toBe(false);
+  });
+
+  it('leaves no card or control out of the list', () => {
+    const selectors = OBSTACLES.map((obstacle) => obstacle.selector);
+
+    // A component that hides the bird without blurring it would be a hole.
+    for (const selector of ['.hero__copy h1', '.hero__copy > p', '.mini-dash', '.phone', '.hero__actions']) {
+      expect(selectors.some((entry) => selector === entry || entry.includes(selector))).toBe(true);
+    }
+  });
+});
+
+describe('resizeBirds', () => {
+  it('keeps waypoint fractions and clamps the centre into the new rect', () => {
+    const width = 1440;
+    const height = 792;
+    const birds = layoutHeroBirds(width, height, 1, 0, 9).birds.map((box) => box.bird);
+
+    for (let frame = 0; frame < 300; frame += 1) advanceBirds(birds, 1, width, height);
+
+    const before = birds.map((bird) => ({
+      targetU: bird.targetU,
+      targetV: bird.targetV,
+      zoneSeed: bird.zoneSeed,
+      zone: bird.zone,
+      leg: bird.leg,
+      heading: bird.heading,
+    }));
+    const nextWidth = 800;
+    const nextHeight = 900;
+    const resized = resizeBirds(
+      birds,
+      2,
+      nextWidth,
+      nextHeight,
+      nextWidth / width,
+      nextHeight / height,
+      9,
+    );
+
+    expect(resized).toHaveLength(2);
+    resized.forEach((bird, index) => {
+      const old = before[index];
+      const rect = safeFlightRect(bird.length, nextWidth, nextHeight);
+
+      expect(bird.targetU).toBe(old.targetU);
+      expect(bird.targetV).toBe(old.targetV);
+      expect(bird.zoneSeed).toBe(old.zoneSeed);
+      expect(bird.zone).toBe(old.zone);
+      expect(bird.leg).toBe(old.leg);
+      expect(bird.heading).toBe(old.heading);
+      expect(bird.x).toBeGreaterThanOrEqual(rect.x - 1e-9);
+      expect(bird.x).toBeLessThanOrEqual(rect.x + rect.width + 1e-9);
+      expect(bird.y).toBeGreaterThanOrEqual(rect.y - 1e-9);
+      expect(bird.y).toBeLessThanOrEqual(rect.y + rect.height + 1e-9);
+      expect(Number.isFinite(bird.x + bird.y + bird.heading)).toBe(true);
+    });
+  });
+
+  it('spawns extra birds inside the new safe rect', () => {
+    const birds = layoutHeroBirds(800, 900, 1, 0, 3).birds.map((box) => box.bird);
+    const grown = resizeBirds(birds, 3, 390, 844, 390 / 800, 844 / 900, 3);
+    const extra = grown.slice(birds.length);
+
+    expect(extra).toHaveLength(1);
+    for (const bird of extra) {
+      const rect = safeFlightRect(bird.length, 390, 844);
+      expect(bird.x).toBeGreaterThanOrEqual(rect.x - 1e-9);
+      expect(bird.x).toBeLessThanOrEqual(rect.x + rect.width + 1e-9);
+      expect(bird.y).toBeGreaterThanOrEqual(rect.y - 1e-9);
+      expect(bird.y).toBeLessThanOrEqual(rect.y + rect.height + 1e-9);
+      expect(Number.isFinite(bird.targetU + bird.targetV + bird.zoneSeed)).toBe(true);
+    }
+  });
+});
+
+describe('settleLevel', () => {
+  it('leaves a horizontal still frame instead of a diagonal', () => {
+    for (const [width, height] of [
+      [1440, 792],
+      [800, 900],
+      [390, 552],
+    ] as const) {
+      const birds = layoutHeroBirds(width, height, 1).birds.map((box) => box.bird);
+
+      settleLevel(birds, width, height, 4);
+
+      for (const bird of birds) {
+        expect(Number.isFinite(bird.x + bird.y + bird.heading)).toBe(true);
+        expect(Math.abs(Math.cos(bird.heading))).toBeGreaterThan(0.9);
+      }
+    }
+  });
+
+  it('is deterministic', () => {
+    const a = layoutHeroBirds(1440, 792, 1).birds.map((box) => box.bird);
+    const b = layoutHeroBirds(1440, 792, 1).birds.map((box) => box.bird);
+
+    settleLevel(a, 1440, 792, 4);
+    settleLevel(b, 1440, 792, 4);
+
+    expect(a).toEqual(b);
   });
 });
 
@@ -1203,6 +2038,54 @@ describe('paintBirdFrame', () => {
     expect(all.covered).toBe(all.cells);
     expect(card.covered).toBeCloseTo(all.cells * 0.25, 6);
     expect(none.covered).toBe(0);
+  });
+
+  it('blurs as soon as a single cell sits over content', () => {
+    const bird = makeBird({ x: 300, y: 200, heading: 0.4 });
+    const frame = birdFrame(bird, 1);
+    const { ctx } = fakeContext();
+    const cell = frame.cellWidth;
+    const oneCell = {
+      x: bird.x - cell / 2,
+      y: bird.y - cell / 2,
+      width: cell,
+      height: cell,
+      weight: 1,
+    };
+
+    const stats = paintBirdFrame(ctx, frame, [oneCell]);
+    const overlap = stats.covered / stats.cells;
+
+    expect(stats.covered).toBeGreaterThan(0);
+    expect(overlap).toBeLessThan(0.08);
+    // A graze this light used to quantize to none; the target floor now keeps
+    // it visible even through the plain quantizer.
+    const px = quantizeBlur(blurTarget(overlap, 3));
+    expect(px).toBeGreaterThan(0);
+    expect(px).toBeGreaterThanOrEqual(MIN_BLUR);
+  });
+
+  it('separates blur coverage from contrast coverage', () => {
+    const bird = makeBird({ x: 300, y: 200, heading: 0.4 });
+    const frame = birdFrame(bird, 1);
+    const { ctx } = fakeContext();
+    const bounds = birdBounds(bird);
+    const area = {
+      x: bounds.x - frame.cellWidth,
+      y: bounds.y - frame.cellWidth,
+      width: bounds.width + frame.cellWidth * 2,
+      height: bounds.height + frame.cellWidth * 2,
+    };
+
+    const card = paintBirdFrame(ctx, frame, [{ ...area, weight: 1, contrast: false }]);
+    const text = paintBirdFrame(ctx, frame, [{ ...area, weight: 1, contrast: true }]);
+
+    // An opaque card blurs the bird but does not need to fade it.
+    expect(card.covered).toBe(card.cells);
+    expect(card.coveredText).toBe(0);
+    // Text needs both.
+    expect(text.covered).toBe(text.cells);
+    expect(text.coveredText).toBe(text.cells);
   });
 
   it('keeps the strongest weight when obstacles overlap', () => {
