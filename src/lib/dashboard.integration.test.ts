@@ -534,6 +534,7 @@ describe.skipIf(!RUN)('dashboard data layer (Postgres integration)', () => {
     await expect(getPatrimonioNeto(db(), userId, QUOTES)).resolves.toEqual({
       ars_total: 5400,
       usd_total: 8,
+      by_currency: { ARS: 5400, USD: 8 },
       totals: { oficial: 15800, mep: 15000, blue: 17400 },
       quotes: QUOTES,
     });
