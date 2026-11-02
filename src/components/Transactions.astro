@@ -1,5 +1,6 @@
 ---
 import type { RecentTransaction } from '../lib/dashboard';
+import { currencySymbol } from '../lib/currencies';
 import { formatDecimals } from '../lib/format';
 import Icon from './Icon.astro';
 
@@ -36,7 +37,7 @@ const { transactions } = Astro.props;
           </div>
           <div class="tx-amount" style={tx.tipo === 'ingreso' ? 'color: var(--money-in);' : undefined}>
             {tx.tipo === 'ingreso' ? '+' : '-'}
-            {tx.moneda === 'USD' ? 'U$D' : '$'}
+            {currencySymbol(tx.moneda)}
             {formatDecimals(tx.amount)}
           </div>
         </div>

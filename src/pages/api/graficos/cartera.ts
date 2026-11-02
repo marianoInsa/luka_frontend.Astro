@@ -1,7 +1,8 @@
 import type { APIRoute } from 'astro';
 
-import { getPortfolioByCurrency, getUserByAuthId } from '../../../lib/dashboard';
+import { getPortfolioTotals, getUserByAuthId } from '../../../lib/dashboard';
 import { defaultDateRange } from '../../../lib/dates';
+import { parseCurrency } from '../../../lib/currencies';
 import { getDb } from '../../../lib/db';
 
 export const prerender = false;
@@ -15,7 +16,8 @@ export const GET: APIRoute = async (context) => {
     context.url.searchParams.get('date_from'),
     context.url.searchParams.get('date_to'),
   );
-  const data = await getPortfolioByCurrency(sql, user.id, from, to);
+  const currency = parseCurrency(context.url.searchParams.get('currency'));
+  const data = await getPortfolioTotals(sql, user.id, from, to, currency);
   return new Response(JSON.stringify(data), {
     headers: { 'Content-Type': 'application/json' },
   });

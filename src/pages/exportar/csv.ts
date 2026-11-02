@@ -3,6 +3,7 @@ import type { APIRoute } from 'astro';
 import { createCsvStream } from '../../lib/csv';
 import { getUserByAuthId } from '../../lib/dashboard';
 import { defaultDateRange } from '../../lib/dates';
+import { parseCurrency } from '../../lib/currencies';
 import { getDb } from '../../lib/db';
 
 export const prerender = false;
@@ -18,8 +19,9 @@ export const GET: APIRoute = async (context) => {
     context.url.searchParams.get('date_from'),
     context.url.searchParams.get('date_to'),
   );
+  const currency = parseCurrency(context.url.searchParams.get('currency'));
 
-  return new Response(createCsvStream(sql, user.id, from, to), {
+  return new Response(createCsvStream(sql, user.id, from, to, 500, currency), {
     headers: {
       'Content-Type': 'text/csv; charset=utf-8',
       'Content-Disposition': 'attachment; filename=transacciones.csv',

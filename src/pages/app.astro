@@ -15,6 +15,7 @@ import {
   getUserByAuthId,
 } from '../lib/dashboard';
 import { defaultDateRange } from '../lib/dates';
+import { CURRENCIES, CURRENCY_LABELS, currencySymbol, parseCurrency } from '../lib/currencies';
 import { getDb } from '../lib/db';
 import { isFlowAdmin } from '../lib/flow-admin';
 import { formatPlainInt } from '../lib/format';
@@ -30,13 +31,14 @@ const { from, to } = defaultDateRange(
   Astro.url.searchParams.get('date_from'),
   Astro.url.searchParams.get('date_to'),
 );
+const currency = parseCurrency(Astro.url.searchParams.get('currency'));
 
-const stats = await getSummaryStats(sql, user.id, from, to);
-const transactions = await getRecentTransactions(sql, user.id, 15, from, to);
-const budgets = await getBudgetsWithUsage(sql, user.id, from, to);
+const stats = await getSummaryStats(sql, user.id, from, to, currency);
+const transactions = await getRecentTransactions(sql, user.id, 15, from, to, currency);
+const budgets = await getBudgetsWithUsage(sql, user.id, from, to, currency);
 const quotes = await getCotizaciones();
 const patrimonio = await getPatrimonioNeto(sql, user.id, quotes);
-const consumo = await getConsumoPresupuesto(sql, user.id, from, to);
+const consumo = await getConsumoPresupuesto(sql, user.id, from, to, currency);
 
 const flowAdmin = isFlowAdmin(Astro.locals.authUserId);
 const whatsappLabel = user.whatsapp_id ? `+${user.whatsapp_id.slice(-4)}` : '+···';
@@ -97,6 +99,16 @@ const whatsappLabel = user.whatsapp_id ? `+${user.whatsapp_id.slice(-4)}` : '+·
               <label for="date_to">Hasta</label>
               <input type="date" id="date_to" name="date_to" value={to ?? ''} />
             </div>
+            <div class="filter-group">
+              <label for="currency">Moneda</label>
+              <select id="currency" name="currency">
+                {CURRENCIES.map((code) => (
+                  <option value={code} selected={code === currency}>
+                    {code} · {CURRENCY_LABELS[code]}
+                  </option>
+                ))}
+              </select>
+            </div>
           </form>
         </div>
 
@@ -105,7 +117,7 @@ const whatsappLabel = user.whatsapp_id ? `+${user.whatsapp_id.slice(-4)}` : '+·
           <div id="stats-loading" class="stats-grid" aria-hidden="true">
             {Array.from({ length: 5 }).map(() => <div class="skeleton skeleton-stat" />)}
           </div>
-          <Stats stats={stats} patrimonio={patrimonio} consumo={consumo} />
+          <Stats stats={stats} patrimonio={patrimonio} consumo={consumo} currency={currency} />
         </section>
 
         <!-- ── Charts — grilla 2×2 superior + barra full-width ── -->
@@ -131,9 +143,9 @@ const whatsappLabel = user.whatsapp_id ? `+${user.whatsapp_id.slice(-4)}` : '+·
                       </div>
                       <div class="budget-amounts">
                         <span class:list={['budget-spent', budget.over && 'over-budget']}>
-                          ${formatPlainInt(budget.spent)}
+                          {currencySymbol(currency)}{formatPlainInt(budget.spent)}
                         </span>
-                        <span class="budget-limit"> / ${formatPlainInt(budget.limit)}</span>
+                        <span class="budget-limit"> / {currencySymbol(currency)}{formatPlainInt(budget.limit)}</span>
                       </div>
                     </div>
                     <div class="budget-bar-bg">
@@ -150,9 +162,9 @@ const whatsappLabel = user.whatsapp_id ? `+${user.whatsapp_id.slice(-4)}` : '+·
                     <div class="budget-meta">
                       <span>{budget.pct}% utilizado</span>
                       {budget.over ? (
-                        <span class="over-label">Excedido ${formatPlainInt(budget.spent - budget.limit)}</span>
+                        <span class="over-label">Excedido {currencySymbol(currency)}{formatPlainInt(budget.spent - budget.limit)}</span>
                       ) : (
-                        <span>Disponible: ${formatPlainInt(budget.remaining)}</span>
+                        <span>Disponible: {currencySymbol(currency)}{formatPlainInt(budget.remaining)}</span>
                       )}
                     </div>
                   </div>
@@ -186,6 +198,8 @@ const whatsappLabel = user.whatsapp_id ? `+${user.whatsapp_id.slice(-4)}` : '+·
     <script is:inline>
       // Chart instances
       let pieChart, flowChart, portfolioChart;
+      const CURRENCY_SYMBOLS = { ARS: '$', USD: 'u$s', BRL: 'R$', EUR: '€' };
+      let chartSymbol = '$';
 
       // ── Helpers ──────────────────────────────────────────────────────────────────
       const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -224,11 +238,11 @@ const whatsappLabel = user.whatsapp_id ? `+${user.whatsapp_id.slice(-4)}` : '+·
         },
         scales: {
           x: { ticks: { color: cssVar('--text-muted'), font: { family: 'Inter', size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
-          y: { ticks: { color: cssVar('--text-muted'), font: { family: 'Inter', size: 11 }, callback: v => `$${Number(v).toLocaleString('es-AR')}` }, grid: { color: 'rgba(255,255,255,0.04)' } }
+          y: { ticks: { color: cssVar('--text-muted'), font: { family: 'Inter', size: 11 }, callback: v => `${chartSymbol}${Number(v).toLocaleString('es-AR')}` }, grid: { color: 'rgba(255,255,255,0.04)' } }
         }
       };
 
-      function moneyLabel(v, prefix = '$') {
+      function moneyLabel(v, prefix = chartSymbol) {
         return ` ${prefix}${Number(v).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
       }
 
@@ -298,8 +312,8 @@ const whatsappLabel = user.whatsapp_id ? `+${user.whatsapp_id.slice(-4)}` : '+·
         });
       }
 
-      // ── Gráfico 2: Barras Apiladas — Cartera Multidivisa ─────────────────────────
-      function buildPortfolioChart(data) {
+      // ── Gráfico 2: Barras — Egresos de la moneda seleccionada ───────────────────
+      function buildPortfolioChart(data, currency) {
         const ctx = document.getElementById('chart-portfolio');
         if (!ctx) return;
         if (portfolioChart) portfolioChart.destroy();
@@ -309,16 +323,9 @@ const whatsappLabel = user.whatsapp_id ? `+${user.whatsapp_id.slice(-4)}` : '+·
             labels: data.map(d => d.month),
             datasets: [
               {
-                label: 'ARS',
-                data: data.map(d => d.ARS),
+                label: currency,
+                data: data.map(d => d.total),
                 backgroundColor: cssVar('--cat-servicios'),
-                borderRadius: 4,
-                borderSkipped: false,
-              },
-              {
-                label: 'USD',
-                data: data.map(d => d.USD),
-                backgroundColor: cssVar('--cat-ingresos'),
                 borderRadius: 4,
                 borderSkipped: false,
               }
@@ -329,7 +336,7 @@ const whatsappLabel = user.whatsapp_id ? `+${user.whatsapp_id.slice(-4)}` : '+·
             plugins: {
               ...CHART_DEFAULTS.plugins,
               legend: { ...CHART_DEFAULTS.plugins.legend, position: 'top' },
-              tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${moneyLabel(ctx.parsed.y, ctx.dataset.label === 'USD' ? 'u$s' : '$')}` } }
+              tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${moneyLabel(ctx.parsed.y)}` } }
             },
             scales: { ...CHART_DEFAULTS.scales }
           }
@@ -374,12 +381,13 @@ const whatsappLabel = user.whatsapp_id ? `+${user.whatsapp_id.slice(-4)}` : '+·
       }
 
       // ── Build all charts ─────────────────────────────────────────────────────────
-      async function fetchAndBuildCharts(from = '', to = '') {
+      async function fetchAndBuildCharts(from = '', to = '', currency = 'ARS') {
+        chartSymbol = CURRENCY_SYMBOLS[currency] || '$';
         try {
           const [resCat, resPort, resFlow] = await Promise.all([
-            fetch(`/api/graficos/distribucion?date_from=${from}&date_to=${to}`),
-            fetch(`/api/graficos/cartera?date_from=${from}&date_to=${to}`),
-            fetch(`/api/graficos/flujo?date_from=${from}&date_to=${to}`),
+            fetch(`/api/graficos/distribucion?date_from=${from}&date_to=${to}&currency=${currency}`),
+            fetch(`/api/graficos/cartera?date_from=${from}&date_to=${to}&currency=${currency}`),
+            fetch(`/api/graficos/flujo?date_from=${from}&date_to=${to}&currency=${currency}`),
           ]);
 
           if (resCat.ok && resPort.ok && resFlow.ok) {
@@ -388,11 +396,11 @@ const whatsappLabel = user.whatsapp_id ? `+${user.whatsapp_id.slice(-4)}` : '+·
             const flowData = await resFlow.json();
 
             const isCatEmpty = catData.length === 0 || catData.every(d => d.total === 0);
-            const isPortEmpty = portData.length === 0 || portData.every(d => d.ARS === 0 && d.USD === 0);
+            const isPortEmpty = portData.length === 0 || portData.every(d => d.total === 0);
             const isFlowEmpty = flowData.length === 0 || flowData.every(d => d.ingresos === 0 && d.egresos === 0);
 
             if (!handleEmptyChart('card-pie', !isCatEmpty)) buildPieChart(catData);
-            if (!handleEmptyChart('card-portfolio', !isPortEmpty)) buildPortfolioChart(portData);
+            if (!handleEmptyChart('card-portfolio', !isPortEmpty)) buildPortfolioChart(portData, currency);
             if (!handleEmptyChart('card-flow', !isFlowEmpty)) buildFlowChart(flowData);
 
             markChartLoaded('card-pie');
@@ -413,22 +421,24 @@ const whatsappLabel = user.whatsapp_id ? `+${user.whatsapp_id.slice(-4)}` : '+·
       document.addEventListener('DOMContentLoaded', () => {
         const from = document.getElementById('date_from')?.value || '';
         const to   = document.getElementById('date_to')?.value   || '';
-        fetchAndBuildCharts(from, to);
+        const currency = document.getElementById('currency')?.value || 'ARS';
+        fetchAndBuildCharts(from, to, currency);
       });
 
       // Listen for the custom HTMX event triggered by the backend
       document.body.addEventListener('actualizarGraficos', async function() {
         const from = document.getElementById('date_from')?.value || '';
         const to   = document.getElementById('date_to')?.value   || '';
+        const currency = document.getElementById('currency')?.value || 'ARS';
 
         // Fetch JSON data and build charts on the existing canvases
-        await fetchAndBuildCharts(from, to);
+        await fetchAndBuildCharts(from, to, currency);
 
         // Also refresh transactions
         const txList = document.getElementById('transactions-list');
         txList.setAttribute('aria-busy', 'true');
         txList.innerHTML = '<div class="tx-skeleton-row"><div class="skeleton" style="height:44px;border-radius:999px"></div><div class="skeleton" style="height:16px"></div><div class="skeleton" style="height:16px"></div></div>'.repeat(5);
-        const txRes = await fetch(`/partials/transactions?date_from=${from}&date_to=${to}`);
+        const txRes = await fetch(`/partials/transactions?date_from=${from}&date_to=${to}&currency=${currency}`);
         txList.innerHTML = await txRes.text();
         txList.setAttribute('aria-busy', 'false');
       });
@@ -436,7 +446,8 @@ const whatsappLabel = user.whatsapp_id ? `+${user.whatsapp_id.slice(-4)}` : '+·
       function exportCSV() {
         const from = document.getElementById('date_from')?.value || '';
         const to   = document.getElementById('date_to')?.value   || '';
-        window.location.href = `/exportar/csv?date_from=${from}&date_to=${to}`;
+        const currency = document.getElementById('currency')?.value || 'ARS';
+        window.location.href = `/exportar/csv?date_from=${from}&date_to=${to}&currency=${currency}`;
       }
     </script>
   </body>

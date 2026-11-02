@@ -47,6 +47,7 @@ export interface BudgetUsage {
 export interface PatrimonioNeto {
   ars_total: number;
   usd_total: number;
+  by_currency: Record<string, number>;
   totals: Partial<Record<QuoteType, number | null>>;
   quotes: Quotes;
 }
@@ -163,6 +164,7 @@ export async function getSummaryStats(
   userId: string,
   dateFrom: string | null = null,
   dateTo: string | null = null,
+  currency: string | null = null,
 ): Promise<SummaryStats> {
   // Una sola pasada agrupada por tipo: solo egreso/ingreso cuentan (igual que
   // las dos queries + len() de Python).
@@ -174,6 +176,7 @@ export async function getSummaryStats(
     WHERE m.usuario_id = ${userId}::uuid
       AND m.anulado_en IS NULL
       ${dateFilters(sql, dateFrom, dateTo)}
+      ${currency ? sql`AND m.moneda = ${currency}` : sql``}
     GROUP BY m.tipo
   `;
 
@@ -198,6 +201,7 @@ export async function getSummaryStats(
       AND m.tipo = 'egreso'
       AND m.anulado_en IS NULL
       ${dateFilters(sql, dateFrom, dateTo)}
+      ${currency ? sql`AND m.moneda = ${currency}` : sql``}
     GROUP BY c.nombre
     ORDER BY SUM(m.cantidad) DESC
     LIMIT 1
@@ -223,6 +227,7 @@ export async function getExpensesByCategory(
   userId: string,
   dateFrom: string | null = null,
   dateTo: string | null = null,
+  currency: string | null = null,
 ): Promise<CategoryExpense[]> {
   // GROUP BY del nombre crudo (sin COALESCE) para no fusionar un movimiento sin
   // categoría con una categoría llamada "Otro", igual que Python.
@@ -234,6 +239,7 @@ export async function getExpensesByCategory(
       AND m.tipo = 'egreso'
       AND m.anulado_en IS NULL
       ${dateFilters(sql, dateFrom, dateTo)}
+      ${currency ? sql`AND m.moneda = ${currency}` : sql``}
     GROUP BY c.nombre
     ORDER BY SUM(m.cantidad) DESC
   `;
@@ -267,6 +273,7 @@ export async function getRecentTransactions(
   limit = 15,
   dateFrom: string | null = null,
   dateTo: string | null = null,
+  currency: string | null = null,
 ): Promise<RecentTransaction[]> {
   const rows = await sql<RecentTransactionRow[]>`
     SELECT m.id,
@@ -285,6 +292,7 @@ export async function getRecentTransactions(
     WHERE m.usuario_id = ${userId}::uuid
       AND m.anulado_en IS NULL
       ${dateFilters(sql, dateFrom, dateTo)}
+      ${currency ? sql`AND m.moneda = ${currency}` : sql``}
     ORDER BY m.creado_en DESC
     LIMIT ${limit}
   `;
@@ -313,6 +321,7 @@ export async function getBudgetsWithUsage(
   userId: string,
   dateFrom: string | null = null,
   dateTo: string | null = null,
+  currency: string | null = null,
 ): Promise<BudgetUsage[]> {
   // Una sola query con LEFT JOIN en vez del N+1 de Python. Los filtros de fecha
   // van dentro del ON para no descartar presupuestos sin movimientos.
@@ -325,11 +334,13 @@ export async function getBudgetsWithUsage(
     LEFT JOIN movimientos_financieros m
       ON m.categoria_id = l.categoria_id
      AND m.usuario_id = l.usuario_id
+     AND m.moneda = l.moneda
      AND m.tipo = 'egreso'
      AND m.anulado_en IS NULL
      ${dateFrom ? sql`AND m.fecha_movimiento >= ${dateFrom}::date` : sql``}
      ${dateTo ? sql`AND m.fecha_movimiento <= ${dateTo}::date` : sql``}
     WHERE l.usuario_id = ${userId}::uuid
+      ${currency ? sql`AND l.moneda = ${currency}` : sql``}
     GROUP BY l.id, c.nombre, l.cantidad_max
   `;
   return rows.map((row) => {
@@ -355,54 +366,39 @@ export async function getPatrimonioNeto(
   userId: string,
   quotes: Quotes,
 ): Promise<PatrimonioNeto> {
-  const compra = (tipo: QuoteType): string | null => {
-    const value = quotes[tipo]?.compra;
-    return value == null ? null : value.toString();
-  };
-
-  const rows = await sql<
-    { ars_total: string; usd_total: string; tipo: QuoteType; total: string | null }[]
-  >`
-    WITH base AS (
-      SELECT
-        COALESCE(SUM(CASE WHEN m.tipo = 'ingreso' THEN m.cantidad ELSE -m.cantidad END)
-                 FILTER (WHERE upper(b.moneda) = 'ARS'), 0)::numeric AS ars_total,
-        COALESCE(SUM(CASE WHEN m.tipo = 'ingreso' THEN m.cantidad ELSE -m.cantidad END)
-                 FILTER (WHERE upper(b.moneda) = 'USD'), 0)::numeric AS usd_total
-      FROM movimientos_financieros m
-      JOIN billetera b
-        ON b.id = m.billetera_id
-       AND b.usuario_id = m.usuario_id
-       AND b.moneda = m.moneda
-      WHERE m.usuario_id = ${userId}::uuid
-        AND m.anulado_en IS NULL
-    ),
-    tipos(tipo, compra) AS (
-      VALUES
-        ('oficial', ${compra('oficial')}::numeric),
-        ('mep', ${compra('mep')}::numeric),
-        ('blue', ${compra('blue')}::numeric)
-    )
-    SELECT
-      base.ars_total::text AS ars_total,
-      base.usd_total::text AS usd_total,
-      tipos.tipo,
-      CASE
-        WHEN base.usd_total = 0 THEN base.ars_total
-        WHEN tipos.compra IS NULL THEN NULL
-        ELSE base.ars_total + base.usd_total * tipos.compra
-      END::text AS total
-    FROM base CROSS JOIN tipos
+  const rows = await sql<{ moneda: string; total: string }[]>`
+    SELECT upper(b.moneda) AS moneda,
+           COALESCE(SUM(CASE WHEN m.tipo = 'ingreso' THEN m.cantidad ELSE -m.cantidad END), 0)::text AS total
+    FROM movimientos_financieros m
+    JOIN billetera b
+      ON b.id = m.billetera_id
+     AND b.usuario_id = m.usuario_id
+     AND b.moneda = m.moneda
+    WHERE m.usuario_id = ${userId}::uuid
+      AND m.anulado_en IS NULL
+    GROUP BY upper(b.moneda)
   `;
 
-  const totals: Partial<Record<QuoteType, number | null>> = {};
+  const byCurrency: Record<string, number> = {};
   for (const row of rows) {
-    totals[row.tipo] = row.total === null ? null : Number(row.total);
+    byCurrency[row.moneda] = Number(row.total);
+  }
+  const arsTotal = byCurrency.ARS ?? 0;
+  const usdTotal = byCurrency.USD ?? 0;
+  const totals: Partial<Record<QuoteType, number | null>> = {};
+  for (const tipo of ['oficial', 'mep', 'blue'] as QuoteType[]) {
+    const compra = quotes[tipo]?.compra;
+    if (usdTotal === 0) {
+      totals[tipo] = arsTotal;
+    } else {
+      totals[tipo] = compra == null ? null : arsTotal + usdTotal * compra;
+    }
   }
 
   return {
-    ars_total: Number(rows[0].ars_total),
-    usd_total: Number(rows[0].usd_total),
+    ars_total: arsTotal,
+    usd_total: usdTotal,
+    by_currency: byCurrency,
     totals,
     quotes,
   };
@@ -413,11 +409,13 @@ export async function getConsumoPresupuesto(
   userId: string,
   dateFrom: string | null = null,
   dateTo: string | null = null,
+  currency: string | null = null,
 ): Promise<ConsumoPresupuesto> {
   const budgets = await sql<{ cantidad_max: string; categoria_id: string }[]>`
     SELECT cantidad_max::text AS cantidad_max, categoria_id
     FROM limite_categoria
     WHERE usuario_id = ${userId}::uuid
+      ${currency ? sql`AND moneda = ${currency}` : sql``}
   `;
   if (budgets.length === 0) return { pct: 0, spent: 0, limit: 0 };
 
@@ -432,6 +430,7 @@ export async function getConsumoPresupuesto(
       AND m.tipo = 'egreso'
       AND m.categoria_id IN ${sql(categoryIds)}
       AND m.anulado_en IS NULL
+      ${currency ? sql`AND m.moneda = ${currency}` : sql``}
       ${dateFilters(sql, dateFrom, dateTo)}
   `;
   const spent = Number(spentRows[0].spent);
@@ -454,6 +453,7 @@ export async function getMonthlyFlow(
   userId: string,
   dateFrom: string | null = null,
   dateTo: string | null = null,
+  currency: string | null = null,
 ): Promise<MonthlyFlowPoint[]> {
   const rows = await sql<(MonthTotalRow & { tipo: string })[]>`
     SELECT EXTRACT(YEAR FROM m.fecha_movimiento)::int AS year,
@@ -464,6 +464,7 @@ export async function getMonthlyFlow(
     WHERE m.usuario_id = ${userId}::uuid
       AND m.anulado_en IS NULL
       ${dateFilters(sql, dateFrom, dateTo)}
+      ${currency ? sql`AND m.moneda = ${currency}` : sql``}
     GROUP BY EXTRACT(YEAR FROM m.fecha_movimiento),
              EXTRACT(MONTH FROM m.fecha_movimiento),
              m.tipo
@@ -543,6 +544,41 @@ export async function getPortfolioByCurrency(
     month: `${MONTH_NAMES_ES[point.month - 1]} ${point.year}`,
     ARS: point.ARS,
     USD: point.USD,
+  }));
+}
+
+export interface CurrencyPortfolioPoint {
+  month: string;
+  total: number;
+}
+
+export async function getPortfolioTotals(
+  sql: Sql,
+  userId: string,
+  dateFrom: string | null = null,
+  dateTo: string | null = null,
+  currency = 'ARS',
+): Promise<CurrencyPortfolioPoint[]> {
+  const rows = await sql<MonthTotalRow[]>`
+    SELECT EXTRACT(YEAR FROM m.fecha_movimiento)::int AS year,
+           EXTRACT(MONTH FROM m.fecha_movimiento)::int AS month,
+           COALESCE(SUM(m.cantidad), 0)::text AS total
+    FROM movimientos_financieros m
+    WHERE m.usuario_id = ${userId}::uuid
+      AND m.tipo = 'egreso'
+      AND m.anulado_en IS NULL
+      AND m.moneda = ${currency}
+      ${dateFilters(sql, dateFrom, dateTo)}
+    GROUP BY EXTRACT(YEAR FROM m.fecha_movimiento),
+             EXTRACT(MONTH FROM m.fecha_movimiento)
+    ORDER BY year, month
+  `;
+
+  let points = [...rows];
+  if (!dateFrom && !dateTo) points = points.slice(-6);
+  return points.map((point) => ({
+    month: `${MONTH_NAMES_ES[point.month - 1]} ${point.year}`,
+    total: Number(point.total),
   }));
 }
 
