@@ -54,6 +54,7 @@ export function createCsvStream(
   dateFrom: string | null,
   dateTo: string | null,
   batchSize = 500,
+  currency: string | null = null,
 ): ReadableStream<Uint8Array> {
   const encoder = new TextEncoder();
   let cursor: CsvCursor | null = null;
@@ -80,6 +81,7 @@ export function createCsvStream(
           LEFT JOIN categorias c ON c.id = m.categoria_id
           WHERE m.usuario_id = ${userId}::uuid
             AND m.anulado_en IS NULL
+            ${currency ? sql`AND m.moneda = ${currency}` : sql``}
             ${dateFrom ? sql`AND m.fecha_movimiento >= ${dateFrom}::date` : sql``}
             ${dateTo ? sql`AND m.fecha_movimiento <= ${dateTo}::date` : sql``}
             ${

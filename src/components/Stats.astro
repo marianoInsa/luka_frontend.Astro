@@ -1,5 +1,6 @@
 ---
 import type { ConsumoPresupuesto, PatrimonioNeto, SummaryStats } from '../lib/dashboard';
+import { CURRENCIES, currencySymbol, type Currency } from '../lib/currencies';
 import { formatDecimals, formatInt } from '../lib/format';
 import { formatQuoteTime, type QuoteType } from '../lib/quotes';
 import Icon from './Icon.astro';
@@ -8,22 +9,29 @@ interface Props {
   stats: SummaryStats;
   patrimonio: PatrimonioNeto;
   consumo: ConsumoPresupuesto;
+  currency: Currency;
 }
 
-const { stats, patrimonio, consumo } = Astro.props;
+const { stats, patrimonio, consumo, currency } = Astro.props;
 
 const TIPOS: QuoteType[] = ['oficial', 'mep', 'blue'];
 const TIPO_LABELS: Record<QuoteType, string> = { oficial: 'Oficial', mep: 'MEP', blue: 'Blue' };
 
 const hasBudget = consumo.limit > 0;
 const hasTopCategory = stats.top_category !== '—';
+const capitalEntries = Object.entries(patrimonio.by_currency)
+  .filter(([, value]) => value !== 0)
+  .sort(([left], [right]) =>
+    CURRENCIES.indexOf(left as Currency) - CURRENCIES.indexOf(right as Currency));
+const capitalAmount = (code: string, value: number): string =>
+  code === 'ARS' ? formatInt(value) : formatDecimals(value, 2);
 // Signo antes del prefijo de moneda: -$500, -u$s500,00.
 const money = (prefix: string, text: string): string =>
   text.startsWith('-') ? `-${prefix}${text.slice(1)}` : `${prefix}${text}`;
 const capitalColor =
-  patrimonio.ars_total > 0 || patrimonio.usd_total > 0
+  Object.values(patrimonio.by_currency).some((value) => value > 0)
     ? 'var(--money-in)'
-    : patrimonio.ars_total < 0 && patrimonio.usd_total < 0
+    : Object.values(patrimonio.by_currency).some((value) => value < 0)
       ? 'var(--money-out)'
       : 'var(--text-primary)';
 
@@ -74,12 +82,15 @@ const consumoOver = consumo.over === true;
     <div class="stat-body stat-body--full">
       <p class="stat-label">Capital consolidado</p>
       <div class="capital-lines">
-        <span class="capital-line" style={`color: ${capitalColor};`}>
-          {money('$', formatInt(patrimonio.ars_total))}
-        </span>
-        <span class="capital-line" style={`color: ${capitalColor};`}>
-          {money('u$s', formatDecimals(patrimonio.usd_total, 2))}
-        </span>
+        {capitalEntries.length === 0 && (
+          <span class="capital-line" style="color: var(--text-primary);">Sin saldos</span>
+        )}
+        {capitalEntries.map(([code, total]) => (
+          <span class="capital-line" style={`color: ${capitalColor};`}>
+            {money(currencySymbol(code), capitalAmount(code, total))}
+            <small> {code}</small>
+          </span>
+        ))}
       </div>
       <ul class="capital-totals">
         {TIPOS.map((tipo) => {
@@ -182,7 +193,7 @@ const consumoOver = consumo.over === true;
         {
           hasBudget ? (
             <>
-              ${formatInt(consumo.spent)} / ${formatInt(consumo.limit)}
+              ${money(currencySymbol(currency), formatInt(consumo.spent))} / ${money(currencySymbol(currency), formatInt(consumo.limit))}
               {consumoOver && <span class="stat-badge stat-badge--danger">Excedido</span>}
             </>
           ) : (

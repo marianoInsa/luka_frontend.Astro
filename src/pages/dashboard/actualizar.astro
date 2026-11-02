@@ -7,6 +7,7 @@ import {
   getUserByAuthId,
 } from '../../lib/dashboard';
 import { defaultDateRange } from '../../lib/dates';
+import { parseCurrency } from '../../lib/currencies';
 import { getDb } from '../../lib/db';
 import { getCotizaciones } from '../../lib/quotes';
 
@@ -22,13 +23,14 @@ const { from, to } = defaultDateRange(
   Astro.url.searchParams.get('date_from'),
   Astro.url.searchParams.get('date_to'),
 );
+const currency = parseCurrency(Astro.url.searchParams.get('currency'));
 
-const stats = await getSummaryStats(sql, user.id, from, to);
+const stats = await getSummaryStats(sql, user.id, from, to, currency);
 const quotes = await getCotizaciones();
 const patrimonio = await getPatrimonioNeto(sql, user.id, quotes);
-const consumo = await getConsumoPresupuesto(sql, user.id, from, to);
+const consumo = await getConsumoPresupuesto(sql, user.id, from, to, currency);
 
 Astro.response.headers.set('HX-Trigger', 'actualizarGraficos');
 ---
 
-<Stats stats={stats} patrimonio={patrimonio} consumo={consumo} />
+<Stats stats={stats} patrimonio={patrimonio} consumo={consumo} currency={currency} />
